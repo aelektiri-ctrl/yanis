@@ -150,6 +150,7 @@ def inserer(con, table, ligne):
 class PMU:
     def __init__(self):
         self.source = None  # la premiere adresse qui repond est gardee
+        self.panne = False  # vrai si le PMU est injoignable (et pas simplement "pas de donnees")
 
     def _get(self, url):
         for essai in range(4):
@@ -158,17 +159,20 @@ class PMU:
                 with urllib.request.urlopen(req, timeout=30) as rep:
                     corps = rep.read()
                 time.sleep(PAUSE)
+                self.panne = False
                 if not corps:
                     return None
                 return json.loads(corps.decode("utf-8"))
             except urllib.error.HTTPError as e:
                 if e.code in (204, 400, 404):
+                    self.panne = False
                     return None
                 attente = 5 * (essai + 1)
             except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError):
                 attente = 5 * (essai + 1)
             print(f"   ... le PMU ne repond pas, nouvel essai dans {attente} s")
             time.sleep(attente)
+        self.panne = True
         return None
 
     def appel(self, suffixe):
@@ -304,6 +308,10 @@ def lire_rapports(con, date, r, c, donnees):
 # Fichiers du jour
 # --------------------------------------------------------------------------
 
+class PMUEnPanne(Exception):
+    """Le PMU ne repond plus : on arrete proprement, sans rien marquer comme vide."""
+
+
 def chemin_jour(jour):
     return os.path.join(DONNEES, f"{jour:%Y}", f"{jour:%m}", f"{jour.isoformat()}.json.gz")
 
@@ -330,6 +338,8 @@ def collecter_jour(pmu, jour, france_seulement=True):
     contenu = {"date": date, "collecte_le": dt.datetime.now(PARIS).isoformat(timespec="seconds"),
                "final": jour < aujourdhui() - dt.timedelta(days=1)}
     if prog is None:
+        if pmu.panne:
+            raise PMUEnPanne()
         if jour >= aujourdhui() - dt.timedelta(days=1):
             return "pas de programme (pas ecrit, on reessaiera)"
         contenu["vide"] = True
@@ -386,6 +396,14 @@ def cmd_collecte(args):
     pmu, t0 = PMU(), time.time()
     limite = t0 + args.budget * 60
     auj = aujourdhui()
+    try:
+        _collecte(pmu, t0, limite, auj, args)
+    except PMUEnPanne:
+        print("Le PMU ne repond plus : arret propre, on reprendra au prochain passage.")
+    cmd_bilan(args)
+
+
+def _collecte(pmu, t0, limite, auj, args):
     # 1. Le present : avant-hier, hier et aujourd'hui sont toujours mis a jour
     for k in (2, 1, 0):
         jour = auj - dt.timedelta(days=k)
@@ -400,7 +418,6 @@ def cmd_collecte(args):
             n += 1
         jour -= dt.timedelta(days=1)
     print(f"Historique : {n} jours ajoutes en {(time.time() - t0) / 60:.1f} min.")
-    cmd_bilan(args)
 
 
 def charger_tout():
@@ -444,11 +461,14 @@ def cmd_bilan(args):
         l.append(f"| {d or '?'} | {n} |")
     l += ["", "## Drivers et jockeys qui gagnent le plus (50 courses minimum)", "",
           "| Nom | Courses | Victoires | % gagnant | % podium |", "|---|---|---|---|---|"]
-    sql = """SELECT driver, COUNT(*) n, SUM(place_arrivee=1),
-                    ROUND(100.0*SUM(place_arrivee=1)/COUNT(*),1),
-                    ROUND(100.0*SUM(place_arrivee BETWEEN 1 AND 3)/COUNT(*),1)
-             FROM partants WHERE driver IS NOT NULL AND place_arrivee IS NOT NULL
-             GROUP BY driver HAVING n >= 50 ORDER BY 3 DESC LIMIT 15"""
+    # Tous les vrais partants des courses arrivees (disqualifies compris), noms harmonises
+    sql = """SELECT REPLACE(REPLACE(p.driver, '. ', '.'), '.', '. ') d, COUNT(*) n,
+                    SUM(p.place_arrivee = 1),
+                    ROUND(100.0 * SUM(p.place_arrivee = 1) / COUNT(*), 1),
+                    ROUND(100.0 * SUM(p.place_arrivee BETWEEN 1 AND 3) / COUNT(*), 1)
+             FROM partants p JOIN courses c USING (date, r, c)
+             WHERE p.driver IS NOT NULL AND p.statut = 'PARTANT' AND c.arrivee IS NOT NULL
+             GROUP BY d HAVING n >= 50 ORDER BY 3 DESC LIMIT 15"""
     for row in con.execute(sql):
         l.append("| " + " | ".join(str(x) for x in row) + " |")
     texte = "\n".join(l) + "\n"
