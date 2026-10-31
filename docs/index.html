@@ -21,7 +21,7 @@ header h1 span{color:var(--vert)}
 #maj{color:var(--doux);font-size:12px}
 main{padding:12px 16px 96px;max-width:720px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b110e;border-top:1px solid var(--ligne);padding-bottom:env(safe-area-inset-bottom);z-index:6}
-nav button{flex:1;background:none;border:0;color:var(--doux);padding:10px 0 12px;font:inherit;font-size:12px}
+nav button{flex:1;background:none;border:0;color:var(--doux);padding:10px 0 12px;font:inherit;font-size:11.5px}
 nav button b{display:block;font-size:20px;line-height:1.2}
 nav button.actif{color:var(--vert)}
 .bandeau{background:#2b2410;border:1px solid #5a4a1a;color:#f6dd97;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
@@ -89,13 +89,14 @@ input,select{width:100%;background:var(--carte2);border:1px solid var(--ligne);c
 <main id="vue"></main>
 <nav>
   <button data-onglet="jour" class="actif"><b>🏇</b>Courses</button>
+  <button data-onglet="sport"><b>⚽</b>Sport</button>
   <button data-onglet="resultats"><b>🏁</b>Résultats</button>
   <button data-onglet="tableau"><b>📊</b>Tableau</button>
   <button data-onglet="paris"><b>🎟️</b>Mes paris</button>
 </nav>
 <script>
 const D = {}; // donnees chargees
-const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null };
+const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null, sport: "foot", direct: "fra.1" };
 const vue = document.getElementById("vue");
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -117,8 +118,8 @@ async function charger(nom) {
 
 async function demarrer() {
   try {
-    const [a, h, d, t] = await Promise.all(["aujourdhui", "hier", "demain", "tableau"].map(n => charger(n).catch(() => null)));
-    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t});
+    const [a, h, d, t, f] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f});
     document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
   } catch (e) {
     document.getElementById("maj").textContent = "Pas de connexion";
@@ -128,7 +129,8 @@ async function demarrer() {
 
 function afficher() {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("actif", b.dataset.onglet === etat.onglet));
-  ({jour: vueJour, resultats: vueResultats, tableau: vueTableau, paris: vueParis})[etat.onglet]();
+  if (etat.onglet !== "sport") arreterDirect();
+  ({jour: vueJour, sport: vueSport, resultats: vueResultats, tableau: vueTableau, paris: vueParis})[etat.onglet]();
   window.scrollTo(0, 0);
 }
 
@@ -233,6 +235,117 @@ function rapportsHTML(c) {
   return `<div class="carte"><h3>Rapports pour 1 €</h3><table class="rapports">` +
     lignes.slice(0, 18).map(r => `<tr><td>${esc(r.libelle)}</td><td>${esc(r.combinaison)}</td><td>${r.rapport.toFixed(2)} €</td></tr>`).join("") +
     `</table></div>`;
+}
+
+
+/* ---------- SPORT ---------- */
+const MARCHE_NOM = {"1": "Victoire domicile", "N": "Match nul", "2": "Victoire extérieur", "+2.5": "Plus de 2,5 buts", "-2.5": "Moins de 2,5 buts"};
+const dateFr = d => new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
+
+function vueSport() {
+  let h = `<div class="puces">
+    <button class="puce ${etat.sport === "foot" ? "actif" : ""}" data-sp="foot">Football – pronostics</button>
+    <button class="puce ${etat.sport === "direct" ? "actif" : ""}" data-sp="direct">En direct</button></div>`;
+  if (etat.sport === "direct") { vue.innerHTML = h + `<div id="direct"></div>`; lierSport(); return vueDirect(); }
+  arreterDirect();
+  const f = D.foot;
+  if (!f) { vue.innerHTML = h + `<div class="vide">Les données football arrivent au prochain passage de Yanis.</div>`; return lierSport(); }
+  const b = f.banc_essai;
+  const fiable = b.paris >= 100 && b.roi > 0;
+  h += `<div class="bandeau" style="${fiable ? "background:#123222;border-color:#2a6b45;color:#bff0d0" : ""}">
+    <b>Double filtre :</b> plus de ${Math.round(100 * f.filtre.proba)} % de chances <b>et</b> une cote qui paie au moins ${Math.round(100 * f.filtre.value)} % de plus que le risque.<br>
+    Banc d'essai sur 12 mois (sans voir l'avenir) : ${b.paris} paris, ${b.reussite != null ? Math.round(100 * b.reussite) : "–"} % gagnés, rentabilité
+    <b class="${(b.roi || 0) >= 0 ? "pos" : "neg"}">${b.roi != null ? (100 * b.roi).toFixed(1) + " %" : "–"}</b> aux cotes de clôture.
+    ${fiable ? "" : "<br><b>Mode observation</b> tant que la rentabilité n'est pas positive sur assez de paris."}</div>`;
+  const sel = f.a_venir.filter(m => m.selections.length);
+  h += `<h2>Sélections du filtre (${sel.length})</h2>`;
+  h += sel.length ? sel.map(m => carteMatch(m, true)).join("") : `<div class="carte sous">Aucun match ne passe le double filtre pour l'instant. C'est normal : Yanis préfère passer son tour.</div>`;
+  h += `<h2>Tous les matchs analysés (${f.a_venir.length})</h2>`;
+  let jour = "";
+  for (const m of f.a_venir) {
+    if (m.date !== jour) { jour = m.date; h += `<div class="sous" style="margin:14px 2px 6px;text-transform:capitalize">${dateFr(m.date)}</div>`; }
+    h += carteMatch(m, false);
+  }
+  h += `<div class="sous" style="margin-top:14px">Bibliothèque : ${f.bibliotheque.matchs.toLocaleString("fr-FR")} matchs, ${f.bibliotheque.championnats} championnats, depuis ${esc(f.bibliotheque.debut || "–")}. Mis à jour le ${esc(f.maj)}.</div>`;
+  vue.innerHTML = h;
+  lierSport();
+}
+
+function barre1N2(p) {
+  const c = (x, coul) => `<i style="width:${100 * x}%;background:${coul}"></i>`;
+  return `<div style="display:flex;height:8px;border-radius:99px;overflow:hidden;margin:8px 0 4px;background:var(--carte2)">${c(p["1"], "var(--vert)")}${c(p.N, "#7d8f86")}${c(p["2"], "var(--bleu)")}</div>
+    <div class="sous" style="display:flex;justify-content:space-between"><span>1 : ${pct(p["1"])}</span><span>N : ${pct(p.N)}</span><span>2 : ${pct(p["2"])}</span></div>`;
+}
+
+function carteMatch(m, detail) {
+  const p = m.probas;
+  const cote = k => m.cotes[k]?.moy ? m.cotes[k].moy.toFixed(2) : "–";
+  let h = `<div class="carte">
+    <div class="sous">${esc(m.ligue)} · ${detail ? dateFr(m.date) + " · " : ""}${esc(m.heure || "")}</div>
+    <div style="font-weight:600;margin-top:2px">${esc(m.dom)} – ${esc(m.ext)}</div>
+    ${barre1N2(p)}
+    <div class="sous" style="margin-top:4px">Cotes moyennes 1/N/2 : ${cote("1")} / ${cote("N")} / ${cote("2")} · +2,5 buts : ${pct(p["+2.5"])} · les deux marquent : ${pct(p["BTTS oui"])} · score probable ${esc(m.score)}</div>`;
+  for (const s of m.selections) {
+    h += `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#2b2410;border:1px solid #5a4a1a">
+      <b>${MARCHE_NOM[s.marche] || esc(s.marche)}</b> · Yanis ${pct(s.proba)} · cote ${s.cote.toFixed(2)}${s.meilleure_cote ? ` (meilleure ${s.meilleure_cote.toFixed(2)})` : ""}
+      <span class="badge b-value">value +${Math.round(100 * s.value)} %</span></div>`;
+  }
+  return h + `</div>`;
+}
+
+const DIRECT = [
+  ["fra.1", "Ligue 1", "soccer/fra.1"], ["eng.1", "Premier League", "soccer/eng.1"], ["esp.1", "Liga", "soccer/esp.1"],
+  ["ita.1", "Serie A", "soccer/ita.1"], ["ger.1", "Bundesliga", "soccer/ger.1"], ["ucl", "Ligue des champions", "soccer/uefa.champions"],
+  ["uel", "Europa League", "soccer/uefa.europa"], ["nba", "NBA", "basketball/nba"], ["nhl", "NHL", "hockey/nhl"],
+  ["nfl", "NFL", "football/nfl"], ["atp", "Tennis ATP", "tennis/atp"], ["wta", "Tennis WTA", "tennis/wta"], ["ufc", "MMA UFC", "mma/ufc"],
+];
+let minuterieDirect = null;
+function arreterDirect() { if (minuterieDirect) { clearInterval(minuterieDirect); minuterieDirect = null; } }
+
+function lierSport() {
+  vue.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { etat.sport = b.dataset.sp; afficher(); });
+}
+
+async function vueDirect() {
+  const zone = document.getElementById("direct");
+  const choix = DIRECT.find(x => x[0] === etat.direct) || DIRECT[0];
+  zone.innerHTML = `<div class="puces">${DIRECT.map(x => `<button class="puce ${x[0] === choix[0] ? "actif" : ""}" data-dir="${x[0]}">${x[1]}</button>`).join("")}</div><div id="scores" class="sous">Chargement…</div>`;
+  zone.querySelectorAll("[data-dir]").forEach(b => b.onclick = () => { etat.direct = b.dataset.dir; arreterDirect(); vueDirect(); });
+  const charge = async () => {
+    const cible = document.getElementById("scores"); if (!cible) return arreterDirect();
+    try {
+      const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${choix[2]}/scoreboard?t=${Date.now()}`);
+      const j = await r.json();
+      cible.innerHTML = rendreDirect(j);
+    } catch (e) {
+      cible.innerHTML = `<div class="vide">Impossible de joindre les scores en direct pour l'instant.</div>`;
+    }
+  };
+  await charge();
+  arreterDirect(); minuterieDirect = setInterval(charge, 30000);
+}
+
+function rendreDirect(j) {
+  const matchs = [];
+  for (const ev of j.events || []) {
+    const comps = ev.competitions || (ev.groupings || []).flatMap(g => g.competitions || []);
+    for (const c of comps) matchs.push({ev, c});
+  }
+  if (!matchs.length) return `<div class="vide">Aucun match programmé aujourd'hui dans cette compétition.</div>`;
+  const ordre = {in: 0, pre: 1, post: 2};
+  matchs.sort((a, b) => (ordre[a.c.status?.type?.state ?? a.ev.status?.type?.state] ?? 3) - (ordre[b.c.status?.type?.state ?? b.ev.status?.type?.state] ?? 3));
+  return matchs.slice(0, 40).map(({ev, c}) => {
+    const st = c.status?.type || ev.status?.type || {};
+    const enCours = st.state === "in";
+    const equipes = (c.competitors || []).slice().sort((a, b) => (a.homeAway === "away") - (b.homeAway === "away"));
+    const nom = x => x.team?.displayName || x.athlete?.displayName || x.athlete?.shortName || "?";
+    const score = x => x.score?.displayValue ?? (typeof x.score === "object" ? "" : x.score) ?? (x.linescores ? x.linescores.map(l => l.value).join(" ") : "");
+    const heureTxt = st.state === "pre" ? new Date(c.date || ev.date).toLocaleString("fr-FR", {weekday: "short", hour: "2-digit", minute: "2-digit"}) : esc(st.shortDetail || st.detail || "");
+    return `<div class="carte">
+      <div class="sous">${enCours ? '<span class="badge b-ko" style="background:#5a1d1d;color:#ffb3b3">EN DIRECT</span> ' : ""}${heureTxt}${ev.shortName && c.competitors?.length > 2 ? "" : ""}</div>
+      ${equipes.map(x => `<div style="display:flex;justify-content:space-between;margin-top:4px;${x.winner ? "font-weight:700" : ""}"><span>${esc(nom(x))}</span><span>${st.state === "pre" ? "" : esc(score(x))}</span></div>`).join("")}
+    </div>`;
+  }).join("") + `<div class="sous" style="margin-top:8px">Scores ESPN, actualisés toutes les 30 secondes.</div>`;
 }
 
 /* ---------- RESULTATS ---------- */

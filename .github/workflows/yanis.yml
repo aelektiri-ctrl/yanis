@@ -21,8 +21,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Collecte (45 minutes maximum)
-        run: python yanis.py collecte --budget 45
+      - name: Football (bibliotheque, modele, banc d'essai)
+        continue-on-error: true
+        run: |
+          pip install --quiet numpy scipy
+          python sport.py
+      - name: Courses PMU (40 minutes maximum)
+        run: python yanis.py collecte --budget 40
       - name: Preparer l'appli
         run: python yanis.py publier
       - name: Enregistrer dans la bibliotheque
