@@ -37,8 +37,11 @@ jobs:
           git add -A donnees_sport docs/data
           git diff --cached --quiet || git commit -q -m "Sport du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
           for i in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && break; sleep 10; done
-      - name: Courses PMU (30 minutes maximum)
-        run: python yanis.py collecte --budget 30
+      - name: Courses PMU (25 minutes maximum)
+        run: python yanis.py collecte --budget 25
+      - name: Performances detaillees de l'historique (10 minutes maximum)
+        continue-on-error: true
+        run: python yanis.py perfs --budget 10
       - name: Modele hippique v2 (banc d'essai une fois par jour, pronostics a chaque passage)
         continue-on-error: true
         run: |

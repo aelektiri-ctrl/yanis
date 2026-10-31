@@ -415,16 +415,101 @@ def cmd_collecte(args):
     cmd_bilan(args)
 
 
-def collecter_performances(pmu, jour):
-    """Performances detaillees des partants (courses passees, temps, ecarts, adversaires).
-    Gardees 10 jours (fichiers lourds), le temps de les exploiter dans le modele."""
+ECARTS_MOTS = {"nez": 0.05, "courte tete": 0.1, "courte tête": 0.1, "tete": 0.2, "tête": 0.2,
+               "courte encolure": 0.25, "encolure": 0.3, "dead-heat": 0.0, "loin": 30.0}
+
+
+def longueurs(raw):
+    """'1 L 1/4' -> 1.25 ; '3/4 L' -> 0.75 ; 'Encolure' -> 0.3 ; inconnu -> None."""
+    if not raw:
+        return None
+    t = raw.strip().lower()
+    if t in ECARTS_MOTS:
+        return ECARTS_MOTS[t]
+    import re
+    m = re.match(r"^(?:(\d+)\s*l)?\s*(?:(\d+)/(\d+))?\s*(?:l)?$", t)
+    if not m or not (m.group(1) or m.group(2)):
+        return None
+    v = float(m.group(1) or 0)
+    if m.group(2):
+        v += int(m.group(2)) / int(m.group(3))
+    return v
+
+
+def resumer_performances(donnees, jour):
+    """Resume compact par cheval de ses dernieres courses (connues AVANT la course du jour)."""
+    out = {}
+    for cle_course, bloc in (donnees or {}).items():
+        res_course = {}
+        for p in (bloc or {}).get("participants", []) or []:
+            num = p.get("numPmu")
+            passees = [cc for cc in (p.get("coursesCourues") or [])
+                       if isinstance(cc.get("date"), (int, float)) and dt.datetime.fromtimestamp(cc["date"] / 1000).date() < jour]
+            if num is None or not passees:
+                continue
+            places, retards, longs, allocs, dq = [], [], [], [], 0
+            for cc in passees:
+                parts = cc.get("participants") or []
+                lui = next((q for q in parts if q.get("itsHim")), None)
+                if not lui:
+                    continue
+                nb = cc.get("nbParticipants") or len(parts) or 10
+                pl = (lui.get("place") or {}).get("place")
+                statut = (lui.get("place") or {}).get("statusArrivee") or ""
+                if "DISQUALIFIE" in statut:
+                    dq += 1
+                places.append(pl if isinstance(pl, int) and pl > 0 else nb)
+                if cc.get("allocation"):
+                    allocs.append(cc["allocation"])
+                rks = [q.get("reductionKilometrique") for q in parts if q.get("reductionKilometrique")]
+                if lui.get("reductionKilometrique") and rks:
+                    retards.append((lui["reductionKilometrique"] - min(rks)) / 1000)
+                if isinstance(pl, int) and pl > 0:
+                    cumul, ok = 0.0, True
+                    for q in sorted(parts, key=lambda q: ((q.get("place") or {}).get("place") or 99)):
+                        qp = (q.get("place") or {}).get("place")
+                        if not isinstance(qp, int) or qp < 2 or qp > pl:
+                            continue
+                        lg = longueurs((q.get("distanceAvecPrecedent") or {}).get("rawValue"))
+                        if lg is None:
+                            ok = False
+                            break
+                        cumul += lg
+                    if ok and pl > 1:
+                        longs.append(min(cumul, 30.0))
+                    elif pl == 1:
+                        longs.append(0.0)
+            if not places:
+                continue
+            derniere = max(cc["date"] for cc in passees)
+            moy = lambda l: round(sum(l) / len(l), 3) if l else None
+            res_course[str(num)] = {
+                "n": len(places), "place_moy": moy(places), "top3": round(sum(1 for x in places if x <= 3) / len(places), 3),
+                "vict": sum(1 for x in places if x == 1), "dq": round(dq / len(places), 3),
+                "retard_km_moy": moy(retards), "retard_km_min": round(min(retards), 3) if retards else None,
+                "long_moy": moy(longs), "long_min": round(min(longs), 3) if longs else None,
+                "alloc_moy": moy(allocs), "alloc_max": max(allocs) if allocs else None,
+                "jours": (jour - dt.datetime.fromtimestamp(derniere / 1000).date()).days,
+            }
+        if res_course:
+            out[cle_course] = res_course
+    return out
+
+
+def chemin_resume_perf(jour):
+    return os.path.join(DOSSIER, "donnees_perf_resume", f"{jour:%Y}", f"{jour:%m}", f"{jour.isoformat()}.json.gz")
+
+
+def collecter_performances(pmu, jour, garder_brut=False):
+    """Performances detaillees des partants. On garde toujours le RESUME compact (pour le modele) ;
+    le detail complet seulement pour aujourd'hui, 10 jours (fichiers lourds)."""
     p = chemin_jour(jour)
     if not os.path.exists(p):
         return 0
     jour_data = lire_jour(p)
+    if jour_data.get("vide"):
+        return 0
     courses = jour_data.get("courses", {}).get("lignes", [])
-    dossier = os.path.join(DOSSIER, "donnees_perf")
-    os.makedirs(dossier, exist_ok=True)
     sortie, n = {}, 0
     for ligne in courses:
         r, c = ligne[1], ligne[2]
@@ -432,16 +517,41 @@ def collecter_performances(pmu, jour):
         if d is not None:
             sortie[f"R{r}C{c}"] = d
             n += 1
-    if sortie:
+    if not sortie:
+        return 0
+    cr = chemin_resume_perf(jour)
+    os.makedirs(os.path.dirname(cr), exist_ok=True)
+    with gzip.open(cr, "wt", encoding="utf-8") as f:
+        json.dump(resumer_performances(sortie, jour), f, ensure_ascii=False, separators=(",", ":"))
+    if garder_brut:
+        dossier = os.path.join(DOSSIER, "donnees_perf")
+        os.makedirs(dossier, exist_ok=True)
         with gzip.open(os.path.join(dossier, f"{jour.isoformat()}.json.gz"), "wt", encoding="utf-8") as f:
             json.dump(sortie, f, ensure_ascii=False, separators=(",", ":"))
-    for nom in os.listdir(dossier):
-        try:
-            if (aujourdhui() - dt.date.fromisoformat(nom[:10])).days > 10:
-                os.remove(os.path.join(dossier, nom))
-        except ValueError:
-            pass
+        for nom in os.listdir(dossier):
+            try:
+                if (aujourdhui() - dt.date.fromisoformat(nom[:10])).days > 10:
+                    os.remove(os.path.join(dossier, nom))
+            except ValueError:
+                pass
     return n
+
+
+def cmd_perfs(args):
+    """Rattrapage : performances detaillees des jours deja en bibliotheque, du plus recent au plus ancien."""
+    pmu, limite = PMU(), time.time() + args.budget * 60
+    jour, faits = aujourdhui() - dt.timedelta(days=1), 0
+    debut = aujourdhui() - dt.timedelta(days=int(365.25 * ANNEES))
+    try:
+        while jour >= debut and time.time() < limite:
+            if os.path.exists(chemin_jour(jour)) and not os.path.exists(chemin_resume_perf(jour)):
+                n = collecter_performances(pmu, jour)
+                print(f"{jour} : performances de {n} courses", flush=True)
+                faits += 1
+            jour -= dt.timedelta(days=1)
+    except PMUEnPanne:
+        print("Le PMU ne repond plus : on reprendra au prochain passage.")
+    print(f"Rattrapage des performances : {faits} jours.")
 
 
 def instantane_cotes(jour):
@@ -482,7 +592,7 @@ def _collecte(pmu, t0, limite, auj, args):
     # 1 bis. Performances detaillees des partants du jour (une fois par jour suffit)
     perf = os.path.join(DOSSIER, "donnees_perf", f"{auj.isoformat()}.json.gz")
     if not os.path.exists(perf):
-        print(f"Performances detaillees du {auj} : {collecter_performances(pmu, auj)} courses", flush=True)
+        print(f"Performances detaillees du {auj} : {collecter_performances(pmu, auj, garder_brut=True)} courses", flush=True)
     # 2. Le passe : on remonte jusqu'a 10 ans tant qu'il reste du temps
     debut = auj - dt.timedelta(days=int(365.25 * ANNEES))
     jour, n = auj - dt.timedelta(days=3), 0
@@ -741,6 +851,7 @@ def main():
     p = sp.add_parser("jour"); p.add_argument("date"); p.add_argument("--monde", action="store_true"); p.set_defaults(f=cmd_jour)
     sp.add_parser("bilan").set_defaults(f=cmd_bilan)
     sp.add_parser("publier").set_defaults(f=cmd_publier)
+    p = sp.add_parser("perfs"); p.add_argument("--budget", type=float, default=10); p.set_defaults(f=cmd_perfs)
     args = ap.parse_args()
     args.f(args)
 

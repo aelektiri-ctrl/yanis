@@ -49,7 +49,24 @@ def charger():
         FROM partants p JOIN courses c USING (date, r, c) JOIN reunions r USING (date, r)
         WHERE p.statut = 'PARTANT'""", con)
     rap = pd.read_sql_query("SELECT date, r, c, pari, libelle, combinaison, rapport_pour_1e FROM rapports", con)
+    p = p.merge(charger_perfs(), on=["date", "r", "c", "num"], how="left")
     return p, rap
+
+
+def charger_perfs():
+    """Resumes des performances detaillees (dernieres courses de chaque cheval, connues avant la course)."""
+    import glob, gzip
+    lignes = []
+    for f in glob.glob(os.path.join(yanis.DOSSIER, "donnees_perf_resume", "*", "*", "*.json.gz")):
+        date = os.path.basename(f)[:10]
+        with gzip.open(f, "rt", encoding="utf-8") as fh:
+            d = json.load(fh)
+        for cle, chevaux in d.items():
+            r, c = cle[1:].split("C")
+            for num, v in chevaux.items():
+                lignes.append({"date": date, "r": int(r), "c": int(c), "num": int(num), **{f"pf_{k}": x for k, x in v.items()}})
+    cols = ["date", "r", "c", "num"]
+    return pd.DataFrame(lignes) if lignes else pd.DataFrame(columns=cols)
 
 
 def norm_nom(x):
@@ -185,6 +202,11 @@ def preparer(p):
         p[f"{col}_tx_v"] = ((gg["gagne"].cumsum() - p["gagne"]) + 1.5) / (p[f"{col}_courses"] + 15)
         p[f"{col}_tx_p"] = ((gg["place3"].cumsum() - p["place3"]) + 4.5) / (p[f"{col}_courses"] + 15)
 
+    # --- performances detaillees : niveau relatif de la course du jour ---
+    if "pf_alloc_moy" in p.columns:
+        p["pf_niveau"] = np.log((p["allocation"] + 1) / (p["pf_alloc_moy"].astype(float) + 1))
+        for col in ("pf_retard_km_moy", "pf_long_moy", "pf_place_moy"):
+            p[f"rg_{col}"] = p.groupby("cle")[col].rank(pct=True, ascending=False)
     p["groupe"] = np.select([p["discipline"] == "ATTELE", p["discipline"] == "MONTE", p["discipline"] == "PLAT"],
                             ["Trot attelé", "Trot monté", "Plat"], default="Obstacle")
     p["disc"] = p["discipline"].astype("category").cat.codes
@@ -203,6 +225,8 @@ VARIABLES = [
     "rg_gains_par_course", "rg_dr_tx_v", "rg_en_tx_v", "rg_mus_moy",
     "vit_derniere", "vit_moy3", "vit_max5", "vit_n", "vit_tendance",
     "etranger", "terrain_c", "jour_mois", "alloc_ratio",
+    "pf_n", "pf_place_moy", "pf_top3", "pf_vict", "pf_dq", "pf_retard_km_moy", "pf_retard_km_min", "pf_long_moy", "pf_long_min",
+    "pf_alloc_moy", "pf_alloc_max", "pf_jours", "pf_niveau", "rg_pf_retard_km_moy", "rg_pf_long_moy", "rg_pf_place_moy",
     "dr_hippo_courses", "dr_hippo_tx_v", "en_hippo_tx_v", "ch_hippo_courses", "ch_hippo_tx_p", "ch_terrain_courses", "ch_terrain_tx_p",
     "rg_vit_max5", "rg_vit_moy3", "ecart_vit_max5", "ecart_vit_moy3",
 ]
@@ -264,6 +288,9 @@ STRATEGIES = {
     "deux_sur_4": "2 sur 4 avec les 2 premiers Yanis",
     "trio_top3": "Trio avec les 3 premiers Yanis",
     "multi4_top4": "Multi en 4 avec les 4 premiers Yanis",
+    "deux_sur_4_fav": "2 sur 4 : favori du marché + meilleur cheval Yanis (hors favori)",
+    "pepite_sg": "Pépite du jour en simple gagnant",
+    "pepite_sp": "Pépite du jour en simple placé",
     "co_top2": "Couplé ordre avec les 2 premiers Yanis (7 partants ou moins)",
     "to_top3": "Trio ordre avec les 3 premiers Yanis (7 partants ou moins)",
 }
@@ -293,11 +320,28 @@ def jouer(course, idx):
             out.append(("co_top2", 1, gain(idx, cle, "COUPLE_ORDRE", nums[:2]), None))
             out.append(("to_top3", 1, gain(idx, cle, "TRIO_ORDRE", nums[:3]), None))
         return out
+    fav = int(course.loc[course["cote"].idxmin(), "num"]) if course["cote"].notna().any() else None
+    if fav is not None:
+        autre = next(x for x in nums if x != fav)
+        out.append(("deux_sur_4_fav", 1, gain(idx, cle, "DEUX_SUR_QUATRE", [fav, autre]), None))
     out.append(("cp_top2", 1, gain(idx, cle, "COUPLE_PLACE", nums[:2]), None))
     out.append(("deux_sur_4", 1, gain(idx, cle, "DEUX_SUR_QUATRE", nums[:2]), None))
     out.append(("trio_top3", 1, gain(idx, cle, "TRIO", nums[:3]), None))
     out.append(("multi4_top4", 1, gain(idx, cle, "MULTI", nums[:4], "Multi en 4"), None))
     return out
+
+
+PEPITE_COTE_MIN = 8
+
+
+def choisir_pepite(jour_df, combien=1):
+    """L'outsider (cote >= 8, course en France) que Yanis juge le plus sous-estime de la journee."""
+    o = jour_df[(jour_df["cote"] >= PEPITE_COTE_MIN) & (jour_df["p_v2"] >= 0.06) & jour_df["p_marche"].notna()
+                & (jour_df["etranger"] == 0)]
+    if o.empty:
+        return None if combien == 1 else []
+    o = o.assign(ratio=o["p_v2"] / o["p_marche"]).sort_values("ratio", ascending=False)
+    return o.iloc[0] if combien == 1 else [row for _, row in o.head(combien).iterrows()]
 
 
 def tranche_cote(c):
@@ -348,7 +392,7 @@ def resume(x, strict=False):
 
 def colonnes_utiles(df):
     """Les indices qui existent vraiment pour ce groupe (pas de temps en obstacle, par exemple)."""
-    return [v for v in VARIABLES if df[v].notna().sum() >= 50 and df[v].nunique() > 1]
+    return [v for v in VARIABLES if v in df.columns and df[v].notna().sum() >= 50 and df[v].nunique() > 1]
 
 
 def entrainer_et_predire(train, test, mini_groupe=8000):
@@ -394,6 +438,16 @@ def banc_essai(p, rap):
             continue
         test = entrainer_et_predire(train, test)
         test["p_marche_place"] = (test["p_marche"] * (test["places_payees"] - 0.4)).clip(upper=0.95)
+        for date_j, jdf in test.groupby("date"):
+            pep = choisir_pepite(jdf[jdf["fini"]])
+            if pep is None:
+                continue
+            for strat, pari in (("pepite_sg", "SIMPLE_GAGNANT"), ("pepite_sp", "SIMPLE_PLACE")):
+                ret = gain(idx, pep["cle"], pari, [int(pep["num"])])
+                r = res[strat]
+                r["paris"] += 1; r["gagnes"] += int(ret > 0); r["mise"] += 1; r["retour"] += ret
+                pm = r["par_mois"].setdefault(m, [0, 0.0, 0.0])
+                pm[0] += 1; pm[1] += 1; pm[2] += ret
         for cle, course in test.groupby("cle", sort=False):
             if course["gagne"].sum() != 1 or course["p_marche"].isna().any():
                 continue
@@ -416,7 +470,11 @@ def banc_essai(p, rap):
                 if tc:
                     compte(sg.setdefault("Cote du cheval joué", {}), tc, mise, retour, m)
     n = stats_modele["courses"]
+    fav_rows = finis[finis["cote"].notna()]
+    fav_rows = fav_rows.loc[fav_rows.groupby("cle")["cote"].idxmin()]
+    favori_topk = {str(k): round(float(fav_rows["place_arrivee"].between(1, k).mean()), 3) for k in (1, 2, 3, 4)}
     sortie = {
+        "favori_dans_les": favori_topk,
         "mois_testes": [m for i, m in enumerate(mois) if i >= max(MOIS_MINI_ENTRAINEMENT, len(mois) - MOIS_TESTES)],
         "courses": n,
         "n1_yanis_gagne": round(stats_modele["n1_gagne"] / n, 3) if n else None,
@@ -500,7 +558,11 @@ def pronostics(p, banc):
         if 3 <= n <= 7:
             possibles += [("COUPLE_ORDRE", {"strategie": "co_top2", "chevaux": nums[:2], "texte": f"Couplé ordre {nums[0]}-{nums[1]} (dans cet ordre)"}),
                           ("TRIO_ORDRE", {"strategie": "to_top3", "chevaux": nums[:3], "texte": f"Trio ordre {nums[0]}-{nums[1]}-{nums[2]} (dans cet ordre)"})]
-        elif n >= 8:
+        fav = int(course.loc[course["cote"].idxmin(), "num"]) if course["cote"].notna().any() else None
+        if n >= 8 and fav is not None:
+            autre = next(x for x in nums if x != fav)
+            possibles.append(("DEUX_SUR_QUATRE", {"strategie": "deux_sur_4_fav", "chevaux": [fav, autre], "texte": f"2 sur 4 favori {fav} + Yanis {autre}"}))
+        if n >= 8:
             possibles += [("COUPLE_PLACE", {"strategie": "cp_top2", "chevaux": nums[:2], "texte": f"Couplé placé {nums[0]}-{nums[1]}"}),
                           ("DEUX_SUR_QUATRE", {"strategie": "deux_sur_4", "chevaux": nums[:2], "texte": f"2 sur 4 {nums[0]}-{nums[1]}"}),
                           ("MULTI", {"strategie": "multi4_top4", "chevaux": nums[:4], "texte": "Multi en 4 " + "-".join(map(str, nums[:4]))})]
@@ -533,13 +595,28 @@ def pronostics(p, banc):
                 cns["proba"], cns["cote"] = round(float(row["p_v2"]), 3), float(row["cote"]) if pd.notna(row["cote"]) else None
         out.append({
             "date": course["date"].iloc[0], "r": int(course["r"].iloc[0]), "c": int(course["c"].iloc[0]),
-            "partants": n, "places_payees": 2 if n <= 7 else 3,
+            "partants": n, "places_payees": 2 if n <= 7 else 3, "favori": fav,
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
                             "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None}
                            for r in tri.itertuples()],
             "conseils": conseils,
         })
     return out
+
+
+def pepite_du_jour(p, banc):
+    auj = yanis.aujourdhui().isoformat()
+    debut = (yanis.aujourdhui() - dt.timedelta(days=30 * FENETRE_MOIS)).isoformat()
+    train = p[p["fini"] & (p["date"] < auj) & (p["date"] >= debut)]
+    test = p[(p["date"] == auj) & ~p["fini"]]
+    if test.empty or len(train) < 5000:
+        return None
+    test = entrainer_et_predire(train, test)
+    return [{"date": auj, "r": int(pep["r"]), "c": int(pep["c"]), "num": int(pep["num"]), "nom": pep["nom"],
+             "hippodrome": pep["hippodrome_code"], "cote": float(pep["cote"]), "p_gagnant": round(float(pep["p_v2"]), 3),
+             "p_place": round(float(pep["pp_v2"]), 3), "p_marche": round(float(pep["p_marche"]), 3), "depart": pep["depart"],
+             "texte": f"Yanis le voit gagnant {round(100 * float(pep['p_v2']))} % du temps, le marché seulement {round(100 * float(pep['p_marche']))} %."}
+            for pep in choisir_pepite(test, combien=3)]
 
 
 def main():
@@ -571,10 +648,12 @@ def main():
     for k, v in banc.get("marche", {}).get("calendrier", {}).items():
         print(" ", k, {t: (x["paris"], x["reussite"], x["roi"]) for t, x in v.items()})
     prono = pronostics(p, banc)
+    pepite = pepite_du_jour(p, banc)
+    print("Pepite du jour :", pepite)
     os.makedirs(SORTIE, exist_ok=True)
     with open(os.path.join(SORTIE, "hippique_v2.json"), "w", encoding="utf-8") as f:
         json.dump({"maj": dt.datetime.now(yanis.PARIS).strftime("%d/%m/%Y %H:%M"), "banc_fait_le": banc_fait_le,
-                   "banc_essai": banc, "courses": prono},
+                   "banc_essai": banc, "courses": prono, "pepite": pepite},
                   f, ensure_ascii=False, separators=(",", ":"), default=lambda o: o.item() if hasattr(o, "item") else str(o))
     print(f"{len(prono)} courses pronostiquees. Termine en {time.time() - t0:.0f} s.")
 

@@ -84,14 +84,31 @@ def main():
             if ok:
                 memo[cle] = auj
 
+    # 1 bis. alerte avant le depart de chaque pepite du jour
+    for pep in (v2 or {}).get("pepite") or []:
+        if pep.get("date") != auj:
+            continue
+        depart, hippo, arrivee = heures.get((pep["r"], pep["c"]), (None, None, None))
+        if not depart or arrivee:
+            continue
+        minutes = (dt.datetime.fromisoformat(depart).replace(tzinfo=PARIS) - maintenant).total_seconds() / 60
+        cle = f"{auj}/pepite/R{pep['r']}C{pep['c']}/{pep['num']}"
+        if 5 <= minutes <= 45 and cle not in memo:
+            if envoyer(f"💎 Pépite R{pep['r']}C{pep['c']} {hippo} – départ {depart[11:16]}",
+                       f"n°{pep['num']} {pep['nom']} · cote {pep['cote']}\n{pep['texte']}\nDépart dans {int(minutes)} min. (à confirmer : pas encore validée)",
+                       tags="gem"):
+                memo[cle] = auj
+
     # 2. resume du matin
     cle_matin = f"{auj}/resume"
     if maintenant.hour >= 9 and cle_matin not in memo and jour:
         nb_courses = sum(len(r["courses"]) for r in jour["reunions"])
         val = sum(1 for c in (v2 or {}).get("courses", []) if c["date"] == auj for x in c["conseils"] if x.get("validee"))
         pro = sum(1 for c in (v2 or {}).get("courses", []) if c["date"] == auj for x in c["conseils"] if x.get("prometteur"))
+        peps = [x for x in ((v2 or {}).get("pepite") or []) if x.get("date") == auj]
         texte = (f"{len(jour['reunions'])} réunions, {nb_courses} courses analysées.\n"
-                 f"Paris validés : {val} · prometteurs : {pro}.\n"
+                 + (f"💎 Pépite : R{peps[0]['r']}C{peps[0]['c']} n°{peps[0]['num']} {peps[0]['nom']} (cote {peps[0]['cote']}).\n" if peps else "")
+                 + f"Paris validés : {val} · prometteurs : {pro}.\n"
                  + ("Tu seras prévenu 15 à 45 min avant chaque départ concerné." if val + pro else "Rien ne mérite ta mise aujourd'hui : Yanis passe son tour."))
         if envoyer("Yanis – le programme du jour", texte, tags="sunrise"):
             memo[cle_matin] = auj

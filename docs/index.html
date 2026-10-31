@@ -170,6 +170,27 @@ function reunionsJouables(j) {
     .filter(r => r.courses.length);
 }
 
+function blocPepites() {
+  const peps = (D.v2?.pepite || []).filter(x => x.date === D.aujourdhui?.date);
+  if (!peps.length) return "";
+  const st = D.v2.banc_essai?.strategies || {};
+  const sg = st.pepite_sg || {}, sp = st.pepite_sp || {};
+  const statut = x => x.validee ? '<span class="badge b-ok">validé</span>' : (x.roi > 0 ? '<span class="badge b-value">prometteur</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>');
+  const reus = Object.fromEntries((D.aujourdhui?.reunions || []).map(r => [r.r, r.hippodrome]));
+  return `<div class="carte" style="border-color:#5a4a1a;background:#1f1a0c">
+    <h3>💎 Les pépites du jour</h3>
+    <div class="sous" style="margin-bottom:6px">Les outsiders (cote 8 ou plus) que Yanis juge les plus sous-estimés aujourd'hui, en France.</div>` +
+    peps.map((x, i) => `<div style="padding:8px 0;border-top:1px solid #3a321a">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${i === 0 ? "💎 " : ""}${x.num}. ${esc(x.nom)}</b><b>cote ${x.cote}</b></div>
+      <div class="sous">R${x.r}C${x.c} ${esc(reus[x.r] || "")} · départ ${esc((x.depart || "").slice(11, 16))}</div>
+      <div class="sous">${esc(x.texte)} Placé : ${pct(x.p_place)}.</div>
+      <div class="deux" style="margin-top:6px">
+        <button class="btn sec" style="padding:7px" data-joue='${esc(JSON.stringify({type: "turf", cle: `${x.date}/${x.r}/${x.c}`, formule: "Simple gagnant", chevaux: String(x.num)}))}'>Joué gagnant</button>
+        <button class="btn sec" style="padding:7px" data-joue='${esc(JSON.stringify({type: "turf", cle: `${x.date}/${x.r}/${x.c}`, formule: "Simple placé", chevaux: String(x.num)}))}'>Joué placé</button></div>
+    </div>`).join("") +
+    `<div class="sous" style="margin-top:6px">Banc d'essai de la pépite n°1 : gagnant ${sg.roi != null ? (100 * sg.roi).toFixed(1) + " %" : "–"} ${statut(sg)} · placé ${sp.roi != null ? (100 * sp.roi).toFixed(1) + " %" : "–"} ${statut(sp)} sur ${sp.paris || 0} jours. Il en faut au moins 150 pour valider.</div></div>`;
+}
+
 function infoPartants(c) {
   const np = c.partants.filter(p => p.statut !== "PARTANT").length;
   const vrais = c.partants.length - np;
@@ -222,6 +243,7 @@ function vueJour() {
     vue.innerHTML = h + `<div class="vide">Pas encore de programme jouable pour ce jour.<br>Yanis le récupère toutes les 15 minutes.</div>` + blocMasquees;
     return lierJour();
   }
+  if (etat.jour === "aujourdhui") h += blocPepites();
   h += `<div class="puces">
     <button class="puce ${etat.mode === "toutes" ? "actif" : ""}" data-mode="toutes">🕐 Toutes les courses</button>
     <button class="puce ${etat.mode === "reunion" ? "actif" : ""}" data-mode="reunion">Par réunion</button></div>`;
@@ -266,6 +288,8 @@ function vueFiche() {
   const [reu, c] = trouverCourse(etat.fiche);
   if (!c) { etat.fiche = null; return afficher(); }
   const tries = [...c.partants].sort((a, b) => (a.rang || 99) - (b.rang || 99) || a.num - b.num);
+  const avecCote = c.partants.filter(p => p.statut === "PARTANT" && (p.cote || p.cote_ref));
+  const favoriNum = avecCote.length ? avecCote.reduce((a, b) => ((a.cote || a.cote_ref) <= (b.cote || b.cote_ref) ? a : b)).num : null;
   let h = `<button class="retour" id="retour">‹ Retour</button>
     <div class="carte">
       <div class="fiche-entete"><div>
@@ -293,10 +317,11 @@ function vueFiche() {
                    p.recul && c.discipline && /ATTELE|MONTE/.test(c.discipline) ? p.recul + " m" : "",
                    p.poids ? p.poids + " kg" : "", p.corde ? "corde " + p.corde : ""].filter(Boolean).join(" · ");
     const malin = argentMalin(p);
+    const estFavori = !np && p.num === favoriNum;
     return `<div class="partant" style="${np ? "opacity:.45" : ""}">
       <div class="rang ${p.rang ? "r" + p.rang : ""}">${p.rang || "–"}</div>
       <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
-        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}
+        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
       <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
       <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
@@ -496,7 +521,7 @@ function rendreDirect(j) {
 }
 
 const FORMULE_DE = {sg_value: "Simple gagnant", sg_top: "Simple gagnant", sp_top: "Simple placé", sp_value: "Simple placé",
-  cp_top2: "Couplé placé", deux_sur_4: "2 sur 4", trio_top3: "Trio", multi4_top4: "Multi", co_top2: "Couplé ordre", to_top3: "Trio ordre"};
+  cp_top2: "Couplé placé", deux_sur_4: "2 sur 4", deux_sur_4_fav: "2 sur 4", trio_top3: "Trio", multi4_top4: "Multi", co_top2: "Couplé ordre", to_top3: "Trio ordre"};
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-joue]"); if (!b) return;
   try { jaiJoue(JSON.parse(b.dataset.joue)); } catch (err) {}
@@ -593,6 +618,7 @@ function bancV2() {
     <table style="margin-top:8px"><tr><th>Formule</th><th class="n">Paris</th><th class="n">Gagnés</th><th class="n">Rentab.</th></tr>` +
     st.map(x => `<tr><td>${esc(x.nom)} ${x.validee ? '<span class="badge b-ok">validée</span>' : ""}</td><td class="n">${x.paris}</td><td class="n">${x.reussite != null ? Math.round(100 * x.reussite) + " %" : "–"}</td><td class="n ${x.roi >= 0 ? "pos" : "neg"}">${x.roi != null ? (100 * x.roi).toFixed(1) + " %" : "–"}</td></tr>`).join("") +
     `</table><div class="sous" style="margin-top:8px">Une formule passe « validée » seulement si elle gagne plus de 2 % sur au moins 150 paris, presque tous les mois. Le test se refait chaque jour avec l'historique qui grandit.</div></div>` +
+    (b.favori_dans_les ? `<h2>⭐ Le favori du marché</h2><div class="carte"><div class="sous">Sur ${b.courses.toLocaleString("fr-FR")} courses : le favori gagne ${Math.round(100 * b.favori_dans_les["1"])} % du temps, finit dans les 2 premiers ${Math.round(100 * b.favori_dans_les["2"])} %, dans les 3 premiers ${Math.round(100 * b.favori_dans_les["3"])} % et dans les 4 premiers <b>${Math.round(100 * b.favori_dans_les["4"])} %</b>.</div></div>` : "") +
     segmentsHTML(b) + marcheHTML(b.marche);
 }
 
