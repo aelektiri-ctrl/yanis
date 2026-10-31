@@ -26,8 +26,11 @@ jobs:
         run: |
           pip install --quiet numpy scipy
           python sport.py
-      - name: Courses PMU (40 minutes maximum)
-        run: python yanis.py collecte --budget 40
+      - name: NBA, NHL, NFL, MLB, tennis, UFC (bibliotheque, Elo, banc d'essai)
+        continue-on-error: true
+        run: python sports.py --budget 10
+      - name: Courses PMU (30 minutes maximum)
+        run: python yanis.py collecte --budget 30
       - name: Preparer l'appli
         run: python yanis.py publier
       - name: Enregistrer dans la bibliotheque

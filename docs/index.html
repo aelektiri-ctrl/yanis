@@ -96,7 +96,7 @@ input,select{width:100%;background:var(--carte2);border:1px solid var(--ligne);c
 </nav>
 <script>
 const D = {}; // donnees chargees
-const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null, sport: "foot", direct: "fra.1" };
+const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null, sport: "selections", direct: "fra.1" };
 const vue = document.getElementById("vue");
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -118,8 +118,8 @@ async function charger(nom) {
 
 async function demarrer() {
   try {
-    const [a, h, d, t, f] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot"].map(n => charger(n).catch(() => null)));
-    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f});
+    const [a, h, d, t, f, sp] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp});
     document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
   } catch (e) {
     document.getElementById("maj").textContent = "Pas de connexion";
@@ -242,12 +242,15 @@ function rapportsHTML(c) {
 const MARCHE_NOM = {"1": "Victoire domicile", "N": "Match nul", "2": "Victoire extérieur", "+2.5": "Plus de 2,5 buts", "-2.5": "Moins de 2,5 buts"};
 const dateFr = d => new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
 
+const ONGLETS_SPORT = [["selections", "⭐ Sélections"], ["foot", "Football"], ["nba", "NBA"], ["nhl", "NHL"], ["nfl", "NFL"],
+  ["mlb", "MLB"], ["atp", "Tennis ATP"], ["wta", "Tennis WTA"], ["ufc", "MMA UFC"], ["direct", "🔴 En direct"]];
+
 function vueSport() {
-  let h = `<div class="puces">
-    <button class="puce ${etat.sport === "foot" ? "actif" : ""}" data-sp="foot">Football – pronostics</button>
-    <button class="puce ${etat.sport === "direct" ? "actif" : ""}" data-sp="direct">En direct</button></div>`;
+  let h = `<div class="puces">` + ONGLETS_SPORT.map(([k, n]) => `<button class="puce ${etat.sport === k ? "actif" : ""}" data-sp="${k}">${n}</button>`).join("") + `</div>`;
   if (etat.sport === "direct") { vue.innerHTML = h + `<div id="direct"></div>`; lierSport(); return vueDirect(); }
   arreterDirect();
+  if (etat.sport === "selections") { vue.innerHTML = h + vueSelections(); return lierSport(); }
+  if (etat.sport !== "foot") { vue.innerHTML = h + vueDiscipline(etat.sport); return lierSport(); }
   const f = D.foot;
   if (!f) { vue.innerHTML = h + `<div class="vide">Les données football arrivent au prochain passage de Yanis.</div>`; return lierSport(); }
   const b = f.banc_essai;
@@ -293,11 +296,72 @@ function carteMatch(m, detail) {
   return h + `</div>`;
 }
 
+
+const fiabiliteSport = b => b && b.paris >= 100 && b.roi > 0;
+
+function bandeauBanc(b, nomMatchs) {
+  const ok = fiabiliteSport(b);
+  return `<div class="bandeau" style="${ok ? "background:#123222;border-color:#2a6b45;color:#bff0d0" : ""}">
+    Banc d'essai (chaque ${nomMatchs} prédit avant son résultat) : le favori de Yanis gagne <b>${b.reussite_favori != null ? Math.round(100 * b.reussite_favori) : "–"} %</b> du temps sur ${b.matchs} ${nomMatchs}s.<br>
+    Paris du double filtre : ${b.paris}${b.paris ? `, ${Math.round(100 * b.reussite_paris)} % gagnés, rentabilité <b class="${b.roi >= 0 ? "pos" : "neg"}">${(100 * b.roi).toFixed(1)} %</b>` : " (pas encore assez de cotes en historique)"}.
+    ${ok ? "" : "<br><b>Mode observation</b> : pas encore assez de preuves pour miser."}</div>`;
+}
+
+function carteDuel(m, sportNom) {
+  const pd = m.p_dom, pe = 1 - m.p_dom;
+  const s = m.selection;
+  return `<div class="carte">
+    <div class="sous">${sportNom ? esc(sportNom) + " · " : ""}${m.en_cours ? '<span class="badge b-ko" style="background:#5a1d1d;color:#ffb3b3">EN COURS</span> ' : ""}${esc(m.quand ? m.quand.slice(11) : "")}${m.evenement ? " · " + esc(m.evenement) : ""}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-weight:600"><span>${esc(m.dom)}</span><span>${pct(pd)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:600"><span>${esc(m.ext)}</span><span>${pct(pe)}</span></div>
+    <div style="display:flex;height:8px;border-radius:99px;overflow:hidden;margin:8px 0 4px;background:var(--carte2)"><i style="width:${100 * pd}%;background:var(--vert)"></i><i style="width:${100 * pe}%;background:var(--bleu)"></i></div>
+    <div class="sous">${m.cotes ? `Cotes : ${m.cotes.dom.toFixed(2)} / ${m.cotes.ext.toFixed(2)}` : "Pas de cote disponible"}${m.fiable ? "" : " · peu d'historique, prudence"}</div>
+    ${s ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#2b2410;border:1px solid #5a4a1a"><b>${esc(s.camp === "dom" ? m.dom : m.ext)}</b> gagnant · Yanis ${pct(s.proba)} · cote ${s.cote.toFixed(2)} <span class="badge b-value">value +${Math.round(100 * s.value)} %</span></div>` : ""}
+  </div>`;
+}
+
+function vueDiscipline(k) {
+  const S = D.sports?.sports?.[k];
+  if (!S) return `<div class="vide">Les données arrivent au prochain passage de Yanis (chaque heure).</div>`;
+  const unite = S.terrain ? "match" : (k === "ufc" ? "combat" : "match");
+  let h = bandeauBanc(S.banc_essai, unite);
+  let jour = "";
+  if (!S.a_venir.length) h += `<div class="carte sous">Aucun ${unite} programmé dans les 7 prochains jours.</div>`;
+  for (const m of S.a_venir) {
+    const d = (m.quand || "").slice(0, 10);
+    if (d !== jour) { jour = d; h += `<div class="sous" style="margin:14px 2px 6px;text-transform:capitalize">${d ? dateFr(d) : ""}</div>`; }
+    h += carteDuel(m);
+  }
+  if (S.classement.length) h += `<h2>Classement de puissance Yanis</h2><div class="carte"><table>` +
+    S.classement.map((x, i) => `<tr><td>${i + 1}. ${esc(x.nom)}</td><td class="n">${x.elo}</td></tr>`).join("") + `</table></div>`;
+  h += `<div class="sous" style="margin-top:12px">Bibliothèque : ${S.bibliotheque.rencontres.toLocaleString("fr-FR")} résultats depuis ${esc(S.bibliotheque.debut || "–")} (objectif : 2 ans). Mis à jour le ${esc(D.sports.maj)}.</div>`;
+  return h;
+}
+
+function vueSelections() {
+  const lignes = [];
+  const f = D.foot;
+  if (f) for (const m of f.a_venir) for (const s of m.selections)
+    lignes.push({quand: `${m.date} ${m.heure || ""}`, sport: "Football · " + m.ligue, texte: `${m.dom} – ${m.ext}`, choix: MARCHE_NOM[s.marche] || s.marche, s, fiable: fiabiliteSport(f.banc_essai)});
+  for (const [k, S] of Object.entries(D.sports?.sports || {})) for (const m of S.a_venir) if (m.selection)
+    lignes.push({quand: m.quand || "", sport: S.nom, texte: `${m.dom} – ${m.ext}`, choix: (m.selection.camp === "dom" ? m.dom : m.ext) + " gagnant", s: m.selection, fiable: fiabiliteSport(S.banc_essai)});
+  lignes.sort((a, b) => a.quand.localeCompare(b.quand));
+  let h = `<div class="bandeau">Tous les paris qui passent ton double filtre (plus de 50 % de chances <b>et</b> value), tous sports confondus. Le badge <span class="badge b-ok">validé</span> veut dire que la discipline est rentable sur son banc d'essai ; sinon, c'est de l'observation.</div>`;
+  if (!lignes.length) return h + `<div class="vide">Aucune sélection pour l'instant. Yanis préfère passer son tour plutôt que de forcer un pari.</div>`;
+  return h + lignes.map(l => `<div class="carte">
+    <div class="sous">${esc(l.sport)} · ${esc(l.quand.slice(0, 10) ? dateFr(l.quand.slice(0, 10)) : "")} ${esc(l.quand.slice(11))}</div>
+    <div style="font-weight:600;margin-top:2px">${esc(l.texte)}</div>
+    <div style="margin-top:6px"><b>${esc(l.choix)}</b> · Yanis ${pct(l.s.proba)} · cote ${l.s.cote.toFixed(2)}
+      <span class="badge b-value">value +${Math.round(100 * l.s.value)} %</span>
+      ${l.fiable ? '<span class="badge b-ok">validé</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>
+  </div>`).join("");
+}
+
 const DIRECT = [
   ["fra.1", "Ligue 1", "soccer/fra.1"], ["eng.1", "Premier League", "soccer/eng.1"], ["esp.1", "Liga", "soccer/esp.1"],
   ["ita.1", "Serie A", "soccer/ita.1"], ["ger.1", "Bundesliga", "soccer/ger.1"], ["ucl", "Ligue des champions", "soccer/uefa.champions"],
   ["uel", "Europa League", "soccer/uefa.europa"], ["nba", "NBA", "basketball/nba"], ["nhl", "NHL", "hockey/nhl"],
-  ["nfl", "NFL", "football/nfl"], ["atp", "Tennis ATP", "tennis/atp"], ["wta", "Tennis WTA", "tennis/wta"], ["ufc", "MMA UFC", "mma/ufc"],
+  ["nfl", "NFL", "football/nfl"], ["atp", "Tennis ATP", "tennis/atp"], ["wta", "Tennis WTA", "tennis/wta"], ["ufc", "MMA UFC", "mma/ufc"], ["f1", "Formule 1", "racing/f1"],
 ];
 let minuterieDirect = null;
 function arreterDirect() { if (minuterieDirect) { clearInterval(minuterieDirect); minuterieDirect = null; } }
