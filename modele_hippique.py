@@ -45,7 +45,7 @@ def charger():
     con, _, _ = yanis.charger_tout()
     p = pd.read_sql_query("""
         SELECT p.*, c.discipline, c.specialite, c.distance, c.partants AS nb_declares, c.allocation,
-               c.arrivee, c.depart, c.corde AS sens, c.terrain, c.categorie, r.hippodrome_code
+               c.arrivee, c.depart, c.corde AS sens, c.terrain, c.categorie, r.hippodrome_code, r.pays
         FROM partants p JOIN courses c USING (date, r, c) JOIN reunions r USING (date, r)
         WHERE p.statut = 'PARTANT'""", con)
     rap = pd.read_sql_query("SELECT date, r, c, pari, libelle, combinaison, rapport_pour_1e FROM rapports", con)
@@ -167,6 +167,25 @@ def preparer(p):
     for col in ("gains_par_course", "dr_tx_v", "en_tx_v", "mus_moy"):
         p[f"rg_{col}"] = p.groupby("cle")[col].rank(pct=True)
 
+    # --- terrain, specialistes, categorie, calendrier ---
+    p["etranger"] = (p["pays"].fillna("FRA") != "FRA").astype(int)
+    terr = p["terrain"].fillna("").str.upper()
+    p["terrain_c"] = np.select([terr.str.contains("TRES LOURD|TRÈS LOURD"), terr.str.contains("LOURD"), terr.str.contains("COLLANT"),
+                                terr.str.contains("SOUPLE"), terr.str.contains("BON"), terr.str.contains("SEC|LEGER|LÉGER|RAPIDE")],
+                               [5, 4, 3, 2, 1, 0], default=-1)
+    p["jour_mois"] = p["jour"].dt.day
+    g = p.groupby("nom", sort=False)
+    p["alloc_prec"] = g["allocation"].shift(1)
+    p["alloc_ratio"] = np.log((p["allocation"] + 1) / (p["alloc_prec"] + 1))  # >0 : monte de categorie
+    for col, cle in (("dr_hippo", ["driver_n", "hippodrome_code"]), ("en_hippo", ["entraineur_n", "hippodrome_code"]),
+                     ("ch_hippo", ["nom", "hippodrome_code"]), ("ch_terrain", ["nom", "terrain_c"])):
+        gg = p.groupby(cle, sort=False)
+        p[f"{col}_courses"] = gg.cumcount()
+        p[f"{col}_tx_v"] = ((gg["gagne"].cumsum() - p["gagne"]) + 1.5) / (p[f"{col}_courses"] + 15)
+        p[f"{col}_tx_p"] = ((gg["place3"].cumsum() - p["place3"]) + 4.5) / (p[f"{col}_courses"] + 15)
+
+    p["groupe"] = np.select([p["discipline"] == "ATTELE", p["discipline"] == "MONTE", p["discipline"] == "PLAT"],
+                            ["Trot attelé", "Trot monté", "Plat"], default="Obstacle")
     p["disc"] = p["discipline"].astype("category").cat.codes
     p["sexe_c"] = p["sexe"].astype("category").cat.codes
     return p
@@ -182,6 +201,8 @@ VARIABLES = [
     "gains_carriere", "gains_par_course", "nb_courses", "nb_victoires", "nb_places",
     "rg_gains_par_course", "rg_dr_tx_v", "rg_en_tx_v", "rg_mus_moy",
     "vit_derniere", "vit_moy3", "vit_max5", "vit_n", "vit_tendance",
+    "etranger", "terrain_c", "jour_mois", "alloc_ratio",
+    "dr_hippo_courses", "dr_hippo_tx_v", "en_hippo_tx_v", "ch_hippo_courses", "ch_hippo_tx_p", "ch_terrain_courses", "ch_terrain_tx_p",
     "rg_vit_max5", "rg_vit_moy3", "ecart_vit_max5", "ecart_vit_moy3",
 ]
 
@@ -249,36 +270,96 @@ def jouer(course, idx):
     n = len(nums)
     out = []
     top = tri.iloc[0]
-    out.append(("sg_top", 1, gain(idx, cle, "SIMPLE_GAGNANT", [nums[0]])))
+    cote_top = top["cote"]
+    out.append(("sg_top", 1, gain(idx, cle, "SIMPLE_GAGNANT", [nums[0]]), cote_top))
     for row in tri.itertuples():
         if row.cote and row.p_v2 * row.cote >= 1.10 and row.p_v2 >= 0.08:
-            out.append(("sg_value", 1, gain(idx, cle, "SIMPLE_GAGNANT", [row.num])))
+            out.append(("sg_value", 1, gain(idx, cle, "SIMPLE_GAGNANT", [row.num]), row.cote))
     if n >= 4:
-        out.append(("sp_top", 1, gain(idx, cle, "SIMPLE_PLACE", [nums[0]])))
+        out.append(("sp_top", 1, gain(idx, cle, "SIMPLE_PLACE", [nums[0]]), cote_top))
         for row in tri.itertuples():
             if row.pp_v2 >= 0.45 and row.pp_v2 >= 1.25 * (row.p_marche_place or 0):
-                out.append(("sp_value", 1, gain(idx, cle, "SIMPLE_PLACE", [row.num])))
+                out.append(("sp_value", 1, gain(idx, cle, "SIMPLE_PLACE", [row.num]), row.cote))
     if n >= 4:
-        out.append(("cp_top2", 1, gain(idx, cle, "COUPLE_PLACE", nums[:2])))
-        out.append(("deux_sur_4", 1, gain(idx, cle, "DEUX_SUR_QUATRE", nums[:2])))
+        out.append(("cp_top2", 1, gain(idx, cle, "COUPLE_PLACE", nums[:2]), None))
+        out.append(("deux_sur_4", 1, gain(idx, cle, "DEUX_SUR_QUATRE", nums[:2]), None))
     if n >= 3:
-        out.append(("trio_top3", 1, gain(idx, cle, "TRIO", nums[:3])))
+        out.append(("trio_top3", 1, gain(idx, cle, "TRIO", nums[:3]), None))
     if n >= 4:
-        out.append(("multi4_top4", 1, gain(idx, cle, "MULTI", nums[:4], "Multi en 4")))
+        out.append(("multi4_top4", 1, gain(idx, cle, "MULTI", nums[:4], "Multi en 4"), None))
     return out
+
+
+def tranche_cote(c):
+    if c is None or not np.isfinite(c):
+        return None
+    for borne, nom in ((2, "moins de 2"), (3, "2 à 3"), (5, "3 à 5"), (10, "5 à 10"), (20, "10 à 20")):
+        if c < borne:
+            return nom
+    return "20 et plus"
+
+
+def segments_course(course):
+    alloc = course["allocation"].iloc[0] or 0
+    j = int(course["jour_mois"].iloc[0])
+    return {
+        "Taille de la course": "petite (moins de 15 000 €)" if alloc < 15000 else "moyenne (15 000 à 40 000 €)" if alloc < 40000 else "grosse (plus de 40 000 €)",
+        "Pays": "étranger" if course["etranger"].iloc[0] else "France",
+        "Discipline": course["groupe"].iloc[0],
+        "Période du mois": "début (1 au 10)" if j <= 10 else "milieu (11 au 20)" if j <= 20 else "fin (21 au 31)",
+    }
+
+
+def compte(dico, cle, mise, retour, mois):
+    x = dico.setdefault(cle, {"paris": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0, "par_mois": {}})
+    x["paris"] += 1; x["gagnes"] += int(retour > 0); x["mise"] += mise; x["retour"] += retour
+    pm = x["par_mois"].setdefault(mois, [0, 0.0, 0.0])
+    pm[0] += 1; pm[1] += mise; pm[2] += retour
+
+
+def resume(x, strict=False):
+    roi = (x["retour"] - x["mise"]) / x["mise"] if x["mise"] else None
+    mois_pos = sum(1 for v in x["par_mois"].values() if v[2] > v[1])
+    nb_mois = len(x["par_mois"])
+    if strict:   # un segment doit prouver davantage (on en teste beaucoup : risque de chance)
+        bon = roi is not None and roi > 0.05 and x["paris"] >= 300 and nb_mois >= 3 and mois_pos >= 0.75 * nb_mois
+        ok, prometteur = bon and nb_mois >= 6, bon and nb_mois < 6
+    else:
+        ok = roi is not None and roi > 0.02 and x["paris"] >= 150 and mois_pos >= max(2, nb_mois - 1)
+        prometteur = False
+    return {"paris": x["paris"], "reussite": round(x["gagnes"] / x["paris"], 3) if x["paris"] else None,
+            "roi": round(roi, 4) if roi is not None else None, "mois_positifs": mois_pos, "mois": nb_mois,
+            "validee": bool(ok), "prometteur": bool(prometteur)}
 
 
 # --------------------------------------------------------------------------
 # 3. Banc d'essai mois par mois
 # --------------------------------------------------------------------------
 
-def entrainer_et_predire(train, test):
-    X, Xt = train[VARIABLES], test[VARIABLES]
-    mv = modele("gagne").fit(X, train["gagne"])
-    mp = modele("place3").fit(X, train["place3"])
-    test = test.copy()
-    test["s_v"] = mv.predict_proba(Xt)[:, 1]
-    test["s_p"] = mp.predict_proba(Xt)[:, 1]
+def colonnes_utiles(df):
+    """Les indices qui existent vraiment pour ce groupe (pas de temps en obstacle, par exemple)."""
+    return [v for v in VARIABLES if df[v].notna().sum() >= 50 and df[v].nunique() > 1]
+
+
+def entrainer_et_predire(train, test, mini_groupe=8000):
+    """Un modele par discipline (trot attele, monte, plat, obstacle) si assez de donnees, sinon un modele commun."""
+    train = train.replace([np.inf, -np.inf], np.nan)
+    test = test.replace([np.inf, -np.inf], np.nan).copy()
+    test["s_v"], test["s_p"] = np.nan, np.nan
+    commun = None
+    for grp in test["groupe"].unique():
+        tr = train[train["groupe"] == grp]
+        if len(tr) < mini_groupe:
+            if commun is None:
+                cols_c = colonnes_utiles(train)
+                commun = (cols_c, modele("v").fit(train[cols_c], train["gagne"]), modele("p").fit(train[cols_c], train["place3"]))
+            cols, mv, mp = commun
+        else:
+            cols = colonnes_utiles(tr)
+            mv, mp = modele("v").fit(tr[cols], tr["gagne"]), modele("p").fit(tr[cols], tr["place3"])
+        m = test["groupe"] == grp
+        test.loc[m, "s_v"] = mv.predict_proba(test.loc[m, cols])[:, 1]
+        test.loc[m, "s_p"] = mp.predict_proba(test.loc[m, cols])[:, 1]
     test["p_v2"] = probas_course(test, "s_v")
     k = np.minimum(3, test.groupby("cle")["num"].transform("count"))
     test["pp_v2"] = (test["s_p"] / test.groupby("cle")["s_p"].transform("sum") * k).clip(upper=0.98)
@@ -292,6 +373,7 @@ def banc_essai(p, rap):
     mois = sorted(finis["mois"].unique())
     # proba "placee" implicite du marche (approximation) pour la strategie sp_value
     res = {k: {"paris": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0, "par_mois": {}} for k in STRATEGIES}
+    segments_res = {}
     stats_modele = {"courses": 0, "n1_gagne": 0, "fav_gagne": 0, "logloss_modele": 0.0, "logloss_marche": 0.0}
     for i, m in enumerate(mois):
         if i < max(MOIS_MINI_ENTRAINEMENT, len(mois) - MOIS_TESTES):
@@ -311,11 +393,18 @@ def banc_essai(p, rap):
             g = course[course["gagne"] == 1].iloc[0]
             stats_modele["logloss_modele"] -= math.log(max(g["p_v2"], 1e-4))
             stats_modele["logloss_marche"] -= math.log(max(g["p_marche"], 1e-4))
-            for strat, mise, retour in jouer(course, idx):
+            segs = segments_course(course)
+            for strat, mise, retour, cote_jouee in jouer(course, idx):
                 r = res[strat]
                 r["paris"] += 1; r["gagnes"] += int(retour > 0); r["mise"] += mise; r["retour"] += retour
                 pm = r["par_mois"].setdefault(m, [0, 0.0, 0.0])
                 pm[0] += 1; pm[1] += mise; pm[2] += retour
+                sg = segments_res.setdefault(strat, {})
+                for famille, valeur in segs.items():
+                    compte(sg.setdefault(famille, {}), valeur, mise, retour, m)
+                tc = tranche_cote(cote_jouee)
+                if tc:
+                    compte(sg.setdefault("Cote du cheval joué", {}), tc, mise, retour, m)
     n = stats_modele["courses"]
     sortie = {
         "mois_testes": [m for i, m in enumerate(mois) if i >= max(MOIS_MINI_ENTRAINEMENT, len(mois) - MOIS_TESTES)],
@@ -326,15 +415,47 @@ def banc_essai(p, rap):
         "strategies": {},
     }
     for k, r in res.items():
-        roi = (r["retour"] - r["mise"]) / r["mise"] if r["mise"] else None
-        mois_positifs = sum(1 for v in r["par_mois"].values() if v[2] > v[1])
-        sortie["strategies"][k] = {
-            "nom": STRATEGIES[k], "paris": r["paris"], "reussite": round(r["gagnes"] / r["paris"], 3) if r["paris"] else None,
-            "roi": round(roi, 4) if roi is not None else None,
-            "mois_positifs": mois_positifs, "mois": len(r["par_mois"]),
-            "validee": bool(roi is not None and roi > 0.02 and r["paris"] >= 150 and mois_positifs >= max(2, len(r["par_mois"]) - 1)),
-        }
+        sortie["strategies"][k] = {"nom": STRATEGIES[k], **resume(r)}
+    sortie["segments"] = {k: {fam: {val: resume(x, strict=True) for val, x in vals.items()} for fam, vals in fams.items()}
+                          for k, fams in segments_res.items()}
+    sortie["segments_valides"] = [{"strategie": k, "famille": fam, "valeur": val, **v}
+                                  for k, fams in sortie["segments"].items() for fam, vals in fams.items()
+                                  for val, v in vals.items() if v["validee"] or v["prometteur"]]
     return sortie
+
+
+# --------------------------------------------------------------------------
+# 3 bis. Analyses du marche seul : biais favori/outsider et theorie du calendrier
+# --------------------------------------------------------------------------
+
+def analyses_marche(p, rap):
+    """Sur toutes les courses de la bibliotheque : que rapporte le fait de jouer chaque cheval
+    d'une tranche de cote donnee (gagnant et place), et le favori selon la periode du mois ?"""
+    idx = index_rapports(rap)
+    f = p[p["fini"] & p["cote"].notna()].copy()
+    f["mois"] = f["date"].str[:7]
+    f["tranche"] = f["cote"].map(tranche_cote)
+    f["periode"] = np.where(f["jour_mois"] <= 10, "début (1 au 10)", np.where(f["jour_mois"] <= 20, "milieu (11 au 20)", "fin (21 au 31)"))
+    tranches, calendrier = {}, {}
+    for cle, course in f.groupby("cle", sort=False):
+        if course["gagne"].sum() != 1:
+            continue
+        n = len(course)
+        mois = course["mois"].iloc[0]
+        fav = course.loc[course["cote"].idxmin()]
+        for row in course.itertuples():
+            compte(tranches.setdefault("Simple gagnant", {}), row.tranche, 1, gain(idx, cle, "SIMPLE_GAGNANT", [row.num]), mois)
+            if n >= 4:
+                compte(tranches.setdefault("Simple placé", {}), row.tranche, 1, gain(idx, cle, "SIMPLE_PLACE", [row.num]), mois)
+        compte(calendrier.setdefault("Favori simple gagnant", {}), fav["periode"], 1, gain(idx, cle, "SIMPLE_GAGNANT", [fav["num"]]), mois)
+        if n >= 4:
+            compte(calendrier.setdefault("Favori simple placé", {}), fav["periode"], 1, gain(idx, cle, "SIMPLE_PLACE", [fav["num"]]), mois)
+    ordre = ["moins de 2", "2 à 3", "3 à 5", "5 à 10", "10 à 20", "20 et plus"]
+    return {
+        "tranches_de_cote": {k: {t: resume(v[t], strict=True) for t in ordre if t in v} for k, v in tranches.items()},
+        "calendrier": {k: {t: resume(v[t], strict=True) for t in ("début (1 au 10)", "milieu (11 au 20)", "fin (21 au 31)") if t in v}
+                       for k, v in calendrier.items()},
+    }
 
 
 # --------------------------------------------------------------------------
@@ -365,9 +486,32 @@ def pronostics(p, banc):
                 {"strategie": "deux_sur_4", "chevaux": nums[:2], "texte": f"2 sur 4 {nums[0]}-{nums[1]}"},
                 {"strategie": "multi4_top4", "chevaux": nums[:4], "texte": "Multi en 4 " + "-".join(map(str, nums[:4]))},
             ]
+        segs = segments_course(course)
+        cotes_par_num = dict(zip(course["num"], course["cote"]))
         for cns in conseils:
-            cns["validee"] = cns["strategie"] in validees
+            raison, segment_ok = None, False
+            if cns["strategie"] in validees:
+                raison = "formule rentable sur le banc d'essai"
+            else:
+                for sv in banc.get("segments_valides", []):
+                    if sv["strategie"] != cns["strategie"]:
+                        continue
+                    if sv["famille"] == "Cote du cheval joué":
+                        c0 = cotes_par_num.get(cns["chevaux"][0])
+                        if c0 is not None and tranche_cote(c0) == sv["valeur"]:
+                            raison = f"rentable quand la cote est {sv['valeur']}"
+                    elif segs.get(sv["famille"]) == sv["valeur"]:
+                        raison = f"rentable sur ce type de course ({sv['famille'].lower()} : {sv['valeur']})"
+                    if raison:
+                        segment_ok = sv.get("validee", False)
+                        break
+            cns["validee"] = raison is not None and (cns["strategie"] in validees or segment_ok)
+            cns["prometteur"] = raison is not None and not cns["validee"]
+            cns["raison"] = raison
             cns["chevaux"] = [int(x) for x in cns["chevaux"]]
+            if cns["strategie"] == "sg_value":
+                row = course[course["num"] == cns["chevaux"][0]].iloc[0]
+                cns["proba"], cns["cote"] = round(float(row["p_v2"]), 3), float(row["cote"]) if pd.notna(row["cote"]) else None
         out.append({
             "date": course["date"].iloc[0], "r": int(course["r"].iloc[0]), "c": int(course["c"].iloc[0]),
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
@@ -394,12 +538,18 @@ def main():
     banc_fait_le = None
     if banc is None:
         banc = banc_essai(p, rap)
+        banc["marche"] = analyses_marche(p, rap)
         banc_fait_le = dt.datetime.now().isoformat(timespec="seconds")
     elif os.path.exists(chemin):
         banc_fait_le = json.load(open(chemin, encoding="utf-8")).get("banc_fait_le")
-    print(json.dumps({k: v for k, v in banc.items() if k != "strategies"}, ensure_ascii=False))
+    print(json.dumps({k: v for k, v in banc.items() if k not in ("strategies", "segments", "segments_valides", "marche")}, ensure_ascii=False))
     for k, v in banc["strategies"].items():
         print(f"  {k:12} paris {v['paris']:5}  reussite {v['reussite']}  rentabilite {v['roi']}  mois+ {v['mois_positifs']}/{v['mois']}  {'VALIDEE' if v['validee'] else ''}")
+    print("Segments valides :", banc.get("segments_valides"))
+    for k, v in banc.get("marche", {}).get("tranches_de_cote", {}).items():
+        print(" ", k, {t: (x["paris"], x["roi"]) for t, x in v.items()})
+    for k, v in banc.get("marche", {}).get("calendrier", {}).items():
+        print(" ", k, {t: (x["paris"], x["reussite"], x["roi"]) for t, x in v.items()})
     prono = pronostics(p, banc)
     os.makedirs(SORTIE, exist_ok=True)
     with open(os.path.join(SORTIE, "hippique_v2.json"), "w", encoding="utf-8") as f:

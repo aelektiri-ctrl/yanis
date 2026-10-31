@@ -34,6 +34,9 @@ jobs:
         run: python sports.py --budget 0
       - name: Preparer l'appli
         run: python yanis.py publier
+      - name: Notifications sur le telephone
+        continue-on-error: true
+        run: python notifier.py
       - name: Enregistrer
         run: |
           git config user.name "Yanis"

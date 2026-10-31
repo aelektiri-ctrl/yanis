@@ -436,12 +436,41 @@ def collecter_performances(pmu, jour):
     return n
 
 
+def instantane_cotes(jour):
+    """Argent malin : on note les cotes de chaque partant a chaque passage (toutes les 15 min)."""
+    p = chemin_jour(jour)
+    if not os.path.exists(p):
+        return
+    d = lire_jour(p)
+    bloc = d.get("partants") or {}
+    if not bloc.get("lignes"):
+        return
+    cols = bloc["colonnes"]
+    i_r, i_c, i_n, i_cote = cols.index("r"), cols.index("c"), cols.index("num"), cols.index("cote_finale")
+    dossier = os.path.join(DOSSIER, "donnees_cotes")
+    os.makedirs(dossier, exist_ok=True)
+    chemin = os.path.join(dossier, f"{jour.isoformat()}.json.gz")
+    histo = {}
+    if os.path.exists(chemin):
+        with gzip.open(chemin, "rt", encoding="utf-8") as f:
+            histo = json.load(f)
+    heure = dt.datetime.now(PARIS).strftime("%H:%M")
+    for l in bloc["lignes"]:
+        if l[i_cote]:
+            serie = histo.setdefault(f"R{l[i_r]}C{l[i_c]}", {}).setdefault(str(l[i_n]), [])
+            if not serie or serie[-1][1] != l[i_cote]:
+                serie.append([heure, l[i_cote]])
+    with gzip.open(chemin, "wt", encoding="utf-8") as f:
+        json.dump(histo, f, separators=(",", ":"))
+
+
 def _collecte(pmu, t0, limite, auj, args):
     # 1. Le present : avant-hier, hier, aujourd'hui et demain sont toujours mis a jour
     for k in (2, 1, 0, -1):
         jour = auj - dt.timedelta(days=k)
         if not deja_fait(jour):
             print(f"{jour} : {collecter_jour(pmu, jour, not args.monde)}", flush=True)
+    instantane_cotes(auj)
     # 1 bis. Performances detaillees des partants du jour (une fois par jour suffit)
     perf = os.path.join(DOSSIER, "donnees_perf", f"{auj.isoformat()}.json.gz")
     if not os.path.exists(perf):
@@ -657,6 +686,17 @@ def cmd_publier(args):
     for nom, jour in (("aujourdhui.json", auj), ("hier.json", auj - dt.timedelta(days=1)), ("demain.json", auj + dt.timedelta(days=1))):
         j = journee_pour_appli(con, jour.isoformat(), stats)
         j["maj"] = maj
+        ch = os.path.join(DOSSIER, "donnees_cotes", f"{jour.isoformat()}.json.gz")
+        if os.path.exists(ch):
+            with gzip.open(ch, "rt", encoding="utf-8") as f:
+                histo = json.load(f)
+            for reu in j["reunions"]:
+                for c in reu["courses"]:
+                    h = histo.get(f"R{reu['r']}C{c['c']}", {})
+                    for pt in c["partants"]:
+                        serie = h.get(str(pt["num"]))
+                        if serie:
+                            pt["cotes_suivies"] = serie[-8:]
         ecrire(nom, j)
 
     q = lambda sql, *a: con.execute(sql, a).fetchone()[0]
