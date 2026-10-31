@@ -156,6 +156,16 @@ def collecter(sport, chemin_espn, jour):
     if js is None:
         return None
     rencontres = [r for r in extraire(js) if r["date"] and r["date"][:10] <= (jour + dt.timedelta(days=1)).isoformat()]
+    ancien = chemin(sport, jour)
+    if os.path.exists(ancien):
+        try:
+            with open(ancien, encoding="utf-8") as f:
+                cotes = {r["id"]: r["cotes"] for r in json.load(f)["rencontres"] if r.get("cotes")}
+            for r in rencontres:
+                if not r.get("cotes") and r["id"] in cotes:
+                    r["cotes"] = cotes[r["id"]]  # la cote d'avant-match reste en bibliotheque
+        except Exception:
+            pass
     os.makedirs(os.path.join(BIBLIO, sport), exist_ok=True)
     with open(chemin(sport, jour), "w", encoding="utf-8") as f:
         json.dump({"jour": jour.isoformat(), "final": jour < maintenant().date() - dt.timedelta(days=1),
@@ -245,6 +255,7 @@ def selection(p_dom, cotes):
 
 def analyser(sport):
     nom, _, K, avantage, terrain = SPORTS[sport]
+    mini = 1 if sport == "ufc" else 5
     rencontres = charger(sport)
     elo, nb = {}, {}
     banc = {"matchs": 0, "fav_gagne": 0, "paris": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0, "brier": 0.0}
@@ -257,7 +268,7 @@ def analyser(sport):
         if r["vainqueur"] in ("dom", "ext"):
             # banc d'essai : prediction faite avant de connaitre le resultat
             experience = min(nb.get(r["dom"], 0), nb.get(r["ext"], 0))
-            if experience >= 5:
+            if experience >= mini:
                 reel = 1.0 if r["vainqueur"] == "dom" else 0.0
                 banc["matchs"] += 1
                 banc["fav_gagne"] += int((p >= 0.5) == (reel == 1.0))
@@ -276,7 +287,7 @@ def analyser(sport):
             nb[r["dom"]] = nb.get(r["dom"], 0) + 1
             nb[r["ext"]] = nb.get(r["ext"], 0) + 1
         elif r["etat"] in ("pre", "in") and (r["date"] or "")[:10] >= auj:
-            fiable = min(nb.get(r["dom"], 0), nb.get(r["ext"], 0)) >= 5
+            fiable = min(nb.get(r["dom"], 0), nb.get(r["ext"], 0)) >= mini
             heure = None
             try:
                 t = dt.datetime.fromisoformat(r["date"].replace("Z", "+00:00"))

@@ -103,6 +103,7 @@ def mettre_a_jour_bibliotheque(complet, etat):
                 continue  # saison terminee deja en bibliotheque
             txt = telecharger(f"{SOURCE}/mmz4281/{s}/{lg}.csv")
             if txt and "HomeTeam" in txt[:400]:
+                txt = txt.lstrip("\ufeff").removeprefix("\u00ef\u00bb\u00bf")
                 with open(chemin, "w", encoding="utf-8") as f:
                     f.write(txt)
                 etat["fichiers_ok"] += 1
@@ -110,6 +111,7 @@ def mettre_a_jour_bibliotheque(complet, etat):
                 etat["fichiers_absents"].append(f"{s}_{lg}")
     txt = telecharger(f"{SOURCE}/fixtures.csv")
     if txt and "HomeTeam" in txt[:400]:
+        txt = txt.lstrip("\ufeff").removeprefix("\u00ef\u00bb\u00bf")
         with open(os.path.join(BIBLIO, "a_venir.csv"), "w", encoding="utf-8") as f:
             f.write(txt)
         etat["a_venir"] = "ok"
@@ -121,6 +123,14 @@ def nombre(x):
     try:
         v = float(x)
         return v if v > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def buts(x):
+    """Nombre de buts : 0 est une vraie valeur (contrairement a une cote)."""
+    try:
+        return int(float(x))
     except (TypeError, ValueError):
         return None
 
@@ -144,7 +154,7 @@ def premiere(ligne, *noms):
 
 def lire_csv(chemin):
     with open(chemin, encoding="utf-8") as f:
-        txt = f.read().lstrip("﻿")
+        txt = f.read().lstrip("\ufeff").removeprefix("\u00ef\u00bb\u00bf")  # BOM, meme lu en latin-1
     matchs = []
     for l in csv.DictReader(io.StringIO(txt)):
         d = date_match(l.get("Date", ""))
@@ -153,7 +163,7 @@ def lire_csv(chemin):
         m = {
             "ligue": l.get("Div", "").strip(), "date": d, "heure": (l.get("Time") or "").strip(),
             "dom": l["HomeTeam"].strip(), "ext": l["AwayTeam"].strip(),
-            "bd": nombre(l.get("FTHG")), "be": nombre(l.get("FTAG")),
+            "bd": buts(l.get("FTHG")), "be": buts(l.get("FTAG")),
             # cotes moyennes et meilleures cotes (avant-match), puis cloture
             "c1": premiere(l, "AvgH", "BbAvH", "B365H"), "cN": premiere(l, "AvgD", "BbAvD", "B365D"), "c2": premiere(l, "AvgA", "BbAvA", "B365A"),
             "m1": premiere(l, "MaxH", "BbMxH"), "mN": premiere(l, "MaxD", "BbMxD"), "m2": premiere(l, "MaxA", "BbMxA"),
@@ -162,8 +172,6 @@ def lire_csv(chemin):
             "k1": premiere(l, "AvgCH", "B365CH", "AvgH"), "kN": premiere(l, "AvgCD", "B365CD", "AvgD"), "k2": premiere(l, "AvgCA", "B365CA", "AvgA"),
             "kP": premiere(l, "AvgC>2.5", "B365C>2.5", "Avg>2.5"), "kM": premiere(l, "AvgC<2.5", "B365C<2.5", "Avg<2.5"),
         }
-        if m["bd"] is not None:
-            m["bd"], m["be"] = int(m["bd"]), int(m["be"]) if m["be"] is not None else None
         matchs.append(m)
     return matchs
 
