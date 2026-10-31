@@ -118,13 +118,30 @@ async function charger(nom) {
 
 async function demarrer() {
   try {
-    const [a, h, d, t, f, sp] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports"].map(n => charger(n).catch(() => null)));
-    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp});
+    const [a, h, d, t, f, sp, v2] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports", "hippique_v2"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp, v2});
+    fusionnerV2();
     document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
   } catch (e) {
     document.getElementById("maj").textContent = "Pas de connexion";
   }
   afficher();
+}
+
+/* Le modele v2 (etape 2) remplace l'indice provisoire quand il a pronostique la course */
+function fusionnerV2() {
+  const v2 = D.v2; if (!v2) return;
+  const parCle = {};
+  for (const c of v2.courses || []) parCle[`${c.date}/${c.r}/${c.c}`] = c;
+  for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses) {
+    const x = parCle[`${D[src].date}/${reu.r}/${c.c}`]; if (!x) continue;
+    const info = {}; x.classement.forEach((k, i) => info[k.num] = {rang: i + 1, p: k.p_gagnant, pp: k.p_place});
+    for (const pt of c.partants) {
+      const k = info[pt.num];
+      if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.value = false; } else { pt.rang = null; }
+    }
+    c.conseils = x.conseils; c.v2 = true;
+  }
 }
 
 function afficher() {
@@ -147,7 +164,7 @@ function topYanis(c) {
 function vueJour() {
   if (etat.fiche) return vueFiche();
   const j = D[etat.jour];
-  let h = `<div class="bandeau"><b>Mode observation.</b> L'indice Yanis est provisoire : il n'a pas encore passé le banc d'essai sur le passé. Regarde, compare, mais ne mise pas dessus pour l'instant.</div>`;
+  let h = `<div class="bandeau"><b>Mode observation.</b> Aucune formule n'a encore prouvé qu'elle bat le PMU sur son banc d'essai (voir Tableau). Regarde, compare, mais ne mise pas dessus pour l'instant.</div>`;
   h += `<div class="puces">
     <button class="puce ${etat.jour === "aujourdhui" ? "actif" : ""}" data-jour="aujourdhui">Aujourd'hui</button>
     <button class="puce ${etat.jour === "demain" ? "actif" : ""}" data-jour="demain">Demain</button></div>`;
@@ -204,6 +221,12 @@ function vueFiche() {
       ${c.conditions ? `<div class="conditions">${esc(c.conditions)}</div>` : ""}
     </div>
     <div class="carte">`;
+  h = h.replace(/<div class="carte">$/, "");
+  if (c.conseils?.length) {
+    h += `<div class="carte"><h3>Formules Yanis (étape 2)</h3>` + c.conseils.map(x => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--ligne)"><span>${esc(x.texte)}</span>${x.validee ? '<span class="badge b-ok">validée</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>`).join("") +
+      `<div class="sous" style="margin-top:6px">« Validée » seulement si la formule est rentable sur le banc d'essai des derniers mois.</div></div>`;
+  }
+  h += `<div class="carte">`;
   h += tries.map(p => {
     const np = p.statut !== "PARTANT";
     const sd = p.st_driver || [0, 0, 0], se = p.st_entraineur || [0, 0, 0];
@@ -217,7 +240,7 @@ function vueFiche() {
       <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
         ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
-      <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}</div></div>
+      <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
       <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
         Musique ${esc(p.musique || "–")}${equip ? " · " + esc(equip) : ""}</div>
     </div>`;
@@ -470,19 +493,24 @@ function vueTableau() {
       <div class="barre"><i style="width:${b.progression}%"></i></div>
       <div class="sous">${b.progression} % des 10 ans collectés · ${b.courses.toLocaleString("fr-FR")} courses · ${b.partants.toLocaleString("fr-FR")} partants · ${b.rapports.toLocaleString("fr-FR")} rapports</div>
     </div>
-    <h2>L'indice Yanis sur 30 jours</h2>
-    <div class="chiffres">
-      <div class="chiffre"><div class="v">${ix.courses ? Math.round(100 * ix.gagnes / ix.courses) : 0} %</div><div class="l">N°1 Yanis gagnant (${ix.courses} courses)</div></div>
-      <div class="chiffre"><div class="v">${ix.courses ? Math.round(100 * ix.favori_gagne / ix.courses) : 0} %</div><div class="l">Favori des parieurs gagnant</div></div>
-      <div class="chiffre"><div class="v ${roi >= 0 ? "pos" : "neg"}">${(100 * roi).toFixed(1)} %</div><div class="l">Rentabilité 1 € gagnant sur le n°1</div></div>
-      <div class="chiffre"><div class="v">${euros(ix.retour - ix.mise)}</div><div class="l">Gain net pour 1 € par course</div></div>
-    </div>
-    <div class="sous" style="margin:8px 2px 0">Test indicatif : les statistiques utilisent aussi les courses testées. Le vrai banc d'essai, honnête, arrive avec l'étape 2.</div>
+    ${bancV2()}
+
     <h2>Drivers et jockeys (12 mois)</h2>${tableNoms(t.drivers)}
     <h2>Entraîneurs (12 mois)</h2>${tableNoms(t.entraineurs)}
     <h2>Courses par discipline</h2><div class="carte"><table>${t.disciplines.map(d => `<tr><td>${DISC[d.nom] || esc(d.nom)}</td><td class="n">${d.courses.toLocaleString("fr-FR")}</td></tr>`).join("")}</table></div>`;
   vue.innerHTML = h;
 }
+function bancV2() {
+  const b = D.v2?.banc_essai; if (!b) return "";
+  const st = Object.values(b.strategies);
+  return `<h2>Étape 2 : banc d'essai des formules</h2>
+    <div class="carte"><div class="sous">Testé sur ${b.courses.toLocaleString("fr-FR")} courses jamais vues (${esc(b.mois_testes.join(", "))}), avec les vrais rapports PMU.
+      N°1 Yanis gagnant : <b>${Math.round(100 * b.n1_yanis_gagne)} %</b> · favori des parieurs : ${Math.round(100 * b.favori_gagne)} %.</div>
+    <table style="margin-top:8px"><tr><th>Formule</th><th class="n">Paris</th><th class="n">Gagnés</th><th class="n">Rentab.</th></tr>` +
+    st.map(x => `<tr><td>${esc(x.nom)} ${x.validee ? '<span class="badge b-ok">validée</span>' : ""}</td><td class="n">${x.paris}</td><td class="n">${x.reussite != null ? Math.round(100 * x.reussite) + " %" : "–"}</td><td class="n ${x.roi >= 0 ? "pos" : "neg"}">${x.roi != null ? (100 * x.roi).toFixed(1) + " %" : "–"}</td></tr>`).join("") +
+    `</table><div class="sous" style="margin-top:8px">Une formule passe « validée » seulement si elle gagne plus de 2 % sur au moins 150 paris, presque tous les mois. Le test se refait chaque jour avec l'historique qui grandit.</div></div>`;
+}
+
 function tableNoms(l) {
   if (!l?.length) return `<div class="carte sous">Pas encore assez de courses.</div>`;
   return `<div class="carte"><table><tr><th>Nom</th><th class="n">Courses</th><th class="n">Vict.</th><th class="n">% vict.</th><th class="n">% podium</th></tr>` +

@@ -40,6 +40,11 @@ jobs:
           git push || true
       - name: Courses PMU (30 minutes maximum)
         run: python yanis.py collecte --budget 30
+      - name: Modele hippique v2 (banc d'essai une fois par jour, pronostics a chaque passage)
+        continue-on-error: true
+        run: |
+          pip install --quiet pandas scikit-learn
+          python modele_hippique.py --banc-si-ancien
       - name: Preparer l'appli
         run: python yanis.py publier
       - name: Enregistrer dans la bibliotheque
