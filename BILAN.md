@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 31/10/2026 a 16:03.
+Mis a jour le 31/10/2026 a 16:18.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 31/10/2026 a 16:03.
 | Reunions | 716 |
 | Courses | 5406 |
 | Partants | 63967 |
-| Rapports | 88446 |
-| Partants avec cote finale | 60489 |
-| Partants avec place a l'arrivee | 50187 |
+| Rapports | 88479 |
+| Partants avec cote finale | 60479 |
+| Partants avec place a l'arrivee | 50209 |
 
 ## Courses par discipline
 
@@ -31,7 +31,7 @@ Mis a jour le 31/10/2026 a 16:03.
 | B. ROCHARD | 810 | 167 | 20.6 | 47.0 |
 | E. RAFFIN | 655 | 153 | 23.4 | 48.2 |
 | M. BARZALONA | 432 | 108 | 25.0 | 56.7 |
-| M. MOTTIER | 574 | 89 | 15.5 | 32.9 |
+| M. MOTTIER | 575 | 89 | 15.5 | 32.9 |
 | C. DEMURO | 699 | 88 | 12.6 | 39.1 |
 | PC. BOUDOT | 479 | 80 | 16.7 | 42.8 |
 | Y. LEBOURGEOIS | 401 | 76 | 19.0 | 36.7 |
