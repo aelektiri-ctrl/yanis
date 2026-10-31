@@ -96,7 +96,7 @@ input,select{width:100%;background:var(--carte2);border:1px solid var(--ligne);c
 </nav>
 <script>
 const D = {}; // donnees chargees
-const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null, sport: "selections", direct: "fra.1" };
+const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null, sport: "selections", direct: "fra.1", mode: "toutes" };
 const vue = document.getElementById("vue");
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -170,6 +170,36 @@ function reunionsJouables(j) {
     .filter(r => r.courses.length);
 }
 
+function carteCourse(c, reu, avecReunion, enAvant) {
+  const top = topYanis(c);
+  const values = c.partants.filter(p => p.value).map(p => p.num);
+  const fini = !!c.arrivee;
+  return `<div class="carte course" data-course="${c.c}" data-r="${reu.r}" style="${enAvant ? "border-color:var(--vert);box-shadow:0 0 0 1px var(--vert) inset" : ""}">
+    <div class="heure">${heure(c.depart)}</div>
+    <div class="info">
+      ${enAvant ? `<div class="sous pos" style="font-weight:600">Prochain départ</div>` : ""}
+      <div class="titre">${avecReunion ? `R${reu.r}C${c.c} ${esc(reu.hippodrome || "")}${reu.pays && reu.pays !== "FRA" ? " 🌍" : ""} · ` : `C${c.c} · `}${esc(c.libelle)}</div>
+      <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${c.nb_partants || c.partants.length} partants</div>
+      ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
+             : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
+    </div><div class="fleche">›</div></div>`;
+}
+
+function vueToutes(j) {
+  const toutes = [];
+  for (const reu of j.reunions) for (const c of reu.courses) toutes.push({c, reu});
+  toutes.sort((a, b) => (a.c.depart || "").localeCompare(b.c.depart || ""));
+  const aVenir = toutes.filter(x => !x.c.arrivee), finies = toutes.filter(x => x.c.arrivee).reverse();
+  let h = "";
+  if (aVenir.length) {
+    h += `<h2>À venir (${aVenir.length})</h2>` + aVenir.map((x, i) => carteCourse(x.c, x.reu, true, i === 0)).join("");
+  } else {
+    h += `<div class="carte sous">Toutes les courses de la journée sont terminées.</div>`;
+  }
+  if (finies.length) h += `<h2>Terminées (${finies.length})</h2>` + finies.map(x => carteCourse(x.c, x.reu, true, false)).join("");
+  return h;
+}
+
 function vueJour() {
   if (etat.fiche) return vueFiche();
   const jBrut = D[etat.jour];
@@ -185,6 +215,13 @@ function vueJour() {
     vue.innerHTML = h + `<div class="vide">Pas encore de programme jouable pour ce jour.<br>Yanis le récupère toutes les 15 minutes.</div>` + blocMasquees;
     return lierJour();
   }
+  h += `<div class="puces">
+    <button class="puce ${etat.mode === "toutes" ? "actif" : ""}" data-mode="toutes">🕐 Toutes les courses</button>
+    <button class="puce ${etat.mode === "reunion" ? "actif" : ""}" data-mode="reunion">Par réunion</button></div>`;
+  if (etat.mode === "toutes") {
+    vue.innerHTML = h + vueToutes(j) + blocMasquees;
+    return lierJour();
+  }
   if (!j.reunions.some(r => r.r === etat.reunion)) etat.reunion = j.reunions[0].r;
   h += `<div class="puces">` + j.reunions.map(r =>
     `<button class="puce ${r.r === etat.reunion ? "actif" : ""}" data-reunion="${r.r}">R${r.r} ${esc(r.hippodrome || "")}</button>`).join("") + `</div>`;
@@ -192,24 +229,13 @@ function vueJour() {
   h += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
     <div class="sous">${reu.pays && reu.pays !== "FRA" ? "🌍 " + esc(reu.pays) + " · " : ""}${reu.temperature != null || reu.ciel ? `Météo : ${reu.temperature != null ? reu.temperature + " °C" : ""} ${esc(reu.ciel || "")}` : ""}</div>
     <button class="btn sec" style="width:auto;padding:6px 10px;font-size:12.5px" data-masquer="${esc(reu.hippodrome || "")}">Pas sur Betclic ? Masquer</button></div>`;
-  h += reu.courses.map(c => {
-    const top = topYanis(c);
-    const values = c.partants.filter(p => p.value).map(p => p.num);
-    const fini = !!c.arrivee;
-    return `<div class="carte course" data-course="${c.c}">
-      <div class="heure">${heure(c.depart)}</div>
-      <div class="info">
-        <div class="titre">C${c.c} · ${esc(c.libelle)}</div>
-        <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${c.nb_partants || c.partants.length} partants</div>
-        ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
-               : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
-      </div><div class="fleche">›</div></div>`;
-  }).join("") + blocMasquees;
+  h += reu.courses.map(c => carteCourse(c, reu, false, false)).join("") + blocMasquees;
   vue.innerHTML = h;
   lierJour();
 }
 
 function lierJour() {
+  vue.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { etat.mode = b.dataset.mode; afficher(); });
   vue.querySelectorAll("[data-masquer]").forEach(b => b.onclick = () => {
     if (!confirm(`Masquer ${b.dataset.masquer} ? Yanis ne l'affichera plus, aujourd'hui et les prochaines fois. Tu pourras la réafficher en bas de la page.`)) return;
     const m = masquees(); if (!m.includes(b.dataset.masquer)) m.push(b.dataset.masquer); lsSet("yanis_masquees", m); etat.reunion = null; afficher();
