@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 31/10/2026 a 16:34.
+Mis a jour le 31/10/2026 a 16:50.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 31/10/2026 a 16:34.
 | Reunions | 716 |
 | Courses | 5406 |
 | Partants | 63967 |
-| Rapports | 88494 |
-| Partants avec cote finale | 60495 |
-| Partants avec place a l'arrivee | 50231 |
+| Rapports | 88580 |
+| Partants avec cote finale | 60499 |
+| Partants avec place a l'arrivee | 50257 |
 
 ## Courses par discipline
 
@@ -28,8 +28,8 @@ Mis a jour le 31/10/2026 a 16:34.
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| B. ROCHARD | 810 | 167 | 20.6 | 47.0 |
-| E. RAFFIN | 655 | 153 | 23.4 | 48.2 |
+| B. ROCHARD | 811 | 167 | 20.6 | 47.0 |
+| E. RAFFIN | 656 | 154 | 23.5 | 48.3 |
 | M. BARZALONA | 432 | 108 | 25.0 | 56.7 |
 | M. MOTTIER | 576 | 90 | 15.6 | 33.0 |
 | C. DEMURO | 699 | 88 | 12.6 | 39.1 |
@@ -38,7 +38,7 @@ Mis a jour le 31/10/2026 a 16:34.
 | M. GUYON | 529 | 76 | 14.4 | 40.5 |
 | TH. BRIAND | 361 | 74 | 20.5 | 45.2 |
 | A. ABRIVARD | 494 | 72 | 14.6 | 37.2 |
-| A. COLLETTE | 646 | 67 | 10.4 | 28.9 |
+| A. COLLETTE | 647 | 67 | 10.4 | 28.9 |
 | M. ABRIVARD | 462 | 62 | 13.4 | 38.5 |
 | P. PH. PLOQUIN | 576 | 60 | 10.4 | 31.1 |
 | M. GRANDIN | 586 | 55 | 9.4 | 30.7 |
