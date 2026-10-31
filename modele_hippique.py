@@ -86,6 +86,35 @@ def forme_musique(m, n=6):
     return out
 
 
+LETTRE_DISC = {"ATTELE": "a", "MONTE": "m", "PLAT": "p", "HAIE": "h", "STEEPLECHASE": "s", "CROSS": "c"}
+
+
+def musique_detaillee(m):
+    """[(place, lettre de discipline)] pour les courses de la musique, de la plus recente a la plus ancienne."""
+    if not isinstance(m, str) or not m:
+        return []
+    m = re.sub(r"\(\d+\)", "", m)
+    return [(int(c) if c.isdigit() and c != "0" else 0, d.lower()) for c, d in re.findall(r"([0-9DATRS])([a-zA-Z])", m)]
+
+
+def indices_musique(m, disc):
+    """Forme dans la discipline du jour, forme dans les AUTRES disciplines, et signe de sous-performance recente."""
+    md = musique_detaillee(m)
+    lettre = LETTRE_DISC.get(disc, "?")
+    val = lambda x: x if x else 10
+    meme = [val(pl) for pl, d in md if d == lettre]
+    autre = [val(pl) for pl, d in md if d != lettre]
+    recentes = [val(pl) for pl, _ in md[:3]]
+    anciennes = [val(pl) for pl, _ in md[3:10]]
+    return {
+        "mus_meme_n": len(meme), "mus_meme_moy": np.mean(meme) if meme else np.nan, "mus_meme_best": min(meme) if meme else np.nan,
+        "mus_autre_n": len(autre), "mus_autre_moy": np.mean(autre) if autre else np.nan, "mus_autre_best": min(autre) if autre else np.nan,
+        "chg_discipline": float(md[0][1] != lettre) if md else np.nan,
+        # « tour » : de bons resultats avant, de mauvais recemment (le cheval a pu etre cache)
+        "sous_perf": (np.mean(recentes) - min(anciennes)) if recentes and anciennes else np.nan,
+    }
+
+
 def preparer(p):
     p = p.copy()
     p["jour"] = pd.to_datetime(p["date"])
@@ -119,6 +148,8 @@ def preparer(p):
     p["mus_vict"] = mus.map(lambda x: sum(v == 1 for v in x))
     p["mus_podium"] = mus.map(lambda x: sum(1 <= v <= 3 for v in x))
     p["mus_dq"] = p["musique"].fillna("").str.count(r"D[a-z]")
+    im = pd.DataFrame([indices_musique(m, d) for m, d in zip(p["musique"], p["discipline"])], index=p.index)
+    p = pd.concat([p, im], axis=1)
 
     # --- equipement ---
     d = p["deferre"].fillna("")
@@ -155,6 +186,9 @@ def preparer(p):
     p["place_prec"] = g["place_arrivee"].shift(1).fillna(0)
     p["meme_hippo"] = (g["hippodrome_code"].shift(1) == p["hippodrome_code"]).astype(float).where(prev_ts.notna())
     p["cote_prec"] = g["cote"].shift(1)
+    # --- changements suspects ---
+    p["chg_entraineur"] = (g["entraineur_n"].shift(1) != p["entraineur_n"]).astype(float).where(prev_ts.notna())
+    p["retour_pause"] = (p["repos_j"] >= 60).astype(float).where(p["repos_j"].notna())
     p["gains_par_course"] = p["gains_carriere"] / p["nb_courses"].replace(0, np.nan)
 
     # --- note de vitesse (trot) : reduction km comparee a la reference hippodrome + distance ---
@@ -178,6 +212,9 @@ def preparer(p):
     p["vit_n"] = g.transform(lambda x: x.shift(1).notna().cumsum())
     p["vit_tendance"] = p["vit_derniere"] - p["vit_moy3"]
 
+    # driver qui monte en gamme par rapport a la derniere course du cheval
+    p["dr_tx_prec"] = p.groupby("nom", sort=False)["dr_tx_v"].shift(1)
+    p["montee_driver"] = p["dr_tx_v"] - p["dr_tx_prec"]
     # rang du cheval dans sa course sur quelques indices cles
     for col in ("vit_max5", "vit_moy3"):
         p[f"rg_{col}"] = p.groupby("cle")[col].rank(pct=True)
@@ -225,6 +262,8 @@ VARIABLES = [
     "rg_gains_par_course", "rg_dr_tx_v", "rg_en_tx_v", "rg_mus_moy",
     "vit_derniere", "vit_moy3", "vit_max5", "vit_n", "vit_tendance",
     "etranger", "terrain_c", "jour_mois", "alloc_ratio",
+    "mus_meme_n", "mus_meme_moy", "mus_meme_best", "mus_autre_n", "mus_autre_moy", "mus_autre_best", "chg_discipline", "sous_perf",
+    "chg_entraineur", "retour_pause", "montee_driver",
     "pf_n", "pf_place_moy", "pf_top3", "pf_vict", "pf_dq", "pf_retard_km_moy", "pf_retard_km_min", "pf_long_moy", "pf_long_min",
     "pf_alloc_moy", "pf_alloc_max", "pf_jours", "pf_niveau", "rg_pf_retard_km_moy", "rg_pf_long_moy", "rg_pf_place_moy",
     "dr_hippo_courses", "dr_hippo_tx_v", "en_hippo_tx_v", "ch_hippo_courses", "ch_hippo_tx_p", "ch_terrain_courses", "ch_terrain_tx_p",
@@ -596,12 +635,129 @@ def pronostics(p, banc):
         out.append({
             "date": course["date"].iloc[0], "r": int(course["r"].iloc[0]), "c": int(course["c"].iloc[0]),
             "partants": n, "places_payees": 2 if n <= 7 else 3, "favori": fav,
+            **dict(zip(("menu", "desordre", "outsiders"), menu_formules(course, offerts))),
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
                             "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None}
                            for r in tri.itertuples()],
             "conseils": conseils,
         })
     return out
+
+
+NOMS_DISC = {"a": "trot attelé", "m": "trot monté", "p": "plat", "h": "haies", "s": "steeple", "c": "cross"}
+
+
+LAMBDA_PLACES = 0.6   # regle sur les vraies arrivees : derriere le gagnant, les outsiders viennent plus souvent qu'on croit
+
+
+def simuler_arrivees(probas, n_sim=20000, graine=0):
+    """Tire 20 000 arrivees possibles a partir des chances de victoire.
+    Le 1er est tire avec les chances de victoire ; les 2e, 3e et 4e avec des chances « aplaties »
+    (reglage verifie sur l'historique : favori dans les 4 prevu 72 % / reel 70 %, outsiders 15+ prevu 18 % / reel 18 %).
+    Renvoie un tableau (n_sim x nb chevaux) : place de chaque cheval (5 = au-dela de la 4e)."""
+    rng = np.random.default_rng(graine)
+    lp = np.log(np.clip(np.asarray(probas, float), 1e-6, None))
+    n = len(lp)
+    places = np.full((n_sim, n), 5, dtype=int)
+    dispo = np.ones((n_sim, n), dtype=bool)
+    for etape in range(min(4, n)):
+        w = (lp if etape == 0 else lp * LAMBDA_PLACES) + rng.gumbel(size=(n_sim, n))
+        w[~dispo] = -np.inf
+        choix = w.argmax(axis=1)
+        places[np.arange(n_sim), choix] = etape + 1
+        dispo[np.arange(n_sim), choix] = False
+    return places
+
+
+def raisons_outsider(r):
+    """Pourquoi ce cheval peut creer la surprise (en francais simple)."""
+    out = []
+    if r.get("chg_discipline") == 1 and pd.notna(r.get("mus_autre_best")) and r["mus_autre_best"] <= 3:
+        lettre = next((d for _, d in musique_detaillee(r.get("musique")) if d != LETTRE_DISC.get(r.get("discipline"))), "?")
+        out.append(f"vient du {NOMS_DISC.get(lettre, 'autre discipline')} où il a déjà fini {int(r['mus_autre_best'])}e")
+    if pd.notna(r.get("sous_perf")) and r["sous_perf"] >= 4:
+        out.append("ses dernières courses sont bien en dessous de son niveau habituel (possible « tour »)")
+    if r.get("d4_nouveau") == 1:
+        out.append("déferré des 4 pieds pour la première fois")
+    if pd.notna(r.get("montee_driver")) and r["montee_driver"] >= 0.04:
+        out.append("meilleur driver/jockey qu'à sa dernière course")
+    if r.get("chg_entraineur") == 1:
+        out.append("nouvel entraîneur")
+    if pd.notna(r.get("alloc_ratio")) and r["alloc_ratio"] <= -0.3:
+        out.append("descend de catégorie")
+    if pd.notna(r.get("derive_cote")) and r["derive_cote"] >= 0.25:
+        out.append("sa cote a fondu depuis le matin : de l'argent arrive sur lui")
+    if r.get("retour_pause") == 1 and r.get("meme_hippo") == 1:
+        out.append("revient de repos sur un hippodrome qu'il connaît")
+    if pd.notna(r.get("pf_long_min")) and r["pf_long_min"] <= 1.5 and r.get("cote", 0) >= 12:
+        out.append("a déjà fini à moins de 2 longueurs du gagnant récemment")
+    return out
+
+
+def menu_formules(course, offerts):
+    """Pour une course : chaque formule possible avec ses chances de passer (simulation) et son nombre de combinaisons."""
+    tri = course.sort_values("p_v2", ascending=False).reset_index(drop=True)
+    nums = [int(x) for x in tri["num"]]
+    n = len(nums)
+    if n < 3:
+        return [], None, []
+    places = simuler_arrivees(tri["p_v2"].values)
+    pos = {num: places[:, i] for i, num in enumerate(nums)}
+    nb_places = 2 if n <= 7 else 3
+    existe = lambda code: offerts is None or code in offerts or f"E_{code}" in offerts
+    dans = lambda chevaux, k: np.all(np.stack([pos[c] <= k for c in chevaux]), axis=0).mean()
+    menu = []
+    def ajoute(code, texte, chevaux, proba, combis):
+        if existe(code):
+            menu.append({"texte": texte, "chevaux": chevaux, "chances": round(float(proba), 3), "combinaisons": combis, "code": code})
+    a, b, c = nums[0], nums[1], nums[2]
+    ajoute("SIMPLE_GAGNANT", f"Simple gagnant n°{a}", [a], (pos[a] == 1).mean(), 1)
+    if n >= 4:
+        ajoute("SIMPLE_PLACE", f"Simple placé n°{a}", [a], (pos[a] <= nb_places).mean(), 1)
+    # le loup : l'outsider le plus capable de finir dans les 4
+    cotes = dict(zip(tri["num"].astype(int), tri["cote"]))
+    candidats = [x for x in nums[3:] if (cotes.get(x) or 0) >= 12]
+    p4 = {x: (pos[x] <= 4).mean() for x in nums}
+    loups = sorted(candidats, key=lambda x: -p4[x])[:2]
+    if n <= 7:
+        ajoute("COUPLE_ORDRE", f"Couplé ordre {a}-{b}", [a, b], ((pos[a] == 1) & (pos[b] == 2)).mean(), 1)
+        ajoute("COUPLE_ORDRE", f"Couplé ordre {a}-{b} et {b}-{a} (2 sens)", [a, b], dans([a, b], 2), 2)
+        ajoute("TRIO_ORDRE", f"Trio ordre {a}-{b}-{c}", [a, b, c], ((pos[a] == 1) & (pos[b] == 2) & (pos[c] == 3)).mean(), 1)
+        ajoute("TRIO_ORDRE", f"Trio ordre {a}-{b}-{c} dans tous les ordres", [a, b, c], dans([a, b, c], 3), 6)
+    else:
+        ajoute("COUPLE_PLACE", f"Couplé placé {a}-{b}", [a, b], dans([a, b], 3), 1)
+        ajoute("DEUX_SUR_QUATRE", f"2 sur 4 {a}-{b}", [a, b], dans([a, b], 4), 1)
+        ajoute("TRIO", f"Trio {a}-{b}-{c}", [a, b, c], dans([a, b, c], 3), 1)
+        if n >= 6:
+            ass = nums[2:6]
+            ok = (pos[a] <= 3) & (pos[b] <= 3) & np.any(np.stack([pos[x] <= 3 for x in ass]), axis=0)
+            ajoute("TRIO", f"Trio champ réduit : bases {a}-{b} + {'-'.join(map(str, ass))}", [a, b] + ass, ok.mean(), len(ass))
+        code_multi = "MULTI" if existe("MULTI") else "MINI_MULTI"
+        nom_multi = "Multi" if code_multi == "MULTI" else "Mini multi"
+        for k in (4, 5, 6):
+            if n > k:
+                ajoute(code_multi, f"{nom_multi} en {k} : {'-'.join(map(str, nums[:k]))}", nums[:k],
+                       np.sum(np.stack([places[:, i] <= 4 for i in range(k)]), axis=0).__ge__(min(4, n)).mean(), {4: 1, 5: 5, 6: 15}[k])
+        if loups:
+            l = loups[0]
+            ajoute("DEUX_SUR_QUATRE", f"2 sur 4 avec le loup : {a}-{l}", [a, l], dans([a, l], 4), 1)
+    # indice de desordre : un cheval a 15 contre 1 ou plus dans les 4 premiers
+    gros = [x for x in nums if (cotes.get(x) or 0) >= 15]
+    desordre = 0.0
+    if tri["cote"].notna().sum() < max(3, n / 2):
+        desordre = None   # pas encore de cotes : on ne sait pas
+    elif gros:
+        # calcule avec les cotes du marche (c'est sur elles que le reglage a ete verifie)
+        pm = tri["p_marche"].fillna(tri["p_v2"]).values
+        pl_m = simuler_arrivees(pm, n_sim=10000, graine=1)
+        idx_gros = [i for i, x in enumerate(nums) if x in gros]
+        desordre = float((pl_m[:, idx_gros] <= 4).any(axis=1).mean())
+    dangereux = []
+    for x in loups:
+        r = tri[tri["num"] == x].iloc[0].to_dict()
+        dangereux.append({"num": x, "nom": r["nom"], "cote": cotes.get(x), "chances_4_premiers": round(float(p4[x]), 3),
+                          "raisons": raisons_outsider(r) or ["Yanis le voit plus souvent dans les 4 que ce que dit sa cote"]})
+    return menu, (round(desordre, 3) if desordre is not None else None), dangereux
 
 
 def pepite_du_jour(p, banc):

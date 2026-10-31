@@ -200,6 +200,9 @@ function infoPartants(c) {
 function carteCourse(c, reu, avecReunion, enAvant) {
   const top = topYanis(c);
   const ip = infoPartants(c);
+  const src = ["aujourdhui", "demain", "hier"].find(k => D[k]?.reunions?.some(r => r.courses.includes(c)));
+  const v = (D.v2?.courses || []).find(x => src && x.date === D[src].date && x.r === reu.r && x.c === c.c);
+  const nd = v ? niveauDesordre(v.desordre) : null;
   const values = c.partants.filter(p => p.value).map(p => p.num);
   const fini = !!c.arrivee;
   return `<div class="carte course" data-course="${c.c}" data-r="${reu.r}" style="${enAvant ? "border-color:var(--vert);box-shadow:0 0 0 1px var(--vert) inset" : ""}">
@@ -207,7 +210,7 @@ function carteCourse(c, reu, avecReunion, enAvant) {
     <div class="info">
       ${enAvant ? `<div class="sous pos" style="font-weight:600">Prochain départ</div>` : ""}
       <div class="titre">${avecReunion ? `R${reu.r}C${c.c} ${esc(reu.hippodrome || "")}${reu.pays && reu.pays !== "FRA" ? " 🌍" : ""} · ` : `C${c.c} · `}${esc(c.libelle)}</div>
-      <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${ip.vrais} partants${ip.np ? ` <span class="badge b-np">${ip.np} non-partant${ip.np > 1 ? "s" : ""}</span>` : ""}${ip.ordre ? ` <span class="badge" style="background:#1d3550;color:#9fd0ff">2 places · ordre</span>` : ""}</div>
+      <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${ip.vrais} partants${ip.np ? ` <span class="badge b-np">${ip.np} non-partant${ip.np > 1 ? "s" : ""}</span>` : ""}${ip.ordre ? ` <span class="badge" style="background:#1d3550;color:#9fd0ff">2 places · ordre</span>` : ""}${nd && nd.txt === "élevé" && !c.arrivee ? ` <span class="badge" style="background:${nd.coul};color:${nd.fg}">⚠️ course piège</span>` : ""}${v?.outsiders?.length && !c.arrivee ? ` <span class="badge" style="background:#3a2020;color:#ffb0b0">🐺 ${v.outsiders.map(o => o.num).join(", ")}</span>` : ""}</div>
       ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
              : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
     </div><div class="fleche">›</div></div>`;
@@ -303,6 +306,7 @@ function vueFiche() {
     </div>
     <div class="carte">`;
   h = h.replace(/<div class="carte">$/, "");
+  h += blocMenu(c, reu);
   if (c.conseils?.length) {
     h += `<div class="carte"><h3>Formules Yanis (étape 2)</h3>` + c.conseils.map(x => `<div style="padding:6px 0;border-top:1px solid var(--ligne)"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(x.texte)}</span>${x.validee ? '<span class="badge b-ok">validée</span>' : x.prometteur ? '<span class="badge b-value">prometteur</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>${x.raison ? `<div class="sous">${esc(x.raison)}${x.prometteur ? " (à confirmer sur 6 mois)" : ""}</div>` : ""}${miseConseillee(x) ? `<div class="sous pos">${miseConseillee(x)}</div>` : ""}<button class="btn sec" style="margin-top:6px;padding:7px" data-joue='${esc(JSON.stringify({type: "turf", cle: `${D[etat.fiche.source].date}/${reu.r}/${c.c}`, formule: FORMULE_DE[x.strategie] || "Autre", chevaux: x.chevaux.join("-")}))}'>J'ai joué ce pari</button></div>`).join("") +
       `<div class="sous" style="margin-top:6px">« Validée » seulement si la formule est rentable sur le banc d'essai des derniers mois.</div></div>`;
@@ -318,10 +322,11 @@ function vueFiche() {
                    p.poids ? p.poids + " kg" : "", p.corde ? "corde " + p.corde : ""].filter(Boolean).join(" · ");
     const malin = argentMalin(p);
     const estFavori = !np && p.num === favoriNum;
+    const chaud = derniereHeure(p);
     return `<div class="partant" style="${np ? "opacity:.45" : ""}">
       <div class="rang ${p.rang ? "r" + p.rang : ""}">${p.rang || "–"}</div>
       <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
-        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
+        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${chaud ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">🔥 joué dans la dernière heure ${chaud}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
       <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
       <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
@@ -527,7 +532,44 @@ document.addEventListener("click", e => {
   try { jaiJoue(JSON.parse(b.dataset.joue)); } catch (err) {}
 });
 
+const FORMULE_CODE = {SIMPLE_GAGNANT: "Simple gagnant", SIMPLE_PLACE: "Simple placé", COUPLE_PLACE: "Couplé placé",
+  COUPLE_ORDRE: "Couplé ordre", DEUX_SUR_QUATRE: "2 sur 4", TRIO: "Trio", TRIO_ORDRE: "Trio ordre", MULTI: "Multi", MINI_MULTI: "Mini multi"};
+
+function niveauDesordre(d) {
+  if (d == null) return null;
+  // en moyenne, un cheval a 15 contre 1 ou plus finit dans les 4 dans 75 % des courses
+  return d >= 0.88 ? {txt: "élevé", coul: "#5a1d1d", fg: "#ffb3b3", conseil: "Course piège : un gros outsider finira très probablement dans les 4. Élargis ton jeu (champ réduit, multi en 5 ou 6, le loup) ou passe ton tour."}
+       : d >= 0.60 ? {txt: "normal", coul: "#3a3010", fg: "#f6dd97", conseil: "Comme dans 3 courses sur 4, un outsider à 15 contre 1 ou plus a de bonnes chances de finir dans les 4 : pense au loup."}
+       : {txt: "faible", coul: "#123222", fg: "#bff0d0", conseil: "Course plutôt logique : les chevaux attendus devraient se retrouver devant."};
+}
+
+function blocMenu(c, reu) {
+  const v = (D.v2?.courses || []).find(x => x.date === D[etat.fiche.source]?.date && x.r === reu.r && x.c === c.c);
+  if (!v || !v.menu) return "";
+  const nd = niveauDesordre(v.desordre);
+  let h = "";
+  if (nd) h += `<div class="carte" style="background:${nd.coul};border-color:${nd.coul}"><b style="color:${nd.fg}">Indice de désordre : ${nd.txt} (${Math.round(100 * v.desordre)} %)</b>
+    <div class="sous" style="color:${nd.fg}">${nd.conseil}</div></div>`;
+  h += `<div class="carte"><h3>Menu des formules Yanis</h3><div class="sous" style="margin-bottom:6px">Chances de passer calculées sur 20 000 arrivées simulées. À toi de choisir selon le risque.</div>
+    <table><tr><th>Formule</th><th class="n">Chances</th><th class="n">Comb.</th><th></th></tr>` +
+    v.menu.map(m => `<tr><td>${esc(m.texte)}</td><td class="n"><b>${Math.round(100 * m.chances)} %</b></td><td class="n">${m.combinaisons}</td>
+      <td class="n"><button class="btn sec" style="padding:4px 8px;width:auto" data-joue='${esc(JSON.stringify({type: "turf", cle: `${v.date}/${v.r}/${v.c}`, formule: FORMULE_CODE[m.code] || "Autre", chevaux: m.chevaux.join("-")}))}'>Joué</button></td></tr>`).join("") +
+    `</table><div class="sous" style="margin-top:6px">« Comb. » = nombre de combinaisons à payer. Ces chances ne disent pas si le pari est rentable : regarde le banc d'essai dans le Tableau.</div></div>`;
+  if (v.outsiders?.length) h += `<div class="carte" style="border-color:#5a1d1d"><h3>🐺 Les loups de la course</h3>` +
+    v.outsiders.map(o => `<div style="padding:6px 0;border-top:1px solid var(--ligne)"><b>${o.num}. ${esc(o.nom)}</b> · cote ${o.cote ?? "–"} · dans les 4 : <b>${Math.round(100 * o.chances_4_premiers)} %</b>
+      <div class="sous">${o.raisons.map(esc).join(" · ")}</div></div>`).join("") + `</div>`;
+  return h;
+}
+
 /* Argent malin : la cote a fondu d'au moins 30 % depuis le matin (ou depuis le premier releve du jour) */
+function derniereHeure(p) {
+  const s = p.cotes_suivies; if (!s || s.length < 2) return "";
+  const maintenant = new Date(); const lim = maintenant.getHours() * 60 + maintenant.getMinutes() - 60;
+  const avant = s.find(x => { const [h, m] = x[0].split(":").map(Number); return h * 60 + m >= lim; }) || s[0];
+  const fin = s[s.length - 1][1];
+  return avant[1] && fin < avant[1] * 0.75 ? `${avant[1]} → ${fin}` : "";
+}
+
 function argentMalin(p) {
   const depart = p.cote_ref || (p.cotes_suivies && p.cotes_suivies[0] ? p.cotes_suivies[0][1] : null);
   const fin = p.cote;
@@ -653,10 +695,10 @@ function tableNoms(l) {
 }
 
 /* ---------- MES PARIS (suivi de ce qui est joue sur Betclic) ---------- */
-const FORMULES_TURF = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "Couplé ordre", "2 sur 4", "Trio", "Trio ordre", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
+const FORMULES_TURF = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "Couplé ordre", "2 sur 4", "Trio", "Trio ordre", "Multi", "Mini multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
 const CODE_PMU = {"Simple gagnant": "SIMPLE_GAGNANT", "Simple placé": "SIMPLE_PLACE", "Couplé gagnant": "COUPLE_GAGNANT",
   "Couplé placé": "COUPLE_PLACE", "Couplé ordre": "COUPLE_ORDRE", "2 sur 4": "DEUX_SUR_QUATRE", "Trio": "TRIO",
-  "Trio ordre": "TRIO_ORDRE", "Multi": "MULTI"};
+  "Trio ordre": "TRIO_ORDRE", "Multi": "MULTI", "Mini multi": "MINI_MULTI"};
 const nums = x => (String(x || "").match(/\d+/g) || []).map(Number);
 const memeEnsemble = (a, b) => a.length === b.length && a.every(v => b.includes(v));
 
@@ -684,7 +726,7 @@ function reglerAuto() {
       const comb = nums(rp.combinaison);
       if (code.endsWith("_ORDRE")) {
         if (comb.length === jeu.length && comb.every((v, i) => v === jeu[i])) { rapport = rp.rapport; break; }
-      } else if (code === "MULTI") {
+      } else if (code === "MULTI" || code === "MINI_MULTI") {
         if ((rp.libelle || "").includes(`Multi en ${jeu.length}`) && comb.every(v => jeu.includes(v))) { rapport = rp.rapport; break; }
       } else if (memeEnsemble(comb, jeu)) { rapport = rp.rapport; break; }
     }

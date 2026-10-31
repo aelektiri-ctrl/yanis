@@ -1,5 +1,5 @@
 // Yanis : l'appli s'ouvre meme sans reseau ; les donnees sont toujours rechargees en priorite.
-const CACHE = "yanis-v11";
+const CACHE = "yanis-v13";
 const COQUILLE = ["./", "index.html", "manifest.json", "icone-192.png", "icone-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(COQUILLE))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
