@@ -181,7 +181,7 @@ function lierJour() {
   vue.querySelectorAll("[data-jour]").forEach(b => b.onclick = () => { etat.jour = b.dataset.jour; etat.reunion = null; afficher(); });
   vue.querySelectorAll("[data-reunion]").forEach(b => b.onclick = () => { etat.reunion = +b.dataset.reunion; afficher(); });
   vue.querySelectorAll("[data-course]").forEach(b => b.onclick = () => {
-    etat.fiche = {source: etat.onglet === "resultats" ? "hier" : etat.jour, r: +(b.dataset.r || etat.reunion), c: +b.dataset.course}; afficher();
+    etat.fiche = {source: etat.onglet === "resultats" ? etat.res : etat.jour, r: +(b.dataset.r || etat.reunion), c: +b.dataset.course}; afficher();
   });
 }
 
@@ -415,19 +415,23 @@ function rendreDirect(j) {
 /* ---------- RESULTATS ---------- */
 function vueResultats() {
   if (etat.fiche) return vueFiche();
-  const j = D.hier;
-  if (!j || !j.reunions.length) { vue.innerHTML = `<div class="vide">Pas encore de résultats pour hier.</div>`; return; }
-  let ok = 0, total = 0;
-  let h = "";
-  for (const reu of j.reunions) {
-    h += `<h2>R${reu.r} · ${esc(reu.hippodrome || "")}</h2>`;
-    for (const c of reu.courses) {
-      if (!c.arrivee) continue;
+  const finies = j => (j?.reunions || []).reduce((n, r) => n + r.courses.filter(c => c.arrivee).length, 0);
+  if (!etat.res) etat.res = finies(D.aujourdhui) ? "aujourdhui" : "hier";
+  const j = D[etat.res];
+  let h = `<div class="puces">
+    <button class="puce ${etat.res === "aujourdhui" ? "actif" : ""}" data-res="aujourdhui">Aujourd'hui (${finies(D.aujourdhui)})</button>
+    <button class="puce ${etat.res === "hier" ? "actif" : ""}" data-res="hier">Hier (${finies(D.hier)})</button></div>`;
+  let ok = 0, total = 0, corps = "";
+  for (const reu of j?.reunions || []) {
+    const cs = reu.courses.filter(c => c.arrivee);
+    if (!cs.length) continue;
+    corps += `<h2>R${reu.r} · ${esc(reu.hippodrome || "")}</h2>`;
+    for (const c of cs) {
       const premier = c.partants.find(p => p.rang === 1);
       const gagne = premier && premier.place === 1;
       if (premier) { total++; if (gagne) ok++; }
       const gagnant = c.rapports.find(r => r.pari === "SIMPLE_GAGNANT");
-      h += `<div class="carte course" data-course="${c.c}" data-r="${reu.r}">
+      corps += `<div class="carte course" data-course="${c.c}" data-r="${reu.r}">
         <div class="heure">C${c.c}</div>
         <div class="info"><div class="titre">${esc(c.libelle)}</div>
           <div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b>${gagnant ? ` · gagnant ${gagnant.rapport.toFixed(2)} €` : ""}</div>
@@ -435,8 +439,14 @@ function vueResultats() {
         </div><div class="fleche">›</div></div>`;
     }
   }
-  vue.innerHTML = `<div class="carte"><h3>Hier, ${esc(j.date.split("-").reverse().join("/"))}</h3>
-    <div class="sous">Le n°1 de l'indice Yanis a gagné <b class="pos">${ok}</b> courses sur ${total} (${total ? Math.round(100 * ok / total) : 0} %).</div></div>` + h;
+  if (!total && !corps) {
+    h += `<div class="vide">${etat.res === "aujourdhui" ? "Aucune arrivée pour l'instant aujourd'hui.<br>Les résultats apparaissent au fil de la journée, à chaque passage de Yanis." : "Pas de résultats pour hier."}</div>`;
+  } else {
+    h += `<div class="carte"><h3>${etat.res === "aujourdhui" ? "Aujourd'hui" : "Hier"}, ${esc(j.date.split("-").reverse().join("/"))}</h3>
+      <div class="sous">Le n°1 de l'indice Yanis a gagné <b class="pos">${ok}</b> courses sur ${total} (${total ? Math.round(100 * ok / total) : 0} %).</div></div>` + corps;
+  }
+  vue.innerHTML = h;
+  vue.querySelectorAll("[data-res]").forEach(b => b.onclick = () => { etat.res = b.dataset.res; afficher(); });
   lierJour();
 }
 
