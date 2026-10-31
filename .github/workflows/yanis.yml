@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: yanis
@@ -49,3 +50,10 @@ jobs:
           git diff --cached --quiet || git commit -m "Collecte du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
           git pull --rebase --quiet || true
           git push
+      - name: Relancer le passage suivant (filet de securite si l'horloge GitHub ne se declenche pas)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 600
+          gh workflow run yanis.yml --ref main -R ${{ github.repository }} || true
