@@ -437,8 +437,8 @@ def collecter_performances(pmu, jour):
 
 
 def _collecte(pmu, t0, limite, auj, args):
-    # 1. Le present : avant-hier, hier et aujourd'hui sont toujours mis a jour
-    for k in (2, 1, 0):
+    # 1. Le present : avant-hier, hier, aujourd'hui et demain sont toujours mis a jour
+    for k in (2, 1, 0, -1):
         jour = auj - dt.timedelta(days=k)
         if not deja_fait(jour):
             print(f"{jour} : {collecter_jour(pmu, jour, not args.monde)}", flush=True)

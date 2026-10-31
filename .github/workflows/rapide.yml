@@ -1,0 +1,51 @@
+name: Yanis - rapide (courses du jour toutes les 15 min)
+
+on:
+  schedule:
+    - cron: "*/15 7-23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: yanis-rapide
+  cancel-in-progress: false
+
+jobs:
+  rapide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Courses du jour et de demain (toutes les reunions, France et etranger)
+        run: python yanis.py collecte --budget 0 --monde
+      - name: Pronostics du jour (modele v2)
+        continue-on-error: true
+        run: |
+          pip install --quiet pandas scikit-learn
+          python modele_hippique.py --banc-si-ancien
+      - name: Sports du jour
+        continue-on-error: true
+        run: python sports.py --budget 0
+      - name: Preparer l'appli
+        run: python yanis.py publier
+      - name: Enregistrer
+        run: |
+          git config user.name "Yanis"
+          git config user.email "yanis@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Mise a jour rapide du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
+          for i in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && break; sleep 10; done
+      - name: Relancer dans 10 minutes
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 600
+          gh workflow run rapide.yml --ref main -R ${{ github.repository }} || true
