@@ -207,7 +207,9 @@ async function ask(text){
     // contexte : historique en texte + message courant (avec image si présente)
     const hist=s.messages.slice(-20,-1).map(m=>({role:m.role,content:m.content}));
     const userContent=img?[{type:'text',text:text||'Décris et analyse cette image.'},{type:'image_url',image_url:{url:img}}]:text;
-    const base=[{role:'system',content:SYSTEME},...hist,{role:'user',content:userContent}];
+    let now='';try{now=new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date());}catch(e){now=new Date().toString();}
+    const sys=SYSTEME+'\n\nNous sommes le '+now+' (heure de Paris). Sers-toi de cette date et de cette heure quand on te demande le jour, la date ou l\'heure.';
+    const base=[{role:'system',content:sys},...hist,{role:'user',content:userContent}];
     let out;
     const team=(settings.team&&!img)?[settings.model,...settings.teamModels.filter(Boolean)].filter((v,i,a)=>v&&a.indexOf(v)===i):[];
     if(team.length>1){
