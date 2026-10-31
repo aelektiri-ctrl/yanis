@@ -1,27 +1,27 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 31/10/2026 a 03:57.
+Mis a jour le 31/10/2026 a 08:17.
 
 | | |
 |---|---|
-| Jours collectes | 147 (dont 0 sans course) |
-| Periode | 2026-06-07 au 2026-10-31 |
-| Reunions | 695 |
-| Courses | 5268 |
-| Partants | 62356 |
-| Rapports | 87723 |
-| Partants avec cote finale | 59586 |
-| Partants avec place a l'arrivee | 49746 |
+| Jours collectes | 148 (dont 0 sans course) |
+| Periode | 2026-06-07 au 2026-11-01 |
+| Reunions | 715 |
+| Courses | 5402 |
+| Partants | 63921 |
+| Rapports | 87912 |
+| Partants avec cote finale | 60150 |
+| Partants avec place a l'arrivee | 49838 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 2592 |
-| PLAT | 1825 |
-| MONTE | 408 |
+| ATTELE | 2663 |
+| PLAT | 1881 |
+| MONTE | 413 |
 | HAIE | 277 |
-| STEEPLECHASE | 152 |
+| STEEPLECHASE | 154 |
 | CROSS | 14 |
 
 ## Drivers et jockeys qui gagnent le plus (50 courses minimum)
