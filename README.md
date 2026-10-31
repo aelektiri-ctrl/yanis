@@ -4,6 +4,7 @@ Yanis collecte tout seul, deux fois par jour, le programme, les partants, les co
 
 - **Les données** : dossier `donnees/`, un fichier par journée (`AAAA/MM/AAAA-MM-JJ.json.gz`), jamais effacé.
 - **Le bilan** : fichier [BILAN.md](BILAN.md), mis à jour après chaque passage.
+- **L appli** : https://aelektiri-ctrl.github.io/yanis/ (à ajouter à l écran d accueil).
 - **Lancer à la main** : onglet *Actions* → *Yanis - collecte PMU* → *Run workflow*.
 
-Passages automatiques : vers 6 h et 22 h (heure de Paris). Chaque passage met à jour les jours récents, puis consacre jusqu'à 25 minutes à l'historique, ce qui reste dans les 2 000 minutes gratuites par mois de GitHub pour un dépôt privé.
+Passages automatiques : chaque heure. Chaque passage met à jour les courses du jour (programme, cotes, résultats), prépare l appli, puis avance dans l historique.

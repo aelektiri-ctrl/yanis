@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1512">
+<title>Yanis</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-192.png">
+<style>
+:root{
+  --fond:#0e1512; --carte:#16201b; --carte2:#1d2a24; --ligne:#2a3a32;
+  --texte:#eef3ef; --doux:#9fb2a7; --vert:#3ddc84; --or:#f2c14e; --rouge:#ff6b6b; --bleu:#6ab7ff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--fond);color:var(--texte);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:rgba(14,21,18,.95);backdrop-filter:blur(8px);padding:14px 16px 10px;border-bottom:1px solid var(--ligne)}
+header h1{margin:0;font-size:22px;letter-spacing:.5px}
+header h1 span{color:var(--vert)}
+#maj{color:var(--doux);font-size:12px}
+main{padding:12px 16px 96px;max-width:720px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b110e;border-top:1px solid var(--ligne);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;background:none;border:0;color:var(--doux);padding:10px 0 12px;font:inherit;font-size:12px}
+nav button b{display:block;font-size:20px;line-height:1.2}
+nav button.actif{color:var(--vert)}
+.bandeau{background:#2b2410;border:1px solid #5a4a1a;color:#f6dd97;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.puces{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;scrollbar-width:none}
+.puce{flex:none;background:var(--carte);border:1px solid var(--ligne);color:var(--texte);border-radius:999px;padding:7px 12px;font:inherit;font-size:13px}
+.puce.actif{background:var(--vert);color:#06210f;border-color:var(--vert);font-weight:600}
+.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:12px;margin-bottom:10px}
+.course{display:flex;gap:12px;align-items:center}
+.heure{font-weight:700;font-size:17px;min-width:52px}
+.course .info{flex:1;min-width:0}
+.course .titre{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sous{color:var(--doux);font-size:12.5px}
+.top{font-size:12.5px;margin-top:3px}
+.top b{color:var(--vert)}
+.fleche{color:var(--doux);font-size:20px}
+h2{font-size:17px;margin:18px 0 10px}
+h3{font-size:15px;margin:0 0 8px}
+.vide{color:var(--doux);text-align:center;padding:40px 10px}
+.partant{display:grid;grid-template-columns:34px 1fr auto;gap:2px 10px;padding:10px 0;border-top:1px solid var(--ligne)}
+.partant:first-of-type{border-top:0}
+.rang{grid-row:span 2;align-self:center;width:30px;height:30px;border-radius:9px;background:var(--carte2);display:grid;place-items:center;font-weight:700;font-size:13px}
+.rang.r1{background:var(--vert);color:#06210f}.rang.r2,.rang.r3{background:#244d36;color:var(--vert)}
+.nomc{font-weight:600}
+.nomc small{color:var(--doux);font-weight:400}
+.droite{text-align:right;grid-row:span 2;align-self:center}
+.cote{font-weight:700;font-size:16px}
+.pct{font-size:12px;color:var(--doux)}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:4px;vertical-align:1px}
+.b-value{background:var(--or);color:#2a1d00}
+.b-np{background:#3a2020;color:#ff9b9b}
+.b-ok{background:#1d4d33;color:var(--vert)}
+.b-ko{background:#3a2a2a;color:#ffb0b0}
+.detail{font-size:12.5px;color:var(--doux)}
+.fiche-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.retour{background:var(--carte2);border:1px solid var(--ligne);color:var(--texte);border-radius:10px;padding:8px 12px;font:inherit;margin-bottom:12px}
+.conditions{font-size:12.5px;color:var(--doux);margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td,th{padding:7px 4px;border-top:1px solid var(--ligne);text-align:left}
+th{color:var(--doux);font-weight:500;font-size:12px;border-top:0}
+td.n,th.n{text-align:right}
+.chiffres{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chiffre{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:12px}
+.chiffre .v{font-size:22px;font-weight:700}
+.chiffre .l{color:var(--doux);font-size:12px}
+.pos{color:var(--vert)}.neg{color:var(--rouge)}
+.barre{height:10px;background:var(--carte2);border-radius:99px;overflow:hidden;margin:8px 0 4px}
+.barre i{display:block;height:100%;background:var(--vert)}
+form .champ{margin-bottom:10px}
+label{display:block;font-size:12px;color:var(--doux);margin-bottom:4px}
+input,select{width:100%;background:var(--carte2);border:1px solid var(--ligne);color:var(--texte);border-radius:10px;padding:10px;font:inherit}
+.deux{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{width:100%;background:var(--vert);color:#06210f;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:700}
+.btn.sec{background:var(--carte2);color:var(--texte);border:1px solid var(--ligne)}
+.pari{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.pari .actions{display:flex;gap:6px;margin-top:8px}
+.pari .actions button{flex:1;font-size:13px;padding:8px}
+.rapports td:last-child{text-align:right;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Y</span>anis</h1>
+  <div id="maj">Chargement…</div>
+</header>
+<main id="vue"></main>
+<nav>
+  <button data-onglet="jour" class="actif"><b>🏇</b>Courses</button>
+  <button data-onglet="resultats"><b>🏁</b>Résultats</button>
+  <button data-onglet="tableau"><b>📊</b>Tableau</button>
+  <button data-onglet="paris"><b>🎟️</b>Mes paris</button>
+</nav>
+<script>
+const D = {}; // donnees chargees
+const etat = { onglet: "jour", jour: "aujourdhui", reunion: null, fiche: null };
+const vue = document.getElementById("vue");
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = x => x == null ? "–" : (100 * x).toFixed(0) + " %";
+const euros = x => (x ?? 0).toLocaleString("fr-FR", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " €";
+const heure = d => d ? d.slice(11, 16) : "";
+const DISC = {ATTELE:"Trot attelé", MONTE:"Trot monté", PLAT:"Plat", HAIE:"Haies", STEEPLECHASE:"Steeple", CROSS:"Cross"};
+const FERRE = {DEFERRE_ANTERIEURS:"D4 avant", DEFERRE_POSTERIEURS:"D4 arrière", DEFERRE_ANTERIEURS_POSTERIEURS:"D4", PROTEGE_ANTERIEURS:"Protégé avant", PROTEGE_POSTERIEURS:"Protégé arrière", PROTEGE_ANTERIEURS_POSTERIEURS:"Protégé 4", PROTEGE_ANTERIEURS_DEFERRRE_POSTERIEURS:"Protégé av., déf. arr.", REFERRE_ANTERIEURS_POSTERIEURS:"Referré"};
+
+function lsGet(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+async function charger(nom) {
+  const r = await fetch(`data/${nom}.json?t=${Date.now()}`, {cache: "no-store"});
+  if (!r.ok) throw new Error(nom);
+  return r.json();
+}
+
+async function demarrer() {
+  try {
+    const [a, h, d, t] = await Promise.all(["aujourdhui", "hier", "demain", "tableau"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t});
+    document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
+  } catch (e) {
+    document.getElementById("maj").textContent = "Pas de connexion";
+  }
+  afficher();
+}
+
+function afficher() {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("actif", b.dataset.onglet === etat.onglet));
+  ({jour: vueJour, resultats: vueResultats, tableau: vueTableau, paris: vueParis})[etat.onglet]();
+  window.scrollTo(0, 0);
+}
+
+document.querySelector("nav").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  etat.onglet = b.dataset.onglet; etat.fiche = null; afficher();
+});
+
+/* ---------- COURSES ---------- */
+function topYanis(c) {
+  return c.partants.filter(p => p.rang).sort((a, b) => a.rang - b.rang).slice(0, 4).map(p => p.num);
+}
+
+function vueJour() {
+  if (etat.fiche) return vueFiche();
+  const j = D[etat.jour];
+  let h = `<div class="bandeau"><b>Mode observation.</b> L'indice Yanis est provisoire : il n'a pas encore passé le banc d'essai sur le passé. Regarde, compare, mais ne mise pas dessus pour l'instant.</div>`;
+  h += `<div class="puces">
+    <button class="puce ${etat.jour === "aujourdhui" ? "actif" : ""}" data-jour="aujourdhui">Aujourd'hui</button>
+    <button class="puce ${etat.jour === "demain" ? "actif" : ""}" data-jour="demain">Demain</button></div>`;
+  if (!j || !j.reunions.length) {
+    vue.innerHTML = h + `<div class="vide">Pas encore de programme pour ce jour.<br>Yanis le récupère chaque heure.</div>`;
+    return lierJour();
+  }
+  if (!j.reunions.some(r => r.r === etat.reunion)) etat.reunion = j.reunions[0].r;
+  h += `<div class="puces">` + j.reunions.map(r =>
+    `<button class="puce ${r.r === etat.reunion ? "actif" : ""}" data-reunion="${r.r}">R${r.r} ${esc(r.hippodrome || "")}</button>`).join("") + `</div>`;
+  const reu = j.reunions.find(r => r.r === etat.reunion);
+  if (reu.temperature != null || reu.ciel) h += `<div class="sous" style="margin-bottom:8px">Météo : ${reu.temperature != null ? reu.temperature + " °C" : ""} ${esc(reu.ciel || "")}</div>`;
+  h += reu.courses.map(c => {
+    const top = topYanis(c);
+    const values = c.partants.filter(p => p.value).map(p => p.num);
+    const fini = !!c.arrivee;
+    return `<div class="carte course" data-course="${c.c}">
+      <div class="heure">${heure(c.depart)}</div>
+      <div class="info">
+        <div class="titre">C${c.c} · ${esc(c.libelle)}</div>
+        <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${c.nb_partants || c.partants.length} partants</div>
+        ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
+               : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
+      </div><div class="fleche">›</div></div>`;
+  }).join("");
+  vue.innerHTML = h;
+  lierJour();
+}
+
+function lierJour() {
+  vue.querySelectorAll("[data-jour]").forEach(b => b.onclick = () => { etat.jour = b.dataset.jour; etat.reunion = null; afficher(); });
+  vue.querySelectorAll("[data-reunion]").forEach(b => b.onclick = () => { etat.reunion = +b.dataset.reunion; afficher(); });
+  vue.querySelectorAll("[data-course]").forEach(b => b.onclick = () => {
+    etat.fiche = {source: etat.onglet === "resultats" ? "hier" : etat.jour, r: +(b.dataset.r || etat.reunion), c: +b.dataset.course}; afficher();
+  });
+}
+
+function trouverCourse(f) {
+  const reu = D[f.source]?.reunions.find(r => r.r === f.r);
+  return [reu, reu?.courses.find(c => c.c === f.c)];
+}
+
+function vueFiche() {
+  const [reu, c] = trouverCourse(etat.fiche);
+  if (!c) { etat.fiche = null; return afficher(); }
+  const tries = [...c.partants].sort((a, b) => (a.rang || 99) - (b.rang || 99) || a.num - b.num);
+  let h = `<button class="retour" id="retour">‹ Retour</button>
+    <div class="carte">
+      <div class="fiche-entete"><div>
+        <h3>R${reu.r}C${c.c} · ${esc(c.libelle)}</h3>
+        <div class="sous">${esc(reu.hippodrome || "")} · ${heure(c.depart)} · ${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m${c.terrain ? " · terrain " + esc(c.terrain) : ""}${c.allocation ? " · " + c.allocation.toLocaleString("fr-FR") + " €" : ""}</div>
+      </div></div>
+      ${c.arrivee ? `<div class="top" style="margin-top:8px">Arrivée : <b>${esc(c.arrivee.split("-").join(" - "))}</b></div>` : ""}
+      ${c.conditions ? `<div class="conditions">${esc(c.conditions)}</div>` : ""}
+    </div>
+    <div class="carte">`;
+  h += tries.map(p => {
+    const np = p.statut !== "PARTANT";
+    const sd = p.st_driver || [0, 0, 0], se = p.st_entraineur || [0, 0, 0];
+    const tx = s => s[0] ? `${Math.round(100 * s[1] / s[0])} % vict. sur ${s[0]}` : "pas encore de stats";
+    const equip = [FERRE[p.deferre] || (p.deferre ? p.deferre.toLowerCase().replace(/_/g, " ") : ""),
+                   p.oeilleres && p.oeilleres !== "SANS_OEILLERES" ? "œillères" : "",
+                   p.recul && c.discipline && /ATTELE|MONTE/.test(c.discipline) ? p.recul + " m" : "",
+                   p.poids ? p.poids + " kg" : "", p.corde ? "corde " + p.corde : ""].filter(Boolean).join(" · ");
+    return `<div class="partant" style="${np ? "opacity:.45" : ""}">
+      <div class="rang ${p.rang ? "r" + p.rang : ""}">${p.rang || "–"}</div>
+      <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
+        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}
+        ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
+      <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}</div></div>
+      <div class="detail">${esc(p.driver || "?")} (${tx(sd)}) · Ent. ${esc(p.entraineur || "?")} (${tx(se)})<br>
+        Musique ${esc(p.musique || "–")}${equip ? " · " + esc(equip) : ""}</div>
+    </div>`;
+  }).join("");
+  h += `</div>`;
+  if (c.rapports?.length) h += rapportsHTML(c);
+  vue.innerHTML = h;
+  document.getElementById("retour").onclick = () => { etat.fiche = null; afficher(); };
+}
+
+const PARIS_AFFICHES = ["SIMPLE_GAGNANT", "SIMPLE_PLACE", "COUPLE_GAGNANT", "COUPLE_PLACE", "DEUX_SUR_QUATRE", "TRIO", "MULTI", "QUINTE_PLUS"];
+function rapportsHTML(c) {
+  const lignes = c.rapports.filter(r => PARIS_AFFICHES.includes(r.pari) && r.rapport);
+  if (!lignes.length) return "";
+  return `<div class="carte"><h3>Rapports pour 1 €</h3><table class="rapports">` +
+    lignes.slice(0, 18).map(r => `<tr><td>${esc(r.libelle)}</td><td>${esc(r.combinaison)}</td><td>${r.rapport.toFixed(2)} €</td></tr>`).join("") +
+    `</table></div>`;
+}
+
+/* ---------- RESULTATS ---------- */
+function vueResultats() {
+  if (etat.fiche) return vueFiche();
+  const j = D.hier;
+  if (!j || !j.reunions.length) { vue.innerHTML = `<div class="vide">Pas encore de résultats pour hier.</div>`; return; }
+  let ok = 0, total = 0;
+  let h = "";
+  for (const reu of j.reunions) {
+    h += `<h2>R${reu.r} · ${esc(reu.hippodrome || "")}</h2>`;
+    for (const c of reu.courses) {
+      if (!c.arrivee) continue;
+      const premier = c.partants.find(p => p.rang === 1);
+      const gagne = premier && premier.place === 1;
+      if (premier) { total++; if (gagne) ok++; }
+      const gagnant = c.rapports.find(r => r.pari === "SIMPLE_GAGNANT");
+      h += `<div class="carte course" data-course="${c.c}" data-r="${reu.r}">
+        <div class="heure">C${c.c}</div>
+        <div class="info"><div class="titre">${esc(c.libelle)}</div>
+          <div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b>${gagnant ? ` · gagnant ${gagnant.rapport.toFixed(2)} €` : ""}</div>
+          ${premier ? `<div class="sous">N°1 Yanis : ${premier.num} ${esc(premier.nom)} → ${premier.place ? premier.place + "e" : "non classé"} ${gagne ? '<span class="badge b-ok">gagné</span>' : ""}</div>` : ""}
+        </div><div class="fleche">›</div></div>`;
+    }
+  }
+  vue.innerHTML = `<div class="carte"><h3>Hier, ${esc(j.date.split("-").reverse().join("/"))}</h3>
+    <div class="sous">Le n°1 de l'indice Yanis a gagné <b class="pos">${ok}</b> courses sur ${total} (${total ? Math.round(100 * ok / total) : 0} %).</div></div>` + h;
+  lierJour();
+}
+
+/* ---------- TABLEAU DE BORD ---------- */
+function vueTableau() {
+  const t = D.tableau;
+  if (!t) { vue.innerHTML = `<div class="vide">Tableau de bord indisponible.</div>`; return; }
+  const b = t.bibliotheque, ix = t.indice_30j;
+  const roi = ix.mise ? (ix.retour - ix.mise) / ix.mise : 0;
+  const paris = lsGet("yanis_paris", []);
+  const joue = paris.reduce((s, p) => s + (+p.mise || 0), 0), gagne = paris.reduce((s, p) => s + (+p.gain || 0), 0);
+  let h = `<h2>Mes paris</h2><div class="chiffres">
+      <div class="chiffre"><div class="v">${euros(joue)}</div><div class="l">Total joué</div></div>
+      <div class="chiffre"><div class="v">${euros(gagne)}</div><div class="l">Total gagné</div></div>
+      <div class="chiffre"><div class="v ${gagne - joue >= 0 ? "pos" : "neg"}">${euros(gagne - joue)}</div><div class="l">Bilan net</div></div>
+      <div class="chiffre"><div class="v">${paris.length ? Math.round(100 * paris.filter(p => +p.gain > 0).length / paris.length) : 0} %</div><div class="l">Paris gagnants</div></div>
+    </div>
+    <h2>La bibliothèque</h2>
+    <div class="carte">
+      <div class="sous">Historique : ${esc(b.debut || "–")} → ${esc(b.fin || "–")} · objectif ${esc(b.objectif_debut)}</div>
+      <div class="barre"><i style="width:${b.progression}%"></i></div>
+      <div class="sous">${b.progression} % des 10 ans collectés · ${b.courses.toLocaleString("fr-FR")} courses · ${b.partants.toLocaleString("fr-FR")} partants · ${b.rapports.toLocaleString("fr-FR")} rapports</div>
+    </div>
+    <h2>L'indice Yanis sur 30 jours</h2>
+    <div class="chiffres">
+      <div class="chiffre"><div class="v">${ix.courses ? Math.round(100 * ix.gagnes / ix.courses) : 0} %</div><div class="l">N°1 Yanis gagnant (${ix.courses} courses)</div></div>
+      <div class="chiffre"><div class="v">${ix.courses ? Math.round(100 * ix.favori_gagne / ix.courses) : 0} %</div><div class="l">Favori des parieurs gagnant</div></div>
+      <div class="chiffre"><div class="v ${roi >= 0 ? "pos" : "neg"}">${(100 * roi).toFixed(1)} %</div><div class="l">Rentabilité 1 € gagnant sur le n°1</div></div>
+      <div class="chiffre"><div class="v">${euros(ix.retour - ix.mise)}</div><div class="l">Gain net pour 1 € par course</div></div>
+    </div>
+    <div class="sous" style="margin:8px 2px 0">Test indicatif : les statistiques utilisent aussi les courses testées. Le vrai banc d'essai, honnête, arrive avec l'étape 2.</div>
+    <h2>Drivers et jockeys (12 mois)</h2>${tableNoms(t.drivers)}
+    <h2>Entraîneurs (12 mois)</h2>${tableNoms(t.entraineurs)}
+    <h2>Courses par discipline</h2><div class="carte"><table>${t.disciplines.map(d => `<tr><td>${DISC[d.nom] || esc(d.nom)}</td><td class="n">${d.courses.toLocaleString("fr-FR")}</td></tr>`).join("")}</table></div>`;
+  vue.innerHTML = h;
+}
+function tableNoms(l) {
+  if (!l?.length) return `<div class="carte sous">Pas encore assez de courses.</div>`;
+  return `<div class="carte"><table><tr><th>Nom</th><th class="n">Courses</th><th class="n">Vict.</th><th class="n">% vict.</th><th class="n">% podium</th></tr>` +
+    l.map(x => `<tr><td>${esc(x.nom)}</td><td class="n">${x.courses}</td><td class="n">${x.victoires}</td><td class="n">${Math.round(100 * x.victoires / x.courses)}</td><td class="n">${Math.round(100 * x.places / x.courses)}</td></tr>`).join("") + `</table></div>`;
+}
+
+/* ---------- MES PARIS ---------- */
+const FORMULES = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "2 sur 4", "Trio", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
+function vueParis() {
+  const paris = lsGet("yanis_paris", []);
+  const courses = [];
+  for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses)
+    courses.push(`${D[src].date} R${reu.r}C${c.c} ${reu.hippodrome || ""} ${heure(c.depart)}`);
+  const parFormule = {};
+  for (const p of paris) { const f = parFormule[p.formule] ||= {n: 0, g: 0, mise: 0, gain: 0}; f.n++; f.mise += +p.mise || 0; f.gain += +p.gain || 0; if (+p.gain > 0) f.g++; }
+  let h = `<h2>Noter un pari</h2><form class="carte" id="formpari">
+    <div class="champ"><label>Course</label><select name="course">${courses.map(c => `<option>${esc(c)}</option>`).join("")}<option>Autre course</option></select></div>
+    <div class="deux"><div class="champ"><label>Formule</label><select name="formule">${FORMULES.map(f => `<option>${f}</option>`).join("")}</select></div>
+    <div class="champ"><label>Mise (€)</label><input name="mise" type="number" min="0" step="0.5" inputmode="decimal" required></div></div>
+    <div class="champ"><label>Chevaux joués (ex. 3-7-12)</label><input name="chevaux" required></div>
+    <button class="btn">Enregistrer le pari</button></form>`;
+  if (Object.keys(parFormule).length) {
+    h += `<h2>Réussite par formule</h2><div class="carte"><table><tr><th>Formule</th><th class="n">Paris</th><th class="n">Gagnés</th><th class="n">Bilan</th></tr>` +
+      Object.entries(parFormule).map(([f, x]) => `<tr><td>${esc(f)}</td><td class="n">${x.n}</td><td class="n">${x.g}</td><td class="n ${x.gain - x.mise >= 0 ? "pos" : "neg"}">${euros(x.gain - x.mise)}</td></tr>`).join("") + `</table></div>`;
+  }
+  h += `<h2>Mes paris (${paris.length})</h2>`;
+  h += paris.length ? [...paris].reverse().map(p => `<div class="carte">
+      <div class="pari"><div><b>${esc(p.formule)}</b> · ${esc(p.chevaux)}<div class="sous">${esc(p.course)}</div></div>
+      <div style="text-align:right"><div>${euros(+p.mise)}</div><div class="sous ${p.gain == null ? "" : +p.gain > 0 ? "pos" : "neg"}">${p.gain == null ? "en attente" : "retour " + euros(+p.gain)}</div></div></div>
+      <div class="actions"><button class="btn sec" data-gain="${p.id}">Saisir le gain</button><button class="btn sec" data-perdu="${p.id}">Perdu</button><button class="btn sec" data-suppr="${p.id}">Supprimer</button></div>
+    </div>`).join("") : `<div class="vide">Aucun pari noté pour l'instant.</div>`;
+  h += `<div class="sous" style="margin-top:12px">Tes paris sont gardés sur ce téléphone uniquement.</div>`;
+  vue.innerHTML = h;
+  document.getElementById("formpari").onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    paris.push({id: Date.now(), course: f.get("course"), formule: f.get("formule"), mise: +f.get("mise"), chevaux: f.get("chevaux"), gain: null});
+    lsSet("yanis_paris", paris); afficher();
+  };
+  const maj = (id, fn) => { const p = paris.find(x => x.id === +id); if (p) { fn(p); lsSet("yanis_paris", paris); afficher(); } };
+  vue.querySelectorAll("[data-gain]").forEach(b => b.onclick = () => {
+    const v = prompt("Somme reçue pour ce pari (en €) :"); if (v !== null && v !== "") maj(b.dataset.gain, p => p.gain = +v.replace(",", "."));
+  });
+  vue.querySelectorAll("[data-perdu]").forEach(b => b.onclick = () => maj(b.dataset.perdu, p => p.gain = 0));
+  vue.querySelectorAll("[data-suppr]").forEach(b => b.onclick = () => {
+    if (confirm("Supprimer ce pari ?")) { const i = paris.findIndex(x => x.id === +b.dataset.suppr); paris.splice(i, 1); lsSet("yanis_paris", paris); afficher(); }
+  });
+}
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) demarrer(); });
+demarrer();
+</script>
+</body>
+</html>

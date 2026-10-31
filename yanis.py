@@ -16,6 +16,7 @@ Commandes :
   python yanis.py collecte --budget 25    hier + aujourd'hui, puis l'historique pendant 25 min
   python yanis.py jour 2026-10-30         collecte une date precise
   python yanis.py bilan                   reecrit BILAN.md
+  python yanis.py publier                 prepare les donnees de l'appli (docs/data)
 """
 
 import argparse
@@ -477,6 +478,176 @@ def cmd_bilan(args):
     print(texte)
 
 
+# --------------------------------------------------------------------------
+# Publication pour l'appli (docs/data/*.json, lu par docs/index.html)
+# --------------------------------------------------------------------------
+
+POINTS_MUSIQUE = {"1": 1.0, "2": 0.7, "3": 0.55, "4": 0.4, "5": 0.3}
+
+
+def forme_musique(musique, n=5):
+    """Note de 0 a 1 sur les n dernieres courses de la musique (ex. '4aDa5a(25)3a')."""
+    if not musique:
+        return None
+    import re
+    m = re.sub(r"\(\d+\)", "", musique)
+    places = re.findall(r"([0-9DATRS])[a-zA-Z]", m)[:n]
+    if not places:
+        return None
+    pts = [POINTS_MUSIQUE.get(x, 0.15 if x.isdigit() and x != "0" else 0.05) for x in places]
+    return sum(pts) / len(pts)
+
+
+def nom_propre(x):
+    return (x or "").replace(". ", ".").replace(".", ". ").strip() or None
+
+
+def taux(stats, cle, base=0.1, k=20):
+    n, v, pl = stats.get(cle, (0, 0, 0))
+    n, v, pl = n or 0, v or 0, pl or 0
+    return (v + k * base) / (n + k), n, v, pl
+
+
+def charger_stats(con, depuis):
+    """Victoires et places par driver et par entraineur depuis une date."""
+    out = {}
+    for champ in ("driver", "entraineur"):
+        sql = f"""SELECT REPLACE(REPLACE(p.{champ}, '. ', '.'), '.', '. '), COUNT(*),
+                         SUM(p.place_arrivee = 1), SUM(p.place_arrivee BETWEEN 1 AND 3)
+                  FROM partants p JOIN courses c USING (date, r, c)
+                  WHERE p.statut = 'PARTANT' AND c.arrivee IS NOT NULL AND p.date >= ?
+                  GROUP BY 1"""
+        out[champ] = {row[0].strip(): tuple(x or 0 for x in row[1:]) for row in con.execute(sql, (depuis,)) if row[0]}
+    return out
+
+
+def indice_course(partants, stats):
+    """Indice Yanis provisoire : marche + forme du cheval + reussite driver/entraineur."""
+    vivants = [p for p in partants if p["statut"] == "PARTANT"]
+    if not vivants:
+        return
+    base = 1 / len(vivants)
+    for p in vivants:
+        td, nd, vd, pd = taux(stats["driver"], nom_propre(p["driver"]), base)
+        te, ne, ve, pe = taux(stats["entraineur"], nom_propre(p["entraineur"]), base)
+        f = forme_musique(p["musique"])
+        p["st_driver"] = [nd, vd, pd]
+        p["st_entraineur"] = [ne, ve, pe]
+        p["forme"] = round(f, 2) if f is not None else None
+        p["_stat"] = (td / base) ** 0.5 * (te / base) ** 0.5 * (0.3 + (f if f is not None else 0.3))
+    tot = sum(p["_stat"] for p in vivants)
+    cotes = [p.get("cote") or p.get("cote_ref") for p in vivants]
+    marche_ok = all(c and c > 1 for c in cotes)
+    if marche_ok:
+        inv = [1 / c for c in cotes]
+        s_inv = sum(inv)
+        for p, i in zip(vivants, inv):
+            p["proba_marche"] = round(i / s_inv, 4)
+    brut = []
+    for p in vivants:
+        ps = p["_stat"] / tot
+        brut.append(p["proba_marche"] ** 0.75 * ps ** 0.25 if marche_ok else ps)
+    s = sum(brut)
+    for p, b in zip(vivants, brut):
+        p["proba"] = round(b / s, 4)
+        p["value"] = bool(marche_ok and p["proba"] >= 1.15 * p["proba_marche"] and (p.get("cote") or 0) >= 2.5)
+        del p["_stat"]
+    for rang, p in enumerate(sorted(vivants, key=lambda x: -x["proba"]), 1):
+        p["rang"] = rang
+
+
+def journee_pour_appli(con, date, stats):
+    q = lambda sql, *a: con.execute(sql, a)
+    reunions = []
+    for r, hippo, pays, temp, ciel in q("SELECT r, hippodrome, pays, meteo_temperature, meteo_ciel FROM reunions WHERE date=? ORDER BY r", date):
+        courses = []
+        for row in q("""SELECT c, libelle, depart, discipline, specialite, distance, partants, allocation,
+                               terrain, arrivee, statut, conditions, corde, categorie
+                        FROM courses WHERE date=? AND r=? ORDER BY c""", date, r):
+            c = dict(zip(["c", "libelle", "depart", "discipline", "specialite", "distance", "nb_partants",
+                          "allocation", "terrain", "arrivee", "statut", "conditions", "corde", "categorie"], row))
+            parts = []
+            for pr in q("""SELECT num, nom, statut, age, sexe, driver, entraineur, musique, deferre, oeilleres,
+                                  recul_m, poids_kg, place_corde, cote_reference, cote_finale, place_arrivee,
+                                  incident, gains_carriere, pere, mere
+                           FROM partants WHERE date=? AND r=? AND c=? ORDER BY num""", date, r, c["c"]):
+                parts.append(dict(zip(["num", "nom", "statut", "age", "sexe", "driver", "entraineur", "musique",
+                                       "deferre", "oeilleres", "recul", "poids", "corde", "cote_ref", "cote",
+                                       "place", "incident", "gains", "pere", "mere"], pr)))
+            indice_course(parts, stats)
+            c["partants"] = parts
+            c["rapports"] = [dict(zip(["pari", "libelle", "combinaison", "rapport"], x)) for x in q(
+                """SELECT pari, libelle, combinaison, rapport_pour_1e FROM rapports
+                   WHERE date=? AND r=? AND c=? ORDER BY pari, rapport_pour_1e""", date, r, c["c"])]
+            courses.append(c)
+        reunions.append({"r": r, "hippodrome": hippo, "pays": pays, "temperature": temp, "ciel": ciel, "courses": courses})
+    return {"date": date, "reunions": reunions}
+
+
+def bilan_indice(con, stats, depuis):
+    """Ce qu'aurait donne l'indice sur les courses passees (simple gagnant 1 EUR sur le n.1 de l'indice)."""
+    res = {"courses": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0, "favori_gagne": 0}
+    for (date,) in con.execute("SELECT DISTINCT date FROM courses WHERE date >= ? AND arrivee IS NOT NULL ORDER BY date", (depuis,)):
+        j = journee_pour_appli(con, date, stats)
+        for reu in j["reunions"]:
+            for c in reu["courses"]:
+                vivants = [p for p in c["partants"] if p.get("rang")]
+                if not vivants or not c["arrivee"] or not all(p.get("cote") for p in vivants):
+                    continue
+                top = min(vivants, key=lambda p: p["rang"])
+                fav = min(vivants, key=lambda p: p["cote"])
+                res["courses"] += 1
+                res["mise"] += 1
+                if top.get("place") == 1:
+                    res["gagnes"] += 1
+                    res["retour"] += top["cote"]
+                if fav.get("place") == 1:
+                    res["favori_gagne"] += 1
+    return res
+
+
+def cmd_publier(args):
+    con, jours, vides = charger_tout()
+    auj = aujourdhui()
+    sortie = os.path.join(DOSSIER, "docs", "data")
+    os.makedirs(sortie, exist_ok=True)
+    stats = charger_stats(con, (auj - dt.timedelta(days=365)).isoformat())
+    maj = dt.datetime.now(PARIS).strftime("%d/%m/%Y %H:%M")
+
+    def ecrire(nom, obj):
+        with open(os.path.join(sortie, nom), "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
+
+    for nom, jour in (("aujourdhui.json", auj), ("hier.json", auj - dt.timedelta(days=1)), ("demain.json", auj + dt.timedelta(days=1))):
+        j = journee_pour_appli(con, jour.isoformat(), stats)
+        j["maj"] = maj
+        ecrire(nom, j)
+
+    q = lambda sql, *a: con.execute(sql, a).fetchone()[0]
+    def top(champ, mini):
+        lignes = sorted(((k, *v) for k, v in stats[champ].items() if v[0] >= mini), key=lambda x: -x[2])[:20]
+        return [{"nom": k, "courses": n, "victoires": v, "places": pl} for k, n, v, pl in lignes]
+    debut_objectif = (auj - dt.timedelta(days=int(365.25 * ANNEES))).isoformat()
+    plus_ancien = q("SELECT MIN(date) FROM courses")
+    total_jours = (auj - dt.date.fromisoformat(debut_objectif)).days
+    fait = (auj - dt.date.fromisoformat(plus_ancien)).days if plus_ancien else 0
+    ecrire("tableau.json", {
+        "maj": maj,
+        "bibliotheque": {
+            "jours": jours, "debut": plus_ancien, "fin": q("SELECT MAX(date) FROM courses"),
+            "objectif_debut": debut_objectif, "progression": round(100 * min(fait / total_jours, 1), 1),
+            "reunions": q("SELECT COUNT(*) FROM reunions"), "courses": q("SELECT COUNT(*) FROM courses"),
+            "partants": q("SELECT COUNT(*) FROM partants"), "rapports": q("SELECT COUNT(*) FROM rapports"),
+        },
+        "disciplines": [{"nom": d, "courses": n} for d, n in con.execute(
+            "SELECT discipline, COUNT(*) FROM courses GROUP BY 1 ORDER BY 2 DESC") if d],
+        "drivers": top("driver", 30),
+        "entraineurs": top("entraineur", 20),
+        "indice_30j": bilan_indice(con, stats, (auj - dt.timedelta(days=30)).isoformat()),
+    })
+    print(f"Appli publiee dans docs/data ({maj}).")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Yanis - bibliotheque hippique (etape 1)")
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -484,6 +655,7 @@ def main():
     p = sp.add_parser("collecte"); p.add_argument("--budget", type=float, default=25); p.add_argument("--monde", action="store_true"); p.set_defaults(f=cmd_collecte)
     p = sp.add_parser("jour"); p.add_argument("date"); p.add_argument("--monde", action="store_true"); p.set_defaults(f=cmd_jour)
     sp.add_parser("bilan").set_defaults(f=cmd_bilan)
+    sp.add_parser("publier").set_defaults(f=cmd_publier)
     args = ap.parse_args()
     args.f(args)
 
