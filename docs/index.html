@@ -170,8 +170,15 @@ function reunionsJouables(j) {
     .filter(r => r.courses.length);
 }
 
+function infoPartants(c) {
+  const np = c.partants.filter(p => p.statut !== "PARTANT").length;
+  const vrais = c.partants.length - np;
+  return {np, vrais, places: vrais <= 7 ? 2 : 3, ordre: vrais <= 7};
+}
+
 function carteCourse(c, reu, avecReunion, enAvant) {
   const top = topYanis(c);
+  const ip = infoPartants(c);
   const values = c.partants.filter(p => p.value).map(p => p.num);
   const fini = !!c.arrivee;
   return `<div class="carte course" data-course="${c.c}" data-r="${reu.r}" style="${enAvant ? "border-color:var(--vert);box-shadow:0 0 0 1px var(--vert) inset" : ""}">
@@ -179,7 +186,7 @@ function carteCourse(c, reu, avecReunion, enAvant) {
     <div class="info">
       ${enAvant ? `<div class="sous pos" style="font-weight:600">Prochain départ</div>` : ""}
       <div class="titre">${avecReunion ? `R${reu.r}C${c.c} ${esc(reu.hippodrome || "")}${reu.pays && reu.pays !== "FRA" ? " 🌍" : ""} · ` : `C${c.c} · `}${esc(c.libelle)}</div>
-      <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${c.nb_partants || c.partants.length} partants</div>
+      <div class="sous">${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m · ${ip.vrais} partants${ip.np ? ` <span class="badge b-np">${ip.np} non-partant${ip.np > 1 ? "s" : ""}</span>` : ""}${ip.ordre ? ` <span class="badge" style="background:#1d3550;color:#9fd0ff">2 places · ordre</span>` : ""}</div>
       ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
              : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
     </div><div class="fleche">›</div></div>`;
@@ -266,6 +273,8 @@ function vueFiche() {
         <div class="sous">${esc(reu.hippodrome || "")} · ${heure(c.depart)} · ${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m${c.terrain ? " · terrain " + esc(c.terrain) : ""}${c.allocation ? " · " + c.allocation.toLocaleString("fr-FR") + " €" : ""}</div>
       </div></div>
       ${c.arrivee ? `<div class="top" style="margin-top:8px">Arrivée : <b>${esc(c.arrivee.split("-").join(" - "))}</b></div>` : ""}
+      ${(() => { const ip = infoPartants(c); return ip.np ? `<div class="bandeau" style="margin:10px 0 0">⚠️ <b>${ip.np} non-partant${ip.np > 1 ? "s" : ""}</b> : il reste ${ip.vrais} partants. Yanis a refait ses calculs sans eux.${ip.ordre ? ` Avec ${ip.vrais} partants, seulement <b>2 places payées</b>, et couplé et trio se jouent <b>dans l'ordre</b>.` : ""}</div>`
+        : ip.ordre ? `<div class="sous" style="margin-top:8px">${ip.vrais} partants : 2 places payées, couplé et trio dans l'ordre.</div>` : ""; })()}
       ${c.conditions ? `<div class="conditions">${esc(c.conditions)}</div>` : ""}
     </div>
     <div class="carte">`;
@@ -487,7 +496,7 @@ function rendreDirect(j) {
 }
 
 const FORMULE_DE = {sg_value: "Simple gagnant", sg_top: "Simple gagnant", sp_top: "Simple placé", sp_value: "Simple placé",
-  cp_top2: "Couplé placé", deux_sur_4: "2 sur 4", trio_top3: "Trio", multi4_top4: "Multi"};
+  cp_top2: "Couplé placé", deux_sur_4: "2 sur 4", trio_top3: "Trio", multi4_top4: "Multi", co_top2: "Couplé ordre", to_top3: "Trio ordre"};
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-joue]"); if (!b) return;
   try { jaiJoue(JSON.parse(b.dataset.joue)); } catch (err) {}
@@ -618,9 +627,10 @@ function tableNoms(l) {
 }
 
 /* ---------- MES PARIS (suivi de ce qui est joue sur Betclic) ---------- */
-const FORMULES_TURF = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "2 sur 4", "Trio", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
+const FORMULES_TURF = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "Couplé ordre", "2 sur 4", "Trio", "Trio ordre", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
 const CODE_PMU = {"Simple gagnant": "SIMPLE_GAGNANT", "Simple placé": "SIMPLE_PLACE", "Couplé gagnant": "COUPLE_GAGNANT",
-  "Couplé placé": "COUPLE_PLACE", "2 sur 4": "DEUX_SUR_QUATRE", "Trio": "TRIO", "Multi": "MULTI"};
+  "Couplé placé": "COUPLE_PLACE", "Couplé ordre": "COUPLE_ORDRE", "2 sur 4": "DEUX_SUR_QUATRE", "Trio": "TRIO",
+  "Trio ordre": "TRIO_ORDRE", "Multi": "MULTI"};
 const nums = x => (String(x || "").match(/\d+/g) || []).map(Number);
 const memeEnsemble = (a, b) => a.length === b.length && a.every(v => b.includes(v));
 
@@ -646,7 +656,9 @@ function reglerAuto() {
     for (const rp of course.rapports || []) {
       if (rp.pari !== code || !rp.rapport) continue;
       const comb = nums(rp.combinaison);
-      if (code === "MULTI") {
+      if (code.endsWith("_ORDRE")) {
+        if (comb.length === jeu.length && comb.every((v, i) => v === jeu[i])) { rapport = rp.rapport; break; }
+      } else if (code === "MULTI") {
         if ((rp.libelle || "").includes(`Multi en ${jeu.length}`) && comb.every(v => jeu.includes(v))) { rapport = rp.rapport; break; }
       } else if (memeEnsemble(comb, jeu)) { rapport = rp.rapport; break; }
     }

@@ -45,7 +45,7 @@ def charger():
     con, _, _ = yanis.charger_tout()
     p = pd.read_sql_query("""
         SELECT p.*, c.discipline, c.specialite, c.distance, c.partants AS nb_declares, c.allocation,
-               c.arrivee, c.depart, c.corde AS sens, c.terrain, c.categorie, r.hippodrome_code, r.pays
+               c.arrivee, c.depart, c.corde AS sens, c.terrain, c.categorie, c.paris AS paris_offerts, r.hippodrome_code, r.pays
         FROM partants p JOIN courses c USING (date, r, c) JOIN reunions r USING (date, r)
         WHERE p.statut = 'PARTANT'""", con)
     rap = pd.read_sql_query("SELECT date, r, c, pari, libelle, combinaison, rapport_pour_1e FROM rapports", con)
@@ -76,9 +76,10 @@ def preparer(p):
     p["driver_n"] = p["driver"].map(norm_nom)
     p["entraineur_n"] = p["entraineur"].map(norm_nom)
     p["gagne"] = (p["place_arrivee"] == 1).astype(int)
-    p["place3"] = p["place_arrivee"].between(1, 3).astype(int)
     p["fini"] = p["arrivee"].notna()
-    p["nb_partants"] = p.groupby("cle")["num"].transform("count")
+    p["nb_partants"] = p.groupby("cle")["num"].transform("count")   # seulement les vrais partants
+    p["places_payees"] = np.where(p["nb_partants"] <= 7, 2, 3)     # 7 partants ou moins : 2 places
+    p["place3"] = (p["place_arrivee"].between(1, 3) & (p["place_arrivee"] <= p["places_payees"])).astype(int)
     p = p.sort_values(["depart", "cle", "num"]).reset_index(drop=True)
 
     # --- marche ---
@@ -239,6 +240,10 @@ def gain(idx, cle, pari, chevaux, libelle_contient=None):
     for lib, comb, rap in idx.get((cle, pari), []):
         if rap is None or (libelle_contient and libelle_contient not in (lib or "")):
             continue
+        if pari.endswith("_ORDRE"):
+            if [int(v) for v in re.findall(r"\d+", comb or "")] == [int(v) for v in chevaux]:
+                return rap
+            continue
         if pari in ("SIMPLE_GAGNANT", "SIMPLE_PLACE"):
             if combo(comb) == jeu:
                 return rap
@@ -259,6 +264,8 @@ STRATEGIES = {
     "deux_sur_4": "2 sur 4 avec les 2 premiers Yanis",
     "trio_top3": "Trio avec les 3 premiers Yanis",
     "multi4_top4": "Multi en 4 avec les 4 premiers Yanis",
+    "co_top2": "Couplé ordre avec les 2 premiers Yanis (7 partants ou moins)",
+    "to_top3": "Trio ordre avec les 3 premiers Yanis (7 partants ou moins)",
 }
 
 
@@ -280,13 +287,16 @@ def jouer(course, idx):
         for row in tri.itertuples():
             if row.pp_v2 >= 0.45 and row.pp_v2 >= 1.25 * (row.p_marche_place or 0):
                 out.append(("sp_value", 1, gain(idx, cle, "SIMPLE_PLACE", [row.num]), row.cote))
-    if n >= 4:
-        out.append(("cp_top2", 1, gain(idx, cle, "COUPLE_PLACE", nums[:2]), None))
-        out.append(("deux_sur_4", 1, gain(idx, cle, "DEUX_SUR_QUATRE", nums[:2]), None))
-    if n >= 3:
-        out.append(("trio_top3", 1, gain(idx, cle, "TRIO", nums[:3]), None))
-    if n >= 4:
-        out.append(("multi4_top4", 1, gain(idx, cle, "MULTI", nums[:4], "Multi en 4"), None))
+    if n <= 7:
+        # petite course : couple et trio dans l'ordre exact
+        if n >= 3:
+            out.append(("co_top2", 1, gain(idx, cle, "COUPLE_ORDRE", nums[:2]), None))
+            out.append(("to_top3", 1, gain(idx, cle, "TRIO_ORDRE", nums[:3]), None))
+        return out
+    out.append(("cp_top2", 1, gain(idx, cle, "COUPLE_PLACE", nums[:2]), None))
+    out.append(("deux_sur_4", 1, gain(idx, cle, "DEUX_SUR_QUATRE", nums[:2]), None))
+    out.append(("trio_top3", 1, gain(idx, cle, "TRIO", nums[:3]), None))
+    out.append(("multi4_top4", 1, gain(idx, cle, "MULTI", nums[:4], "Multi en 4"), None))
     return out
 
 
@@ -361,7 +371,7 @@ def entrainer_et_predire(train, test, mini_groupe=8000):
         test.loc[m, "s_v"] = mv.predict_proba(test.loc[m, cols])[:, 1]
         test.loc[m, "s_p"] = mp.predict_proba(test.loc[m, cols])[:, 1]
     test["p_v2"] = probas_course(test, "s_v")
-    k = np.minimum(3, test.groupby("cle")["num"].transform("count"))
+    k = np.minimum(test["places_payees"], test.groupby("cle")["num"].transform("count"))
     test["pp_v2"] = (test["s_p"] / test.groupby("cle")["s_p"].transform("sum") * k).clip(upper=0.98)
     return test
 
@@ -383,7 +393,7 @@ def banc_essai(p, rap):
         if len(test) < 200:
             continue
         test = entrainer_et_predire(train, test)
-        test["p_marche_place"] = (test["p_marche"] * 2.6).clip(upper=0.95)
+        test["p_marche_place"] = (test["p_marche"] * (test["places_payees"] - 0.4)).clip(upper=0.95)
         for cle, course in test.groupby("cle", sort=False):
             if course["gagne"].sum() != 1 or course["p_marche"].isna().any():
                 continue
@@ -479,13 +489,22 @@ def pronostics(p, banc):
         for row in tri.itertuples():
             if row.cote and row.p_v2 * row.cote >= 1.10 and row.p_v2 >= 0.08:
                 conseils.append({"strategie": "sg_value", "chevaux": [int(row.num)], "texte": f"Simple gagnant n°{row.num}"})
-        if len(nums) >= 4:
-            conseils += [
-                {"strategie": "sp_top", "chevaux": nums[:1], "texte": f"Simple placé n°{nums[0]}"},
-                {"strategie": "cp_top2", "chevaux": nums[:2], "texte": f"Couplé placé {nums[0]}-{nums[1]}"},
-                {"strategie": "deux_sur_4", "chevaux": nums[:2], "texte": f"2 sur 4 {nums[0]}-{nums[1]}"},
-                {"strategie": "multi4_top4", "chevaux": nums[:4], "texte": "Multi en 4 " + "-".join(map(str, nums[:4]))},
-            ]
+        n = len(nums)
+        offerts = course["paris_offerts"].iloc[0]
+        offerts = set(offerts.split(",")) if isinstance(offerts, str) and offerts else None
+        def existe(code):
+            return offerts is None or code in offerts or f"E_{code}" in offerts
+        possibles = []
+        if n >= 4:
+            possibles.append(("SIMPLE_PLACE", {"strategie": "sp_top", "chevaux": nums[:1], "texte": f"Simple placé n°{nums[0]}"}))
+        if 3 <= n <= 7:
+            possibles += [("COUPLE_ORDRE", {"strategie": "co_top2", "chevaux": nums[:2], "texte": f"Couplé ordre {nums[0]}-{nums[1]} (dans cet ordre)"}),
+                          ("TRIO_ORDRE", {"strategie": "to_top3", "chevaux": nums[:3], "texte": f"Trio ordre {nums[0]}-{nums[1]}-{nums[2]} (dans cet ordre)"})]
+        elif n >= 8:
+            possibles += [("COUPLE_PLACE", {"strategie": "cp_top2", "chevaux": nums[:2], "texte": f"Couplé placé {nums[0]}-{nums[1]}"}),
+                          ("DEUX_SUR_QUATRE", {"strategie": "deux_sur_4", "chevaux": nums[:2], "texte": f"2 sur 4 {nums[0]}-{nums[1]}"}),
+                          ("MULTI", {"strategie": "multi4_top4", "chevaux": nums[:4], "texte": "Multi en 4 " + "-".join(map(str, nums[:4]))})]
+        conseils = [c for c in conseils if existe("SIMPLE_GAGNANT")] + [c for code, c in possibles if existe(code)]
         segs = segments_course(course)
         cotes_par_num = dict(zip(course["num"], course["cote"]))
         for cns in conseils:
@@ -514,6 +533,7 @@ def pronostics(p, banc):
                 cns["proba"], cns["cote"] = round(float(row["p_v2"]), 3), float(row["cote"]) if pd.notna(row["cote"]) else None
         out.append({
             "date": course["date"].iloc[0], "r": int(course["r"].iloc[0]), "c": int(course["c"].iloc[0]),
+            "partants": n, "places_payees": 2 if n <= 7 else 3,
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
                             "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None}
                            for r in tri.itertuples()],
