@@ -10,11 +10,6 @@
     --line:#e3e6ea; --me:#2f6df6; --me-ink:#ffffff; --bot:#eef1f5; --bot-ink:#15181d;
     --accent:#2f6df6; --ok:#1f9d68; --warn:#c0392b; --radius:18px;
   }
-  :root:not([data-theme="light"]){
-    @media (prefers-color-scheme: dark){
-      :root{}
-    }
-  }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --bg:#0e1116; --panel:#161b22; --ink:#e9edf2; --soft:#9aa4b2;
@@ -27,55 +22,49 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
+  body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    display:flex; flex-direction:column; height:100dvh; overflow:hidden;
-  }
-  header{
-    display:flex; align-items:center; gap:12px; padding:14px 16px;
-    background:var(--panel); border-bottom:1px solid var(--line);
-    padding-top:calc(14px + env(safe-area-inset-top));
-  }
-  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#2f6df6,#8a5bff);
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
-  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
-  header .sub{font-size:11.5px;color:var(--soft);margin-top:1px}
+    display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  header{display:flex;align-items:center;gap:8px;padding:12px 12px;background:var(--panel);
+    border-bottom:1px solid var(--line);padding-top:calc(12px + env(safe-area-inset-top))}
+  .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#2f6df6,#8a5bff);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  header .sub{font-size:11px;color:var(--soft);margin-top:1px;max-width:150px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
   header .spacer{flex:1}
-  .iconbtn{border:none;background:transparent;color:var(--soft);font-size:21px;cursor:pointer;
-    width:40px;height:40px;border-radius:10px}
+  .iconbtn{border:none;background:transparent;color:var(--soft);font-size:20px;cursor:pointer;
+    width:38px;height:38px;border-radius:10px}
   .iconbtn:active{background:var(--bot)}
   #chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-  .msg{max-width:84%;padding:11px 14px;border-radius:var(--radius);line-height:1.45;
-    font-size:15px;white-space:pre-wrap;word-wrap:break-word}
+  .msg{max-width:84%;padding:11px 14px;border-radius:var(--radius);line-height:1.45;font-size:15px;
+    white-space:pre-wrap;word-wrap:break-word}
   .me{align-self:flex-end;background:var(--me);color:var(--me-ink);border-bottom-right-radius:6px}
   .bot{align-self:flex-start;background:var(--bot);color:var(--bot-ink);border-bottom-left-radius:6px}
-  .meta{font-size:11px;color:var(--soft);margin:-4px 2px 0}
-  .me+.meta{align-self:flex-end}
   .hint{align-self:center;color:var(--soft);font-size:13px;text-align:center;max-width:90%;
     line-height:1.5;padding:18px 6px}
   form{display:flex;gap:8px;padding:10px;background:var(--panel);border-top:1px solid var(--line);
     padding-bottom:calc(10px + env(safe-area-inset-bottom))}
-  #inp{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);
-    border-radius:22px;padding:11px 15px;font-size:15px;resize:none;max-height:120px;outline:none;font-family:inherit}
+  #inp{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:22px;
+    padding:11px 15px;font-size:15px;resize:none;max-height:120px;outline:none;font-family:inherit}
   #inp:focus{border-color:var(--accent)}
   .send,.mic{border:none;border-radius:50%;width:44px;height:44px;flex:none;cursor:pointer;font-size:18px;color:#fff}
   .send{background:var(--accent)}
   .mic{background:var(--bot);color:var(--soft)}
   .mic.on{background:var(--warn);color:#fff}
   .send:disabled{opacity:.5}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:10}
-  .overlay.show{display:flex}
-  .sheet{background:var(--panel);width:100%;border-radius:20px 20px 0 0;padding:20px 18px;
-    padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:88dvh;overflow-y:auto}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:10}
+  .overlay.show{display:block}
+  /* sheet réglages */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-radius:20px 20px 0 0;
+    padding:20px 18px;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:88dvh;overflow-y:auto}
   .sheet h2{margin:0 0 4px;font-size:18px}
-  .sheet p.note{margin:0 0 16px;font-size:12.5px;color:var(--soft);line-height:1.5}
+  .sheet p.note{margin:0 0 10px;font-size:12.5px;color:var(--soft);line-height:1.5}
   label{display:block;font-size:13px;color:var(--soft);margin:14px 0 6px;font-weight:600}
   input[type=text],input[type=password],select{width:100%;padding:11px 13px;border:1px solid var(--line);
     border-radius:12px;background:var(--bg);color:var(--ink);font-size:15px;outline:none;font-family:inherit}
   .row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}
-  .row .t{font-size:14px}
-  .row .d{font-size:12px;color:var(--soft);margin-top:2px}
+  .row .t{font-size:14px}.row .d{font-size:12px;color:var(--soft);margin-top:2px}
   .switch{position:relative;width:48px;height:28px;flex:none}
   .switch input{display:none}
   .slider{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.2s}
@@ -84,9 +73,24 @@
   .switch input:checked+.slider:before{transform:translateX(20px)}
   .primary{width:100%;margin-top:18px;padding:13px;border:none;border-radius:12px;background:var(--accent);
     color:#fff;font-size:15px;font-weight:600;cursor:pointer}
-  .ghost{width:100%;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;
-    background:transparent;color:var(--warn);font-size:14px;cursor:pointer}
   a{color:var(--accent)}
+  /* drawer sessions */
+  #drawer{position:fixed;top:0;bottom:0;left:0;width:82%;max-width:330px;background:var(--panel);
+    z-index:20;transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column;
+    box-shadow:2px 0 18px rgba(0,0,0,.25)}
+  #drawer.show{transform:translateX(0)}
+  #drawerBack{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:19;display:none}
+  #drawerBack.show{display:block}
+  .dhead{padding:16px;padding-top:calc(16px + env(safe-area-inset-top));border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between}
+  .dhead h2{margin:0;font-size:16px}
+  .newbtn{border:none;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  #sessions{flex:1;overflow-y:auto;padding:8px}
+  .srow{display:flex;align-items:center;gap:6px;padding:11px 12px;border-radius:12px;cursor:pointer}
+  .srow:active{background:var(--bot)}
+  .srow.active{background:var(--bot)}
+  .srow .nm{flex:1;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srow .mini{border:none;background:transparent;color:var(--soft);font-size:15px;width:30px;height:30px;border-radius:8px;cursor:pointer}
   .typing{display:inline-flex;gap:4px;align-items:center}
   .typing span{width:7px;height:7px;background:var(--soft);border-radius:50%;animation:b 1s infinite}
   .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
@@ -95,13 +99,14 @@
 </head>
 <body>
 <header>
+  <button class="iconbtn" id="menuBtn" title="Sessions">☰</button>
   <div class="logo">I</div>
   <div>
     <h1>Imran</h1>
-    <div class="sub" id="status">Prêt — configure ta clé</div>
+    <div class="sub" id="status">Prêt</div>
   </div>
   <div class="spacer"></div>
-  <button class="iconbtn" id="voiceToggle" title="Lecture vocale">🔊</button>
+  <button class="iconbtn" id="voiceToggle" title="Lecture vocale">🔇</button>
   <button class="iconbtn" id="openSettings" title="Réglages">⚙️</button>
 </header>
 
@@ -113,180 +118,199 @@
   <button type="submit" class="send" id="send" title="Envoyer">➤</button>
 </form>
 
+<!-- drawer sessions -->
+<div id="drawerBack"></div>
+<div id="drawer">
+  <div class="dhead"><h2>Mes sessions</h2><button class="newbtn" id="newSession">+ Nouvelle</button></div>
+  <div id="sessions"></div>
+</div>
+
+<!-- réglages -->
 <div class="overlay" id="overlay">
   <div class="sheet">
     <h2>Réglages d'Imran</h2>
-    <p class="note">Ta clé reste sur ton téléphone, dans ce navigateur. Elle n'est envoyée qu'au fournisseur du modèle, jamais à quelqu'un d'autre, jamais à moi.</p>
-
+    <p class="note">Ta clé et toutes tes discussions restent sur ton téléphone. Rien n'est envoyé ailleurs qu'au fournisseur du modèle.</p>
     <label>Clé API OpenRouter</label>
     <input type="password" id="key" placeholder="sk-or-…" autocomplete="off">
-
-    <label>Cerveau (modèle)</label>
-    <select id="model">
-      <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B — gratuit</option>
-      <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B — gratuit</option>
-      <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash — gratuit</option>
-      <option value="deepseek/deepseek-r1:free">DeepSeek R1 — gratuit</option>
-      <option value="__custom">Autre (saisir l'identifiant)…</option>
-    </select>
-    <input type="text" id="modelCustom" placeholder="ex: anthropic/claude-3.5-sonnet" style="display:none;margin-top:8px">
-
+    <label>Cerveau (modèle) — <span id="modelHint" style="color:var(--soft);font-weight:400">gratuits chargés automatiquement</span></label>
+    <select id="model"><option value="">— charge ta clé puis rouvre —</option></select>
+    <input type="text" id="modelCustom" placeholder="ou saisis un identifiant précis" style="margin-top:8px">
     <div class="row">
       <div><div class="t">Mode vérifié</div><div class="d">Imran relit et corrige sa réponse avant de te la donner</div></div>
       <label class="switch"><input type="checkbox" id="verify" checked><span class="slider"></span></label>
     </div>
     <div class="row">
-      <div><div class="t">Voix (lecture des réponses)</div><div class="d">Lit à voix haute en français</div></div>
+      <div><div class="t">Voix (lecture)</div><div class="d">Lit les réponses à voix haute en français</div></div>
       <label class="switch"><input type="checkbox" id="voice"><span class="slider"></span></label>
     </div>
-
     <button class="primary" id="saveSettings">Enregistrer</button>
-    <button class="ghost" id="clearChat">Effacer la conversation</button>
-    <p class="note" style="margin-top:14px">Pas encore de clé ? Crée un compte gratuit sur <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a>, va dans Keys, génère une clé, colle-la ici. Les modèles gratuits changent souvent : si l'un ne répond pas, essaie-en un autre.</p>
+    <p class="note" style="margin-top:14px">Pas de clé ? <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> — crée une clé gratuite et colle-la ici.</p>
   </div>
 </div>
 
 <script>
-const LS = {
-  get:(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-};
-const chat=document.getElementById('chat'), inp=document.getElementById('inp'),
-      form=document.getElementById('form'), send=document.getElementById('send'),
-      statusEl=document.getElementById('status'), overlay=document.getElementById('overlay');
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const $=id=>document.getElementById(id);
+const chat=$('chat'),inp=$('inp'),form=$('form'),send=$('send'),statusEl=$('status'),overlay=$('overlay');
 
-let settings = {
-  key: LS.get('imran_key',''),
-  model: LS.get('imran_model','meta-llama/llama-3.3-70b-instruct:free'),
-  verify: LS.get('imran_verify',true),
-  voice: LS.get('imran_voice',false)
-};
-let history = LS.get('imran_history',[]);
+let settings={key:LS.get('imran_key',''),model:LS.get('imran_model',''),
+  verify:LS.get('imran_verify',true),voice:LS.get('imran_voice',false)};
 
-const SYSTEME = `Tu es Imran, l'assistant personnel d'Abdel. Tu réponds toujours en français, avec des mots simples, et peu de symboles.
+// ---- sessions ----
+let sessions=LS.get('imran_sessions',null);
+let currentId=LS.get('imran_current',null);
+function saveSessions(){LS.set('imran_sessions',sessions);LS.set('imran_current',currentId);}
+function uid(){return 's'+Date.now()+Math.floor(Math.random()*1000);}
+function current(){return sessions.find(s=>s.id===currentId);}
+if(!sessions||!sessions.length){const s={id:uid(),title:'Nouvelle session',messages:[],created:Date.now()};
+  sessions=[s];currentId=s.id;saveSessions();}
+if(!current()){currentId=sessions[0].id;saveSessions();}
+
+const SYSTEME=`Tu es Imran, l'assistant personnel d'Abdel. Tu réponds toujours en français, avec des mots simples et peu de symboles.
 Règle d'or : tu ne mens jamais et tu n'inventes jamais. Si tu n'es pas sûr, tu le dis clairement au lieu de deviner. Quand tu t'appuies sur un fait vérifiable, tu cites ta source si tu l'as.
 Tu es un collaborateur loyal : tu prends des initiatives, tu proposes, tu vas au bout des problèmes en essayant plusieurs angles plutôt que de baisser les bras. C'est Abdel qui décide, tu exécutes ses consignes.
 Tu es direct, concret, chaleureux. Pas de blabla inutile.`;
 
 function render(){
-  chat.innerHTML='';
-  if(history.length===0){
+  const s=current();chat.innerHTML='';
+  statusEl.textContent=s.title;
+  if(!s.messages.length){
     const h=document.createElement('div');h.className='hint';
-    h.textContent='Je suis Imran. Mets ta clé dans les réglages (⚙️ en haut), choisis un cerveau, et parle-moi. Je réponds en français, je me relis avant de te répondre, et je ne t\'invente jamais de bêtises.';
+    h.textContent=settings.key?'Session « '+s.title+' ». Parle-moi, je réponds en français et je me relis avant de répondre.'
+      :'Bienvenue. Ouvre les réglages (⚙️), colle ta clé OpenRouter, choisis un modèle gratuit, et on démarre.';
     chat.appendChild(h);return;
   }
-  history.forEach(m=>{
-    const d=document.createElement('div');
-    d.className='msg '+(m.role==='user'?'me':'bot');
-    d.textContent=m.content;chat.appendChild(d);
-  });
+  s.messages.forEach(m=>{const d=document.createElement('div');
+    d.className='msg '+(m.role==='user'?'me':'bot');d.textContent=m.content;chat.appendChild(d);});
   chat.scrollTop=chat.scrollHeight;
 }
-
-async function callModel(messages){
-  const model = settings.model;
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+settings.key,'Content-Type':'application/json','X-Title':'Imran'},
-    body:JSON.stringify({model,messages})
+function renderSessions(){
+  const box=$('sessions');box.innerHTML='';
+  sessions.slice().reverse().forEach(s=>{
+    const r=document.createElement('div');r.className='srow'+(s.id===currentId?' active':'');
+    const nm=document.createElement('div');nm.className='nm';nm.textContent=s.title;
+    nm.onclick=()=>{currentId=s.id;saveSessions();render();closeDrawer();};
+    const ed=document.createElement('button');ed.className='mini';ed.textContent='✎';
+    ed.onclick=e=>{e.stopPropagation();const t=prompt('Nom de la session :',s.title);if(t){s.title=t.trim()||s.title;saveSessions();renderSessions();render();}};
+    const del=document.createElement('button');del.className='mini';del.textContent='🗑';
+    del.onclick=e=>{e.stopPropagation();if(!confirm('Supprimer « '+s.title+' » ?'))return;
+      sessions=sessions.filter(x=>x.id!==s.id);
+      if(!sessions.length){const n={id:uid(),title:'Nouvelle session',messages:[],created:Date.now()};sessions=[n];}
+      if(s.id===currentId)currentId=sessions[sessions.length-1].id;
+      saveSessions();renderSessions();render();};
+    r.appendChild(nm);r.appendChild(ed);r.appendChild(del);box.appendChild(r);
   });
-  if(!res.ok){
-    const t=await res.text();
-    throw new Error('Erreur '+res.status+' : '+t.slice(0,180));
-  }
-  const data=await res.json();
-  return data.choices?.[0]?.message?.content?.trim() || '(réponse vide)';
 }
+function newSession(){const s={id:uid(),title:'Session '+(sessions.length+1),messages:[],created:Date.now()};
+  sessions.push(s);currentId=s.id;saveSessions();renderSessions();render();closeDrawer();}
 
-function bubble(cls){
-  const d=document.createElement('div');d.className='msg '+cls;chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;return d;
+// drawer
+function openDrawer(){renderSessions();$('drawer').classList.add('show');$('drawerBack').classList.add('show');}
+function closeDrawer(){$('drawer').classList.remove('show');$('drawerBack').classList.remove('show');}
+$('menuBtn').onclick=openDrawer;$('drawerBack').onclick=closeDrawer;$('newSession').onclick=newSession;
+
+// ---- appel modèle ----
+async function callModel(messages){
+  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
+    headers:{'Authorization':'Bearer '+settings.key,'Content-Type':'application/json','X-Title':'Imran'},
+    body:JSON.stringify({model:settings.model,messages})});
+  if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
+  const d=await res.json();return d.choices?.[0]?.message?.content?.trim()||'(réponse vide)';
 }
+function bubble(cls){const d=document.createElement('div');d.className='msg '+cls;chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;return d;}
 
 async function ask(text){
-  if(!settings.key){openSheet();statusEl.textContent='Mets d\'abord ta clé API';return;}
-  history.push({role:'user',content:text});LS.set('imran_history',history);render();
+  if(!settings.key||!settings.model){openSheet();return;}
+  const s=current();
+  if(s.messages.length===0&&(s.title==='Nouvelle session'||/^Session \d+$/.test(s.title))){
+    s.title=text.slice(0,32)+(text.length>32?'…':'');}
+  s.messages.push({role:'user',content:text});saveSessions();render();
   const wait=bubble('bot');wait.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   send.disabled=true;
   try{
-    const base=[{role:'system',content:SYSTEME},...history.slice(-16)];
+    const base=[{role:'system',content:SYSTEME},...s.messages.slice(-20).map(m=>({role:m.role,content:m.content}))];
     statusEl.textContent='Imran réfléchit…';
     let out=await callModel(base);
-    if(settings.verify){
-      statusEl.textContent='Imran se relit…';
-      try{
-        const v=await callModel([
-          {role:'system',content:'Tu es un vérificateur rigoureux. On te donne une question et une réponse proposée. Corrige toute erreur factuelle ou affirmation non fondée. Si quelque chose est incertain, dis-le honnêtement au lieu de l\'affirmer. Réponds en français, uniquement avec la version finale corrigée, sans commentaire sur ton travail.'},
-          {role:'user',content:'Question : '+text+'\n\nRéponse proposée :\n'+out}
-        ]);
-        if(v && v.length>2) out=v;
-      }catch(e){/* si la vérif échoue, on garde le brouillon */}
-    }
-    wait.remove();
-    history.push({role:'assistant',content:out});LS.set('imran_history',history);render();
-    statusEl.textContent='Prêt';
-    if(settings.voice) speak(out);
-  }catch(err){
-    wait.remove();
-    const d=bubble('bot');d.style.color='var(--warn)';
-    d.textContent='Souci de connexion au cerveau. '+err.message+'\n\nVérifie ta clé et ton modèle dans les réglages, ou essaie un autre modèle gratuit.';
-    statusEl.textContent='Erreur';
-  }finally{send.disabled=false;}
+    if(settings.verify){statusEl.textContent='Imran se relit…';
+      try{const v=await callModel([
+        {role:'system',content:'Tu es un vérificateur rigoureux. On te donne une question et une réponse proposée. Corrige toute erreur factuelle ou affirmation non fondée. Si quelque chose est incertain, dis-le honnêtement au lieu de l\'affirmer. Réponds en français, uniquement avec la version finale corrigée, sans commentaire sur ton travail.'},
+        {role:'user',content:'Question : '+text+'\n\nRéponse proposée :\n'+out}]);
+        if(v&&v.length>2)out=v;}catch(e){}}
+    wait.remove();s.messages.push({role:'assistant',content:out});saveSessions();render();
+    if(settings.voice)speak(out);
+  }catch(err){wait.remove();const d=bubble('bot');d.style.color='var(--warn)';
+    d.textContent='Souci de connexion au cerveau. Erreur '+err.message+'\n\nSi c\'est un souci de modèle, ouvre les réglages et choisis-en un autre dans la liste des gratuits.';
+    statusEl.textContent='Erreur';}
+  finally{send.disabled=false;}
 }
 
-// --- voix (lecture) ---
+// ---- voix ----
 let frVoice=null;
-function pickVoice(){const vs=speechSynthesis.getVoices();frVoice=vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith('fr'))||null;}
-if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
+function pickVoice(){try{const vs=speechSynthesis.getVoices();frVoice=vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith('fr'))||null;}catch(e){}}
+if('speechSynthesis'in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
 function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';if(frVoice)u.voice=frVoice;speechSynthesis.speak(u);}catch(e){}}
 
-// --- dictée ---
+// ---- dictée (toujours visible) ----
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const micBtn=document.getElementById('mic');
-let rec=null,listening=false;
-if(SR){
-  rec=new SR();rec.lang='fr-FR';rec.interimResults=false;
+const micBtn=$('mic');let rec=null,listening=false;
+if(SR){rec=new SR();rec.lang='fr-FR';rec.interimResults=false;
   rec.onresult=e=>{inp.value=(inp.value+' '+e.results[0][0].transcript).trim();auto();};
-  rec.onend=()=>{listening=false;micBtn.classList.remove('on');};
-  micBtn.onclick=()=>{if(listening){rec.stop();return;}try{rec.start();listening=true;micBtn.classList.add('on');}catch(e){}};
-}else{micBtn.style.display='none';}
+  rec.onerror=()=>{listening=false;micBtn.classList.remove('on');};
+  rec.onend=()=>{listening=false;micBtn.classList.remove('on');};}
+micBtn.onclick=()=>{
+  if(!SR){statusEl.textContent='Dictée non dispo sur ce navigateur';return;}
+  if(listening){try{rec.stop()}catch(e){}return;}
+  try{rec.start();listening=true;micBtn.classList.add('on');statusEl.textContent='J\'écoute…';}
+  catch(e){statusEl.textContent='Autorise le micro puis réessaie';}
+};
 
-// --- UI ---
+// ---- UI input ----
 function auto(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,120)+'px';}
 inp.addEventListener('input',auto);
 inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
 form.addEventListener('submit',e=>{e.preventDefault();const t=inp.value.trim();if(!t)return;inp.value='';auto();ask(t);});
 
-// réglages
-const keyEl=document.getElementById('key'),modelEl=document.getElementById('model'),
-      modelCustom=document.getElementById('modelCustom'),verifyEl=document.getElementById('verify'),
-      voiceEl=document.getElementById('voice'),voiceToggle=document.getElementById('voiceToggle');
-function openSheet(){
-  keyEl.value=settings.key;
-  const known=[...modelEl.options].some(o=>o.value===settings.model);
-  if(known){modelEl.value=settings.model;modelCustom.style.display='none';}
-  else{modelEl.value='__custom';modelCustom.style.display='block';modelCustom.value=settings.model;}
-  verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;
-  overlay.classList.add('show');
+// ---- réglages + chargement des modèles gratuits ----
+const keyEl=$('key'),modelEl=$('model'),modelCustom=$('modelCustom'),verifyEl=$('verify'),
+  voiceEl=$('voice'),voiceToggle=$('voiceToggle'),modelHint=$('modelHint');
+const FALLBACK=['deepseek/deepseek-chat-v3-0324:free','deepseek/deepseek-r1:free',
+  'google/gemini-2.0-flash-exp:free','meta-llama/llama-3.2-3b-instruct:free'];
+async function loadFreeModels(){
+  modelHint.textContent='chargement…';
+  let list=[];
+  try{
+    const res=await fetch('https://openrouter.ai/api/v1/models');
+    const data=await res.json();
+    list=(data.data||[]).filter(m=>m.pricing&&m.pricing.prompt==='0'&&m.pricing.completion==='0')
+      .map(m=>({id:m.id,name:m.name||m.id})).sort((a,b)=>a.name.localeCompare(b.name));
+    modelHint.textContent=list.length+' modèles gratuits';
+  }catch(e){modelHint.textContent='liste par défaut';}
+  if(!list.length)list=FALLBACK.map(id=>({id,name:id}));
+  modelEl.innerHTML='';
+  list.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;modelEl.appendChild(o);});
+  if(settings.model&&list.some(m=>m.id===settings.model))modelEl.value=settings.model;
 }
-document.getElementById('openSettings').onclick=openSheet;
+function openSheet(){
+  keyEl.value=settings.key;verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;
+  modelCustom.value=(settings.model&&![...modelEl.options].some(o=>o.value===settings.model))?settings.model:'';
+  overlay.classList.add('show');loadFreeModels();
+}
+$('openSettings').onclick=openSheet;
 overlay.onclick=e=>{if(e.target===overlay)overlay.classList.remove('show');};
-modelEl.onchange=()=>{modelCustom.style.display=modelEl.value==='__custom'?'block':'none';};
-document.getElementById('saveSettings').onclick=()=>{
+$('saveSettings').onclick=()=>{
   settings.key=keyEl.value.trim();
-  settings.model=modelEl.value==='__custom'?(modelCustom.value.trim()||'meta-llama/llama-3.3-70b-instruct:free'):modelEl.value;
+  settings.model=modelCustom.value.trim()||modelEl.value||'';
   settings.verify=verifyEl.checked;settings.voice=voiceEl.checked;
   LS.set('imran_key',settings.key);LS.set('imran_model',settings.model);
   LS.set('imran_verify',settings.verify);LS.set('imran_voice',settings.voice);
-  voiceToggle.textContent=settings.voice?'🔊':'🔇';
-  overlay.classList.remove('show');
-  statusEl.textContent=settings.key?'Prêt':'Mets ta clé API';
+  voiceToggle.textContent=settings.voice?'🔊':'🔇';overlay.classList.remove('show');render();
 };
-document.getElementById('clearChat').onclick=()=>{history=[];LS.set('imran_history',history);render();overlay.classList.remove('show');};
-voiceToggle.onclick=()=>{settings.voice=!settings.voice;LS.set('imran_voice',settings.voice);voiceToggle.textContent=settings.voice?'🔊':'🔇';};
+voiceToggle.onclick=()=>{settings.voice=!settings.voice;LS.set('imran_voice',settings.voice);
+  voiceToggle.textContent=settings.voice?'🔊':'🔇';};
 
 voiceToggle.textContent=settings.voice?'🔊':'🔇';
-statusEl.textContent=settings.key?'Prêt':'Prêt — configure ta clé';
 render();
 </script>
 </body>
