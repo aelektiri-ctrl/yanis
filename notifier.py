@@ -56,6 +56,8 @@ def main():
     if jour:
         for reu in jour["reunions"]:
             for c in reu["courses"]:
+                if c.get("paris") == []:
+                    continue   # course sans paris : inutile de prevenir
                 heures[(reu["r"], c["c"])] = (c.get("depart"), reu.get("hippodrome"), c.get("arrivee"))
 
     # 1. alertes avant le depart

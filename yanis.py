@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS courses (
     date TEXT, r INTEGER, c INTEGER, libelle TEXT, depart TEXT,
     discipline TEXT, specialite TEXT, distance INTEGER, corde TEXT, parcours TEXT,
     terrain TEXT, penetrometre TEXT, allocation INTEGER, partants INTEGER,
-    categorie TEXT, conditions TEXT, condition_sexe TEXT, statut TEXT, arrivee TEXT,
+    categorie TEXT, conditions TEXT, condition_sexe TEXT, statut TEXT, arrivee TEXT, paris TEXT,
     PRIMARY KEY (date, r, c)
 );
 CREATE TABLE IF NOT EXISTS partants (
@@ -228,6 +228,13 @@ def lire_programme(con, date, prog, france_seulement):
             if c is None:
                 continue
             arrivee = g(co, "ordreArrivee")
+            # paris proposes sur cette course (liste vide = course sans paris, on ne peut pas jouer)
+            liste_paris = g(co, "paris")
+            if isinstance(liste_paris, list):
+                types = sorted({str(g(x, "typePari", "codePari") or "") for x in liste_paris if isinstance(x, dict)} - {""})
+                paris_txt = ",".join(types)
+            else:
+                paris_txt = None   # information absente : on ne masque pas
             inserer(con, "courses", {
                 "date": date, "r": r, "c": c,
                 "libelle": g(co, "libelle", "libelleCourt"),
@@ -246,6 +253,7 @@ def lire_programme(con, date, prog, france_seulement):
                 "condition_sexe": g(co, "conditionSexe"),
                 "statut": g(co, "statut", "categorieStatut"),
                 "arrivee": "-".join(str(x[0] if isinstance(x, list) and x else x) for x in arrivee) if isinstance(arrivee, list) else None,
+                "paris": paris_txt,
             })
             a_detailler.append((r, c))
     return a_detailler
@@ -350,6 +358,14 @@ def collecter_jour(pmu, jour, france_seulement=True):
         ecrire_jour(jour, contenu)
         return "aucune course"
     courses = lire_programme(con, date, prog, france_seulement)
+    if jour == aujourdhui():
+        try:
+            co0 = g(prog, "programme.reunions", defaut=[])[0]["courses"][0]
+            diag = {"cles_course": sorted(co0.keys()), "paris": co0.get("paris"), "cles_reunion": sorted(g(prog, "programme.reunions", defaut=[])[0].keys())}
+            with open(os.path.join(DOSSIER, "docs", "data", "diagnostic_programme.json"), "w", encoding="utf-8") as f:
+                json.dump(diag, f, ensure_ascii=False, indent=1)
+        except Exception:
+            pass
     for r, c in courses:
         part = pmu.participants(jour, r, c)
         if part is not None:
@@ -627,10 +643,11 @@ def journee_pour_appli(con, date, stats):
     for r, hippo, pays, temp, ciel in q("SELECT r, hippodrome, pays, meteo_temperature, meteo_ciel FROM reunions WHERE date=? ORDER BY r", date):
         courses = []
         for row in q("""SELECT c, libelle, depart, discipline, specialite, distance, partants, allocation,
-                               terrain, arrivee, statut, conditions, corde, categorie
+                               terrain, arrivee, statut, conditions, corde, categorie, paris
                         FROM courses WHERE date=? AND r=? ORDER BY c""", date, r):
             c = dict(zip(["c", "libelle", "depart", "discipline", "specialite", "distance", "nb_partants",
-                          "allocation", "terrain", "arrivee", "statut", "conditions", "corde", "categorie"], row))
+                          "allocation", "terrain", "arrivee", "statut", "conditions", "corde", "categorie", "paris"], row))
+            c["paris"] = None if c["paris"] is None else [x for x in c["paris"].split(",") if x]
             parts = []
             for pr in q("""SELECT num, nom, statut, age, sexe, driver, entraineur, musique, deferre, oeilleres,
                                   recul_m, poids_kg, place_corde, cote_reference, cote_finale, place_arrivee,

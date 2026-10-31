@@ -161,22 +161,37 @@ function topYanis(c) {
   return c.partants.filter(p => p.rang).sort((a, b) => a.rang - b.rang).slice(0, 4).map(p => p.num);
 }
 
+/* Seulement les courses ou l'on peut parier, et pas les reunions masquees par Abdel (absentes de Betclic) */
+const masquees = () => lsGet("yanis_masquees", []);
+function reunionsJouables(j) {
+  const m = masquees();
+  return (j?.reunions || []).filter(r => !m.includes(r.hippodrome))
+    .map(r => ({...r, courses: r.courses.filter(c => c.paris == null || c.paris.length > 0)}))
+    .filter(r => r.courses.length);
+}
+
 function vueJour() {
   if (etat.fiche) return vueFiche();
-  const j = D[etat.jour];
+  const jBrut = D[etat.jour];
+  const j = jBrut ? {...jBrut, reunions: reunionsJouables(jBrut)} : null;
+  const cachees = (jBrut?.reunions || []).filter(r => masquees().includes(r.hippodrome));
   let h = `<div class="bandeau"><b>Mode observation.</b> Aucune formule n'a encore prouvé qu'elle bat le PMU sur son banc d'essai (voir Tableau). Regarde, compare, mais ne mise pas dessus pour l'instant.</div>`;
   h += `<div class="puces">
     <button class="puce ${etat.jour === "aujourdhui" ? "actif" : ""}" data-jour="aujourdhui">Aujourd'hui</button>
     <button class="puce ${etat.jour === "demain" ? "actif" : ""}" data-jour="demain">Demain</button></div>`;
+  const blocMasquees = cachees.length ? `<div class="carte"><div class="sous" style="margin-bottom:6px">Réunions masquées (pas sur Betclic) :</div>` +
+    cachees.map(r => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><span>${esc(r.hippodrome)}</span><button class="btn sec" style="width:auto;padding:6px 10px" data-reafficher="${esc(r.hippodrome)}">Réafficher</button></div>`).join("") + `</div>` : "";
   if (!j || !j.reunions.length) {
-    vue.innerHTML = h + `<div class="vide">Pas encore de programme pour ce jour.<br>Yanis le récupère chaque heure.</div>`;
+    vue.innerHTML = h + `<div class="vide">Pas encore de programme jouable pour ce jour.<br>Yanis le récupère toutes les 15 minutes.</div>` + blocMasquees;
     return lierJour();
   }
   if (!j.reunions.some(r => r.r === etat.reunion)) etat.reunion = j.reunions[0].r;
   h += `<div class="puces">` + j.reunions.map(r =>
     `<button class="puce ${r.r === etat.reunion ? "actif" : ""}" data-reunion="${r.r}">R${r.r} ${esc(r.hippodrome || "")}</button>`).join("") + `</div>`;
   const reu = j.reunions.find(r => r.r === etat.reunion);
-  if (reu.temperature != null || reu.ciel) h += `<div class="sous" style="margin-bottom:8px">Météo : ${reu.temperature != null ? reu.temperature + " °C" : ""} ${esc(reu.ciel || "")}</div>`;
+  h += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+    <div class="sous">${reu.pays && reu.pays !== "FRA" ? "🌍 " + esc(reu.pays) + " · " : ""}${reu.temperature != null || reu.ciel ? `Météo : ${reu.temperature != null ? reu.temperature + " °C" : ""} ${esc(reu.ciel || "")}` : ""}</div>
+    <button class="btn sec" style="width:auto;padding:6px 10px;font-size:12.5px" data-masquer="${esc(reu.hippodrome || "")}">Pas sur Betclic ? Masquer</button></div>`;
   h += reu.courses.map(c => {
     const top = topYanis(c);
     const values = c.partants.filter(p => p.value).map(p => p.num);
@@ -189,12 +204,19 @@ function vueJour() {
         ${fini ? `<div class="top">Arrivée : <b>${esc(c.arrivee.split("-").slice(0, 5).join(" - "))}</b></div>`
                : top.length ? `<div class="top">Yanis : <b>${top.join(" - ")}</b>${values.length ? ` <span class="badge b-value">value ${values.join(", ")}</span>` : ""}</div>` : ""}
       </div><div class="fleche">›</div></div>`;
-  }).join("");
+  }).join("") + blocMasquees;
   vue.innerHTML = h;
   lierJour();
 }
 
 function lierJour() {
+  vue.querySelectorAll("[data-masquer]").forEach(b => b.onclick = () => {
+    if (!confirm(`Masquer ${b.dataset.masquer} ? Yanis ne l'affichera plus, aujourd'hui et les prochaines fois. Tu pourras la réafficher en bas de la page.`)) return;
+    const m = masquees(); if (!m.includes(b.dataset.masquer)) m.push(b.dataset.masquer); lsSet("yanis_masquees", m); etat.reunion = null; afficher();
+  });
+  vue.querySelectorAll("[data-reafficher]").forEach(b => b.onclick = () => {
+    lsSet("yanis_masquees", masquees().filter(x => x !== b.dataset.reafficher)); afficher();
+  });
   vue.querySelectorAll("[data-jour]").forEach(b => b.onclick = () => { etat.jour = b.dataset.jour; etat.reunion = null; afficher(); });
   vue.querySelectorAll("[data-reunion]").forEach(b => b.onclick = () => { etat.reunion = +b.dataset.reunion; afficher(); });
   vue.querySelectorAll("[data-course]").forEach(b => b.onclick = () => {
@@ -472,14 +494,14 @@ function miseConseillee(cns) {
 /* ---------- RESULTATS ---------- */
 function vueResultats() {
   if (etat.fiche) return vueFiche();
-  const finies = j => (j?.reunions || []).reduce((n, r) => n + r.courses.filter(c => c.arrivee).length, 0);
+  const finies = j => reunionsJouables(j).reduce((n, r) => n + r.courses.filter(c => c.arrivee).length, 0);
   if (!etat.res) etat.res = finies(D.aujourdhui) ? "aujourdhui" : "hier";
   const j = D[etat.res];
   let h = `<div class="puces">
     <button class="puce ${etat.res === "aujourdhui" ? "actif" : ""}" data-res="aujourdhui">Aujourd'hui (${finies(D.aujourdhui)})</button>
     <button class="puce ${etat.res === "hier" ? "actif" : ""}" data-res="hier">Hier (${finies(D.hier)})</button></div>`;
   let ok = 0, total = 0, corps = "";
-  for (const reu of j?.reunions || []) {
+  for (const reu of reunionsJouables(j)) {
     const cs = reu.courses.filter(c => c.arrivee);
     if (!cs.length) continue;
     corps += `<h2>R${reu.r} · ${esc(reu.hippodrome || "")}</h2>`;
@@ -645,7 +667,7 @@ function vueParis() {
   const pre = etat.prefill || {}; etat.prefill = null;
   const type = pre.type || etat.typePari || "turf";
   const courses = [];
-  for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses)
+  for (const src of ["aujourdhui", "demain"]) for (const reu of reunionsJouables(D[src])) for (const c of reu.courses)
     courses.push({cle: `${D[src].date}/${reu.r}/${c.c}`, txt: `${D[src].date.slice(8)}/${D[src].date.slice(5, 7)} R${reu.r}C${c.c} ${reu.hippodrome || ""} ${heure(c.depart)}`});
   const parFormule = {};
   for (const p of paris.filter(x => x.gain != null)) { const f = parFormule[p.formule] ||= {n: 0, g: 0, mise: 0, gain: 0}; f.n++; f.mise += +p.mise || 0; f.gain += +p.gain || 0; if (+p.gain > 0) f.g++; }
