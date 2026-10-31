@@ -67,6 +67,7 @@
   .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
   @keyframes b{0%,60%,100%{opacity:.3}30%{opacity:1}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.2/math.min.js"></script>
 </head>
 <body>
 <header>
@@ -123,6 +124,10 @@
       <div><div class="t">Voix (lecture)</div><div class="d">Lit les réponses à voix haute en français</div></div>
       <label class="switch"><input type="checkbox" id="voice"><span class="slider"></span></label>
     </div>
+    <div class="row">
+      <div><div class="t">Recherche web</div><div class="d">Imran cherche sur internet et cite ses sources (peut demander un petit crédit)</div></div>
+      <label class="switch"><input type="checkbox" id="web"><span class="slider"></span></label>
+    </div>
     <button class="primary" id="saveSettings">Enregistrer</button>
     <p class="note" style="margin-top:14px">Clés gratuites : OpenRouter sur <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> · NVIDIA NIM sur <a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com</a>. Pour la lecture de photos, choisis un modèle qui voit les images (vision / VL).</p>
   </div>
@@ -138,7 +143,7 @@ let settings={provider:LS.get('imran_provider','openrouter'),
   keys:LS.get('imran_keys',{openrouter:'',nvidia:'',custom:''}),
   baseCustom:LS.get('imran_baseCustom',''),
   model:LS.get('imran_model',''),teamModels:LS.get('imran_teamModels',['','','']),
-  team:LS.get('imran_team',false),verify:LS.get('imran_verify',true),voice:LS.get('imran_voice',false)};
+  team:LS.get('imran_team',false),verify:LS.get('imran_verify',true),voice:LS.get('imran_voice',false),web:LS.get('imran_web',false)};
 // migration ancienne clé unique
 const oldKey=LS.get('imran_key','');if(oldKey&&!settings.keys.openrouter){settings.keys.openrouter=oldKey;LS.set('imran_keys',settings.keys);}
 function activeBase(){return settings.provider==='custom'?settings.baseCustom.replace(/\/+$/,''):PROVIDERS[settings.provider].base;}
@@ -155,7 +160,8 @@ if(!current()){currentId=sessions[0].id;saveSessions();}
 const SYSTEME=`Tu es Imran, l'assistant personnel d'Abdel. Tu réponds toujours en français, avec des mots simples et peu de symboles.
 Règle d'or : tu ne mens jamais et tu n'inventes jamais. Si tu n'es pas sûr, tu le dis clairement au lieu de deviner. Quand tu t'appuies sur un fait vérifiable, tu cites ta source si tu l'as.
 Tu es un collaborateur loyal : tu prends des initiatives, tu proposes, tu vas au bout des problèmes en essayant plusieurs angles plutôt que de baisser les bras. C'est Abdel qui décide, tu exécutes ses consignes.
-Tu es direct, concret, chaleureux. Pas de blabla inutile.`;
+Tu es direct, concret, chaleureux. Pas de blabla inutile.
+Pour tout calcul chiffré un peu sérieux, n'invente jamais le résultat : écris l'opération entre doubles crochets, par exemple [[CALC: 1234*56.7]]. Un résultat exact te sera renvoyé et tu t'en serviras.`;
 
 function render(){
   const s=current();chat.innerHTML='';statusEl.textContent=s.title;
@@ -186,13 +192,25 @@ function closeDrawer(){$('drawer').classList.remove('show');$('drawerBack').clas
 $('menuBtn').onclick=openDrawer;$('drawerBack').onclick=closeDrawer;$('newSession').onclick=newSession;
 
 // ---- appel modèle ----
-async function callModel(messages,model){
+async function callModel(messages,model,web){
   const base=activeBase();if(!base)throw new Error('adresse du fournisseur manquante');
+  const body={model:model||settings.model,messages};if(web)body.plugins=[{id:'web'}];
   const res=await fetch(base+'/chat/completions',{method:'POST',
     headers:{'Authorization':'Bearer '+activeKey(),'Content-Type':'application/json','X-Title':'Imran'},
-    body:JSON.stringify({model:model||settings.model,messages})});
+    body:JSON.stringify(body)});
   if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
   const d=await res.json();return d.choices?.[0]?.message?.content?.trim()||'(réponse vide)';
+}
+async function applyCalc(text,question){
+  if(typeof math==='undefined')return text;
+  const re=/\[\[CALC:\s*([^\]]+)\]\]/g;let m,found=[];
+  while((m=re.exec(text))){const e=m[1].trim();try{found.push({e,r:String(math.evaluate(e))});}catch(err){found.push({e,r:'calcul impossible'});}}
+  if(!found.length)return text;
+  try{const fin=await callModel([
+    {role:'system',content:'Tu es Imran. Donne la réponse finale en français, en te servant exactement de ces résultats de calcul, sans les recalculer.'},
+    {role:'user',content:'Question : '+question+'\n\nRésultats exacts :\n'+found.map(f=>f.e+' = '+f.r).join('\n')}]);
+    return (fin&&fin.length>2)?fin:found.map(f=>f.e+' = '+f.r).join('\n');
+  }catch(e){return found.map(f=>f.e+' = '+f.r).join('\n');}
 }
 function bubble(cls){const d=document.createElement('div');d.className='msg '+cls;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
 
@@ -221,16 +239,17 @@ async function ask(text){
       else{statusEl.textContent='Le chef fait la synthèse…';
         out=await callModel([
           {role:'system',content:'Tu es le chef d\'une équipe d\'experts IA. On te donne une question et les réponses de plusieurs experts. Compare-les, garde ce qui est solide et concordant, écarte les erreurs, contradictions et inventions. Si un point reste incertain, dis-le honnêtement. Réponds en français, clair et direct, uniquement la réponse finale.'},
-          {role:'user',content:'Question : '+text+'\n\n'+good.map((a,i)=>'--- Expert '+(i+1)+' ---\n'+a.t).join('\n\n')}],settings.model);}
+          {role:'user',content:'Question : '+text+'\n\n'+good.map((a,i)=>'--- Expert '+(i+1)+' ---\n'+a.t).join('\n\n')}],settings.model,settings.web);}
     }else{
       statusEl.textContent='Imran réfléchit…';
-      out=await callModel(base);
+      out=await callModel(base,undefined,settings.web);
       if(settings.verify&&!img){statusEl.textContent='Imran se relit…';
         try{const v=await callModel([
           {role:'system',content:'Tu es un vérificateur rigoureux. On te donne une question et une réponse proposée. Corrige toute erreur ou affirmation non fondée. Si incertain, dis-le honnêtement. Réponds en français, uniquement la version finale corrigée, sans commentaire.'},
           {role:'user',content:'Question : '+text+'\n\nRéponse proposée :\n'+out}]);
           if(v&&v.length>2)out=v;}catch(e){}}
     }
+    if(!img){try{out=await applyCalc(out,text);}catch(e){}}
     wait.remove();s.messages.push({role:'assistant',content:out});saveSessions();render();
     if(settings.voice)speak(out);
   }catch(err){wait.remove();const d=bubble('bot');d.style.color='var(--warn)';
@@ -272,7 +291,7 @@ form.addEventListener('submit',e=>{e.preventDefault();const t=inp.value.trim();i
 // ---- réglages ----
 const keyEl=$('key'),modelEl=$('model'),modelCustom=$('modelCustom'),verifyEl=$('verify'),voiceEl=$('voice'),
   voiceToggle=$('voiceToggle'),modelHint=$('modelHint'),teamEl=$('team'),teamBox=$('teamBox'),
-  t1=$('t1'),t2=$('t2'),t3=$('t3'),providerEl=$('provider'),baseCustomEl=$('baseCustom');
+  t1=$('t1'),t2=$('t2'),t3=$('t3'),providerEl=$('provider'),baseCustomEl=$('baseCustom'),webEl=$('web');
 teamEl.onchange=()=>{teamBox.style.display=teamEl.checked?'block':'none';};
 providerEl.onchange=()=>{baseCustomEl.style.display=providerEl.value==='custom'?'block':'none';
   keyEl.value=settings.keys[providerEl.value]||'';};
@@ -311,7 +330,7 @@ async function loadModels(){
 function openSheet(){
   providerEl.value=settings.provider;baseCustomEl.style.display=settings.provider==='custom'?'block':'none';
   baseCustomEl.value=settings.baseCustom;keyEl.value=activeKey();
-  verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;
+  verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;webEl.checked=settings.web;
   teamEl.checked=settings.team;teamBox.style.display=settings.team?'block':'none';
   modelCustom.value='';overlay.classList.add('show');loadModels();
 }
@@ -322,10 +341,10 @@ $('saveSettings').onclick=()=>{
   settings.keys[settings.provider]=keyEl.value.trim();
   settings.model=modelCustom.value.trim()||modelEl.value||'';
   settings.teamModels=[t1.value,t2.value,t3.value];
-  settings.team=teamEl.checked;settings.verify=verifyEl.checked;settings.voice=voiceEl.checked;
+  settings.team=teamEl.checked;settings.verify=verifyEl.checked;settings.voice=voiceEl.checked;settings.web=webEl.checked;
   LS.set('imran_provider',settings.provider);LS.set('imran_baseCustom',settings.baseCustom);LS.set('imran_keys',settings.keys);
   LS.set('imran_model',settings.model);LS.set('imran_teamModels',settings.teamModels);
-  LS.set('imran_team',settings.team);LS.set('imran_verify',settings.verify);LS.set('imran_voice',settings.voice);
+  LS.set('imran_team',settings.team);LS.set('imran_verify',settings.verify);LS.set('imran_voice',settings.voice);LS.set('imran_web',settings.web);
   voiceToggle.textContent=settings.voice?'🔊':'🔇';overlay.classList.remove('show');render();
 };
 voiceToggle.onclick=()=>{settings.voice=!settings.voice;LS.set('imran_voice',settings.voice);voiceToggle.textContent=settings.voice?'🔊':'🔇';};
