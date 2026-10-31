@@ -101,6 +101,7 @@ const vue = document.getElementById("vue");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pct = x => x == null ? "–" : (100 * x).toFixed(0) + " %";
 const euros = x => (x ?? 0).toLocaleString("fr-FR", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " €";
+const nomPropre = x => x ? x.replace(/\. /g, ".").replace(/\./g, ". ").trim() : "?";
 const heure = d => d ? d.slice(11, 16) : "";
 const DISC = {ATTELE:"Trot attelé", MONTE:"Trot monté", PLAT:"Plat", HAIE:"Haies", STEEPLECHASE:"Steeple", CROSS:"Cross"};
 const FERRE = {DEFERRE_ANTERIEURS:"D4 avant", DEFERRE_POSTERIEURS:"D4 arrière", DEFERRE_ANTERIEURS_POSTERIEURS:"D4", PROTEGE_ANTERIEURS:"Protégé avant", PROTEGE_POSTERIEURS:"Protégé arrière", PROTEGE_ANTERIEURS_POSTERIEURS:"Protégé 4", PROTEGE_ANTERIEURS_DEFERRRE_POSTERIEURS:"Protégé av., déf. arr.", REFERRE_ANTERIEURS_POSTERIEURS:"Referré"};
@@ -215,7 +216,7 @@ function vueFiche() {
         ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
       <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}</div></div>
-      <div class="detail">${esc(p.driver || "?")} (${tx(sd)}) · Ent. ${esc(p.entraineur || "?")} (${tx(se)})<br>
+      <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
         Musique ${esc(p.musique || "–")}${equip ? " · " + esc(equip) : ""}</div>
     </div>`;
   }).join("");
