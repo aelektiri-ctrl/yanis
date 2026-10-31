@@ -139,7 +139,31 @@ def preparer(p):
     p["cote_prec"] = g["cote"].shift(1)
     p["gains_par_course"] = p["gains_carriere"] / p["nb_courses"].replace(0, np.nan)
 
+    # --- note de vitesse (trot) : reduction km comparee a la reference hippodrome + distance ---
+    # reference = moyenne des reductions des 3 premiers, sur les courses PASSEES du meme hippodrome,
+    # meme discipline, meme tranche de distance (aucune fuite de l'avenir)
+    p["tranche_dist"] = (p["distance"] // 300) * 300
+    p["piste"] = p["hippodrome_code"].fillna("?") + "|" + p["discipline"].fillna("?") + "|" + p["tranche_dist"].astype(str)
+    top3 = p["place_arrivee"].between(1, 3) & p["reduction_km_s"].notna()
+    ref = (p[top3].groupby(["piste", "date"])["reduction_km_s"].mean().rename("ref_jour").reset_index()
+           .sort_values("date"))
+    ref["ref_cum"] = ref.groupby("piste")["ref_jour"].transform(lambda x: x.shift(1).expanding().mean())
+    ref["ref_n"] = ref.groupby("piste").cumcount()
+    p = p.merge(ref[["piste", "date", "ref_cum", "ref_n"]], on=["piste", "date"], how="left")
+    # reference globale par discipline/distance si la piste est trop peu connue
+    p["note_vitesse"] = np.where(p["ref_n"] >= 3, p["ref_cum"] - p["reduction_km_s"], np.nan)
+    p = p.sort_values(["ts", "cle", "num"]).reset_index(drop=True)
+    g = p.groupby("nom", sort=False)["note_vitesse"]
+    p["vit_derniere"] = g.shift(1)
+    p["vit_moy3"] = g.transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean())
+    p["vit_max5"] = g.transform(lambda x: x.shift(1).rolling(5, min_periods=1).max())
+    p["vit_n"] = g.transform(lambda x: x.shift(1).notna().cumsum())
+    p["vit_tendance"] = p["vit_derniere"] - p["vit_moy3"]
+
     # rang du cheval dans sa course sur quelques indices cles
+    for col in ("vit_max5", "vit_moy3"):
+        p[f"rg_{col}"] = p.groupby("cle")[col].rank(pct=True)
+        p[f"ecart_{col}"] = p[col] - p.groupby("cle")[col].transform("max")
     for col in ("gains_par_course", "dr_tx_v", "en_tx_v", "mus_moy"):
         p[f"rg_{col}"] = p.groupby("cle")[col].rank(pct=True)
 
@@ -157,6 +181,8 @@ VARIABLES = [
     "age", "sexe_c", "disc", "distance", "nb_partants", "recul_m", "poids_kg", "place_corde", "allocation",
     "gains_carriere", "gains_par_course", "nb_courses", "nb_victoires", "nb_places",
     "rg_gains_par_course", "rg_dr_tx_v", "rg_en_tx_v", "rg_mus_moy",
+    "vit_derniere", "vit_moy3", "vit_max5", "vit_n", "vit_tendance",
+    "rg_vit_max5", "rg_vit_moy3", "ecart_vit_max5", "ecart_vit_moy3",
 ]
 
 

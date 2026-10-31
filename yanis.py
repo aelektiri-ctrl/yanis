@@ -191,6 +191,9 @@ class PMU:
     def participants(self, jour, r, c):
         return self.appel(f"programme/{jour_pmu(jour)}/R{r}/C{c}/participants")
 
+    def performances(self, jour, r, c):
+        return self.appel(f"programme/{jour_pmu(jour)}/R{r}/C{c}/performances-detaillees/pretty")
+
     def rapports(self, jour, r, c):
         return self.appel(f"programme/{jour_pmu(jour)}/R{r}/C{c}/rapports-definitifs")
 
@@ -404,12 +407,45 @@ def cmd_collecte(args):
     cmd_bilan(args)
 
 
+def collecter_performances(pmu, jour):
+    """Performances detaillees des partants (courses passees, temps, ecarts, adversaires).
+    Gardees 10 jours (fichiers lourds), le temps de les exploiter dans le modele."""
+    p = chemin_jour(jour)
+    if not os.path.exists(p):
+        return 0
+    jour_data = lire_jour(p)
+    courses = jour_data.get("courses", {}).get("lignes", [])
+    dossier = os.path.join(DOSSIER, "donnees_perf")
+    os.makedirs(dossier, exist_ok=True)
+    sortie, n = {}, 0
+    for ligne in courses:
+        r, c = ligne[1], ligne[2]
+        d = pmu.performances(jour, r, c)
+        if d is not None:
+            sortie[f"R{r}C{c}"] = d
+            n += 1
+    if sortie:
+        with gzip.open(os.path.join(dossier, f"{jour.isoformat()}.json.gz"), "wt", encoding="utf-8") as f:
+            json.dump(sortie, f, ensure_ascii=False, separators=(",", ":"))
+    for nom in os.listdir(dossier):
+        try:
+            if (aujourdhui() - dt.date.fromisoformat(nom[:10])).days > 10:
+                os.remove(os.path.join(dossier, nom))
+        except ValueError:
+            pass
+    return n
+
+
 def _collecte(pmu, t0, limite, auj, args):
     # 1. Le present : avant-hier, hier et aujourd'hui sont toujours mis a jour
     for k in (2, 1, 0):
         jour = auj - dt.timedelta(days=k)
         if not deja_fait(jour):
             print(f"{jour} : {collecter_jour(pmu, jour, not args.monde)}", flush=True)
+    # 1 bis. Performances detaillees des partants du jour (une fois par jour suffit)
+    perf = os.path.join(DOSSIER, "donnees_perf", f"{auj.isoformat()}.json.gz")
+    if not os.path.exists(perf):
+        print(f"Performances detaillees du {auj} : {collecter_performances(pmu, auj)} courses", flush=True)
     # 2. Le passe : on remonte jusqu'a 10 ans tant qu'il reste du temps
     debut = auj - dt.timedelta(days=int(365.25 * ANNEES))
     jour, n = auj - dt.timedelta(days=3), 0
