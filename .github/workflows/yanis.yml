@@ -1,0 +1,34 @@
+name: Yanis - collecte PMU
+
+on:
+  schedule:
+    - cron: "5 5 * * *"    # vers 6h-7h (heure de Paris) : programme du jour + historique
+    - cron: "35 21 * * *"  # vers 22h-23h (heure de Paris) : arrivees, rapports + historique
+  workflow_dispatch:       # bouton "Run workflow" pour lancer a la main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yanis
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collecte (25 minutes maximum)
+        run: python yanis.py collecte --budget 25
+      - name: Enregistrer dans la bibliotheque
+        run: |
+          git config user.name "Yanis"
+          git config user.email "yanis@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Collecte du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
+          git pull --rebase --quiet || true
+          git push
