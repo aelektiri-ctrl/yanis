@@ -248,9 +248,11 @@ async function ask(text){
 
 // ---- voix ----
 let frVoice=null;
-function pickVoice(){try{const vs=speechSynthesis.getVoices();frVoice=vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith('fr'))||null;}catch(e){}}
+function pickVoice(){try{const vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().startsWith('fr'));
+  frVoice=vs.find(v=>/google|natural|amélie|amelie|thomas|denise|léa|lea/i.test(v.name))||vs[0]||null;}catch(e){}}
 if('speechSynthesis'in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
-function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';if(frVoice)u.voice=frVoice;speechSynthesis.speak(u);}catch(e){}}
+function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';
+  if(frVoice)u.voice=frVoice;u.rate=1.06;u.pitch=1.08;speechSynthesis.speak(u);}catch(e){}}
 
 // ---- dictée (toujours visible) ----
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -260,7 +262,7 @@ if(SR){rec=new SR();rec.lang='fr-FR';rec.interimResults=false;
   rec.onerror=()=>{listening=false;micBtn.classList.remove('on');};
   rec.onend=()=>{listening=false;micBtn.classList.remove('on');};}
 micBtn.onclick=()=>{
-  if(!SR){statusEl.textContent='Dictée non dispo sur ce navigateur';return;}
+  if(!SR){const d=bubble('bot');d.textContent='La dictée directe n\'est pas gérée par ton navigateur. Deux options : ouvre Imran dans Chrome, ou appuie sur le micro de ton clavier pour dicter dans la case (ça marche partout).';return;}
   if(listening){try{rec.stop()}catch(e){}return;}
   try{rec.start();listening=true;micBtn.classList.add('on');statusEl.textContent='J\'écoute…';}
   catch(e){statusEl.textContent='Autorise le micro puis réessaie';}
@@ -275,8 +277,18 @@ form.addEventListener('submit',e=>{e.preventDefault();const t=inp.value.trim();i
 // ---- réglages + chargement des modèles gratuits ----
 const keyEl=$('key'),modelEl=$('model'),modelCustom=$('modelCustom'),verifyEl=$('verify'),
   voiceEl=$('voice'),voiceToggle=$('voiceToggle'),modelHint=$('modelHint');
-const FALLBACK=['deepseek/deepseek-chat-v3-0324:free','deepseek/deepseek-r1:free',
-  'google/gemini-2.0-flash-exp:free','meta-llama/llama-3.2-3b-instruct:free'];
+const RECO={
+ 'deepseek/deepseek-chat-v3-0324:free':'polyvalent, très bon',
+ 'deepseek/deepseek-r1:free':'raisonne fort, problèmes durs',
+ 'deepseek/deepseek-r1-0528:free':'raisonne fort',
+ 'google/gemini-2.0-flash-exp:free':'rapide, bon partout',
+ 'qwen/qwen-2.5-72b-instruct:free':'costaud, bon en code',
+ 'qwen/qwq-32b:free':'raisonne',
+ 'meta-llama/llama-3.3-70b-instruct:free':'solide généraliste',
+ 'mistralai/mistral-small-3.1-24b-instruct:free':'rapide, efficace',
+ 'meta-llama/llama-4-scout:free':'récent, polyvalent',
+ 'google/gemma-3-27b-it:free':'bon généraliste',
+ 'nvidia/llama-3.1-nemotron-70b-instruct:free':'costaud'};
 async function loadFreeModels(){
   modelHint.textContent='chargement…';
   let list=[];
@@ -284,13 +296,19 @@ async function loadFreeModels(){
     const res=await fetch('https://openrouter.ai/api/v1/models');
     const data=await res.json();
     list=(data.data||[]).filter(m=>m.pricing&&m.pricing.prompt==='0'&&m.pricing.completion==='0')
-      .map(m=>({id:m.id,name:m.name||m.id})).sort((a,b)=>a.name.localeCompare(b.name));
-    modelHint.textContent=list.length+' modèles gratuits';
+      .map(m=>({id:m.id,name:(m.name||m.id).replace(/ \(free\)/i,'')})).sort((a,b)=>a.name.localeCompare(b.name));
+    modelHint.textContent=list.length+' gratuits';
   }catch(e){modelHint.textContent='liste par défaut';}
-  if(!list.length)list=FALLBACK.map(id=>({id,name:id}));
+  if(!list.length)list=Object.keys(RECO).map(id=>({id,name:id}));
   modelEl.innerHTML='';
-  list.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;modelEl.appendChild(o);});
+  const reco=list.filter(m=>RECO[m.id]),others=list.filter(m=>!RECO[m.id]);
+  const opt=(m,lbl)=>{const o=document.createElement('option');o.value=m.id;o.textContent=lbl;return o;};
+  if(reco.length){const g=document.createElement('optgroup');g.label='Conseillés par moi';
+    reco.forEach(m=>g.appendChild(opt(m,'★ '+m.name+' — '+RECO[m.id])));modelEl.appendChild(g);}
+  const g2=document.createElement('optgroup');g2.label='Tous les gratuits';
+  others.forEach(m=>g2.appendChild(opt(m,m.name)));modelEl.appendChild(g2);
   if(settings.model&&list.some(m=>m.id===settings.model))modelEl.value=settings.model;
+  else if(reco.length)modelEl.value=reco[0].id;
 }
 function openSheet(){
   keyEl.value=settings.key;verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;
@@ -310,6 +328,11 @@ $('saveSettings').onclick=()=>{
 voiceToggle.onclick=()=>{settings.voice=!settings.voice;LS.set('imran_voice',settings.voice);
   voiceToggle.textContent=settings.voice?'🔊':'🔇';};
 
+const vv=window.visualViewport;
+function fit(){if(vv)document.body.style.height=vv.height+'px';}
+if(vv){vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);}
+fit();
+inp.addEventListener('focus',()=>setTimeout(()=>{chat.scrollTop=chat.scrollHeight;fit();},300));
 voiceToggle.textContent=settings.voice?'🔊':'🔇';
 render();
 </script>
