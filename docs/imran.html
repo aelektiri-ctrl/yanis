@@ -136,6 +136,16 @@
     <select id="model"><option value="">— charge ta clé puis rouvre —</option></select>
     <input type="text" id="modelCustom" placeholder="ou saisis un identifiant précis" style="margin-top:8px">
     <div class="row">
+      <div><div class="t">Mode équipe de cerveaux</div><div class="d">Plusieurs modèles répondent, le chef fait la synthèse (consomme plus)</div></div>
+      <label class="switch"><input type="checkbox" id="team"><span class="slider"></span></label>
+    </div>
+    <div id="teamBox" style="display:none">
+      <label>Coéquipiers (en plus du chef ci-dessus)</label>
+      <select id="t1"></select>
+      <select id="t2" style="margin-top:8px"></select>
+      <select id="t3" style="margin-top:8px"></select>
+    </div>
+    <div class="row">
       <div><div class="t">Mode vérifié</div><div class="d">Imran relit et corrige sa réponse avant de te la donner</div></div>
       <label class="switch"><input type="checkbox" id="verify" checked><span class="slider"></span></label>
     </div>
@@ -155,7 +165,8 @@ const $=id=>document.getElementById(id);
 const chat=$('chat'),inp=$('inp'),form=$('form'),send=$('send'),statusEl=$('status'),overlay=$('overlay');
 
 let settings={key:LS.get('imran_key',''),model:LS.get('imran_model',''),
-  verify:LS.get('imran_verify',true),voice:LS.get('imran_voice',false)};
+  verify:LS.get('imran_verify',true),voice:LS.get('imran_voice',false),
+  team:LS.get('imran_team',false),teamModels:LS.get('imran_teamModels',['','',''])};
 
 // ---- sessions ----
 let sessions=LS.get('imran_sessions',null);
@@ -211,10 +222,10 @@ function closeDrawer(){$('drawer').classList.remove('show');$('drawerBack').clas
 $('menuBtn').onclick=openDrawer;$('drawerBack').onclick=closeDrawer;$('newSession').onclick=newSession;
 
 // ---- appel modèle ----
-async function callModel(messages){
+async function callModel(messages,model){
   const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
     headers:{'Authorization':'Bearer '+settings.key,'Content-Type':'application/json','X-Title':'Imran'},
-    body:JSON.stringify({model:settings.model,messages})});
+    body:JSON.stringify({model:model||settings.model,messages})});
   if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
   const d=await res.json();return d.choices?.[0]?.message?.content?.trim()||'(réponse vide)';
 }
@@ -231,13 +242,30 @@ async function ask(text){
   send.disabled=true;
   try{
     const base=[{role:'system',content:SYSTEME},...s.messages.slice(-20).map(m=>({role:m.role,content:m.content}))];
-    statusEl.textContent='Imran réfléchit…';
-    let out=await callModel(base);
-    if(settings.verify){statusEl.textContent='Imran se relit…';
-      try{const v=await callModel([
-        {role:'system',content:'Tu es un vérificateur rigoureux. On te donne une question et une réponse proposée. Corrige toute erreur factuelle ou affirmation non fondée. Si quelque chose est incertain, dis-le honnêtement au lieu de l\'affirmer. Réponds en français, uniquement avec la version finale corrigée, sans commentaire sur ton travail.'},
-        {role:'user',content:'Question : '+text+'\n\nRéponse proposée :\n'+out}]);
-        if(v&&v.length>2)out=v;}catch(e){}}
+    let out;
+    const team=settings.team?[settings.model,...settings.teamModels.filter(Boolean)].filter((v,i,a)=>v&&a.indexOf(v)===i):[];
+    if(team.length>1){
+      statusEl.textContent='Les cerveaux travaillent…';
+      const rs=await Promise.allSettled(team.map(m=>callModel(base,m)));
+      const good=rs.map((r,i)=>({m:team[i],ok:r.status==='fulfilled',t:r.status==='fulfilled'?r.value:''}))
+        .filter(a=>a.ok&&a.t&&a.t!=='(réponse vide)');
+      if(!good.length)throw new Error('aucun cerveau n\'a répondu (limites des modèles gratuits ?)');
+      if(good.length===1)out=good[0].t;
+      else{statusEl.textContent='Le chef fait la synthèse…';
+        out=await callModel([
+          {role:'system',content:'Tu es le chef d\'une équipe d\'experts IA. On te donne une question et les réponses de plusieurs experts. Compare-les, garde ce qui est solide et concordant, écarte les erreurs, les contradictions et les inventions. Si un point reste incertain, dis-le honnêtement. Réponds en français, clair et direct, uniquement avec la réponse finale.'},
+          {role:'user',content:'Question : '+text+'\n\n'+good.map((a,i)=>'--- Expert '+(i+1)+' ---\n'+a.t).join('\n\n')}
+        ],settings.model);
+      }
+    }else{
+      statusEl.textContent='Imran réfléchit…';
+      out=await callModel(base);
+      if(settings.verify){statusEl.textContent='Imran se relit…';
+        try{const v=await callModel([
+          {role:'system',content:'Tu es un vérificateur rigoureux. On te donne une question et une réponse proposée. Corrige toute erreur factuelle ou affirmation non fondée. Si quelque chose est incertain, dis-le honnêtement au lieu de l\'affirmer. Réponds en français, uniquement avec la version finale corrigée, sans commentaire sur ton travail.'},
+          {role:'user',content:'Question : '+text+'\n\nRéponse proposée :\n'+out}]);
+          if(v&&v.length>2)out=v;}catch(e){}}
+    }
     wait.remove();s.messages.push({role:'assistant',content:out});saveSessions();render();
     if(settings.voice)speak(out);
   }catch(err){wait.remove();const d=bubble('bot');d.style.color='var(--warn)';
@@ -276,7 +304,9 @@ form.addEventListener('submit',e=>{e.preventDefault();const t=inp.value.trim();i
 
 // ---- réglages + chargement des modèles gratuits ----
 const keyEl=$('key'),modelEl=$('model'),modelCustom=$('modelCustom'),verifyEl=$('verify'),
-  voiceEl=$('voice'),voiceToggle=$('voiceToggle'),modelHint=$('modelHint');
+  voiceEl=$('voice'),voiceToggle=$('voiceToggle'),modelHint=$('modelHint'),
+  teamEl=$('team'),teamBox=$('teamBox'),t1=$('t1'),t2=$('t2'),t3=$('t3');
+teamEl.onchange=()=>{teamBox.style.display=teamEl.checked?'block':'none';};
 const RECO={
  'deepseek/deepseek-chat-v3-0324:free':'polyvalent, très bon',
  'deepseek/deepseek-r1:free':'raisonne fort, problèmes durs',
@@ -309,9 +339,14 @@ async function loadFreeModels(){
   others.forEach(m=>g2.appendChild(opt(m,m.name)));modelEl.appendChild(g2);
   if(settings.model&&list.some(m=>m.id===settings.model))modelEl.value=settings.model;
   else if(reco.length)modelEl.value=reco[0].id;
+  [t1,t2,t3].forEach((sel,idx)=>{sel.innerHTML='';
+    const none=document.createElement('option');none.value='';none.textContent='— aucun —';sel.appendChild(none);
+    list.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=(RECO[m.id]?'★ ':'')+m.name;sel.appendChild(o);});
+    sel.value=settings.teamModels[idx]||'';});
 }
 function openSheet(){
   keyEl.value=settings.key;verifyEl.checked=settings.verify;voiceEl.checked=settings.voice;
+  teamEl.checked=settings.team;teamBox.style.display=settings.team?'block':'none';
   modelCustom.value=(settings.model&&![...modelEl.options].some(o=>o.value===settings.model))?settings.model:'';
   overlay.classList.add('show');loadFreeModels();
 }
@@ -321,8 +356,10 @@ $('saveSettings').onclick=()=>{
   settings.key=keyEl.value.trim();
   settings.model=modelCustom.value.trim()||modelEl.value||'';
   settings.verify=verifyEl.checked;settings.voice=voiceEl.checked;
+  settings.team=teamEl.checked;settings.teamModels=[t1.value,t2.value,t3.value];
   LS.set('imran_key',settings.key);LS.set('imran_model',settings.model);
   LS.set('imran_verify',settings.verify);LS.set('imran_voice',settings.voice);
+  LS.set('imran_team',settings.team);LS.set('imran_teamModels',settings.teamModels);
   voiceToggle.textContent=settings.voice?'🔊':'🔇';overlay.classList.remove('show');render();
 };
 voiceToggle.onclick=()=>{settings.voice=!settings.voice;LS.set('imran_voice',settings.voice);
