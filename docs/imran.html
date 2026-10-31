@@ -331,17 +331,23 @@ async function loadFreeModels(){
   }catch(e){modelHint.textContent='liste par défaut';}
   if(!list.length)list=Object.keys(RECO).map(id=>({id,name:id}));
   modelEl.innerHTML='';
-  const reco=list.filter(m=>RECO[m.id]),others=list.filter(m=>!RECO[m.id]);
+  const sizeOf=(n)=>{if(/content safety|guard|moderation|lyria|embed|tts|whisper|image|audio/i.test(n))return -1;
+    const mm=n.match(/(\d+(?:\.\d+)?)\s*b\b/i);let s=mm?parseFloat(mm[1]):0;
+    if(/ultra|large|\b70b|\b72b|\b405b|\b671b|\b123b|maverick/i.test(n))s=Math.max(s,70);return s;};
+  const scored=list.map(m=>({...m,sz:sizeOf(m.name)}));
+  const reco=scored.filter(m=>m.sz>0).sort((a,b)=>b.sz-a.sz).slice(0,5);
+  const recoIds=new Set(reco.map(m=>m.id));
+  const others=list.filter(m=>!recoIds.has(m.id));
   const opt=(m,lbl)=>{const o=document.createElement('option');o.value=m.id;o.textContent=lbl;return o;};
-  if(reco.length){const g=document.createElement('optgroup');g.label='Conseillés par moi';
-    reco.forEach(m=>g.appendChild(opt(m,'★ '+m.name+' — '+RECO[m.id])));modelEl.appendChild(g);}
+  if(reco.length){const g=document.createElement('optgroup');g.label='Conseillés (les plus gros)';
+    reco.forEach(m=>g.appendChild(opt(m,'★ '+m.name+(RECO[m.id]?' — '+RECO[m.id]:(m.sz>=10?' — ~'+m.sz+'B':'')))));modelEl.appendChild(g);}
   const g2=document.createElement('optgroup');g2.label='Tous les gratuits';
   others.forEach(m=>g2.appendChild(opt(m,m.name)));modelEl.appendChild(g2);
   if(settings.model&&list.some(m=>m.id===settings.model))modelEl.value=settings.model;
   else if(reco.length)modelEl.value=reco[0].id;
   [t1,t2,t3].forEach((sel,idx)=>{sel.innerHTML='';
     const none=document.createElement('option');none.value='';none.textContent='— aucun —';sel.appendChild(none);
-    list.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=(RECO[m.id]?'★ ':'')+m.name;sel.appendChild(o);});
+    list.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=(recoIds.has(m.id)?'★ ':'')+m.name;sel.appendChild(o);});
     sel.value=settings.teamModels[idx]||'';});
 }
 function openSheet(){
