@@ -118,8 +118,8 @@ async function charger(nom) {
 
 async function demarrer() {
   try {
-    const [a, h, d, t, f, sp, v2] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports", "hippique_v2"].map(n => charger(n).catch(() => null)));
-    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp, v2});
+    const [a, h, d, t, f, sp, v2, bilan] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports", "hippique_v2", "bilan"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp, v2, bilan});
     fusionnerV2();
     document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
   } catch (e) {
@@ -135,10 +135,10 @@ function fusionnerV2() {
   for (const c of v2.courses || []) parCle[`${c.date}/${c.r}/${c.c}`] = c;
   for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses) {
     const x = parCle[`${D[src].date}/${reu.r}/${c.c}`]; if (!x) continue;
-    const info = {}; x.classement.forEach((k, i) => info[k.num] = {rang: i + 1, p: k.p_gagnant, pp: k.p_place});
+    const info = {}; x.classement.forEach((k, i) => info[k.num] = {rang: i + 1, p: k.p_gagnant, pp: k.p_place, pf: k.p_faute});
     for (const pt of c.partants) {
       const k = info[pt.num];
-      if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.value = false; } else { pt.rang = null; }
+      if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.p_faute = k.pf; pt.value = false; } else { pt.rang = null; }
     }
     c.conseils = x.conseils; c.v2 = true;
   }
@@ -326,7 +326,7 @@ function vueFiche() {
     return `<div class="partant" style="${np ? "opacity:.45" : ""}">
       <div class="rang ${p.rang ? "r" + p.rang : ""}">${p.rang || "–"}</div>
       <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
-        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${chaud ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">🔥 joué dans la dernière heure ${chaud}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
+        ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${!np && pt_faute(p) ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">⚠️ risque de faute ${Math.round(100 * p.p_faute)} %</span>` : ""}${chaud ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">🔥 joué dans la dernière heure ${chaud}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
       <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
       <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
@@ -562,6 +562,8 @@ function blocMenu(c, reu) {
 }
 
 /* Argent malin : la cote a fondu d'au moins 30 % depuis le matin (ou depuis le premier releve du jour) */
+const pt_faute = p => p.p_faute != null && p.p_faute >= 0.25;
+
 function derniereHeure(p) {
   const s = p.cotes_suivies; if (!s || s.length < 2) return "";
   const maintenant = new Date(); const lim = maintenant.getHours() * 60 + maintenant.getMinutes() - 60;
@@ -626,9 +628,29 @@ function vueResultats() {
     h += `<div class="carte"><h3>${etat.res === "aujourdhui" ? "Aujourd'hui" : "Hier"}, ${esc(j.date.split("-").reverse().join("/"))}</h3>
       <div class="sous">Le n°1 de l'indice Yanis a gagné <b class="pos">${ok}</b> courses sur ${total} (${total ? Math.round(100 * ok / total) : 0} %).</div></div>` + corps;
   }
-  vue.innerHTML = h;
+  vue.innerHTML = blocBilan(j?.date) + h;
   vue.querySelectorAll("[data-res]").forEach(b => b.onclick = () => { etat.res = b.dataset.res; afficher(); });
   lierJour();
+}
+
+function blocBilan(date) {
+  const b = D.bilan?.[date]; if (!b) return "";
+  const t = b.total;
+  const reus = Object.fromEntries((D.aujourdhui?.date === date ? D.aujourdhui : D.hier)?.reunions?.map(r => [r.r, r.hippodrome]) || []);
+  let h = `<div class="carte" style="border-color:#2a6b45"><h3>📋 Le bilan honnête de Yanis</h3>
+    <div class="chiffres" style="margin-top:6px">
+      <div class="chiffre"><div class="v">${t.moy_dans_les_4}</div><div class="l">de ses 4 chevaux dans l'arrivée (moyenne)</div></div>
+      <div class="chiffre"><div class="v">${Math.round(100 * t.n1_gagne_pct)} %</div><div class="l">son n°1 gagne · placé ${Math.round(100 * t.n1_place_pct)} %</div></div>
+      <div class="chiffre"><div class="v">${t.surprises_reperees}/${t.surprises}</div><div class="l">grosses surprises (cote 15+) repérées comme loup</div></div>
+      <div class="chiffre"><div class="v">${t.fautes_yanis}</div><div class="l">chevaux de Yanis disqualifiés</div></div>
+    </div><div class="sous" style="margin-top:6px">Comparé au pronostic donné <b>avant le départ</b>, sur ${t.courses} courses terminées.</div></div>`;
+  h += b.courses.map(c => `<div class="carte">
+      <div style="display:flex;justify-content:space-between"><b>R${c.r}C${c.c} ${esc(reus[c.r] || "")}</b><span class="badge ${c.communs >= 2 ? "b-ok" : "b-ko"}">${c.communs}/4 dans l'arrivée</span></div>
+      <div class="sous">Yanis : ${c.top.join("-")} · arrivée : <b>${c.arrivee.join("-")}</b> · son n°1 : ${esc(c.n1_sort)}</div>
+      ${c.surprises.length ? `<div class="sous" style="margin-top:4px">Surprises : ${c.surprises.map(x => `n°${x.num}${x.cote ? ` (${x.cote})` : ""} ${x.repere ? "🐺 repéré" : "❌ raté"}`).join(" · ")}</div>` : ""}
+      ${c.rates.length ? `<div class="sous">Ses chevaux absents : ${c.rates.map(x => `n°${x.num} ${esc(x.sort)}${x.risque_faute >= 0.25 && x.sort.includes("faute") ? " (risque annoncé " + Math.round(100 * x.risque_faute) + " %)" : ""}`).join(" · ")}</div>` : ""}
+    </div>`).join("");
+  return h;
 }
 
 /* ---------- TABLEAU DE BORD ---------- */
@@ -660,6 +682,8 @@ function bancV2() {
     <table style="margin-top:8px"><tr><th>Formule</th><th class="n">Paris</th><th class="n">Gagnés</th><th class="n">Rentab.</th></tr>` +
     st.map(x => `<tr><td>${esc(x.nom)} ${x.validee ? '<span class="badge b-ok">validée</span>' : ""}</td><td class="n">${x.paris}</td><td class="n">${x.reussite != null ? Math.round(100 * x.reussite) + " %" : "–"}</td><td class="n ${x.roi >= 0 ? "pos" : "neg"}">${x.roi != null ? (100 * x.roi).toFixed(1) + " %" : "–"}</td></tr>`).join("") +
     `</table><div class="sous" style="margin-top:8px">Une formule passe « validée » seulement si elle gagne plus de 2 % sur au moins 150 paris, presque tous les mois. Le test se refait chaque jour avec l'historique qui grandit.</div></div>` +
+    (b.faute ? `<h2>⚠️ Le risque de faute (trot)</h2><div class="carte"><div class="sous">Au trot, ${Math.round(100 * b.faute.taux_reel)} % des chevaux sont disqualifiés. Ce que Yanis annonce, comparé à la réalité :</div><table style="margin-top:6px"><tr><th>Risque annoncé</th><th class="n">Chevaux</th><th class="n">Annoncé</th><th class="n">Réel</th></tr>` +
+      b.faute.tranches.map(x => `<tr><td>${esc(x.tranche)}</td><td class="n">${x.chevaux}</td><td class="n">${Math.round(100 * x.annonce)} %</td><td class="n">${Math.round(100 * x.reel)} %</td></tr>`).join("") + `</table></div>` : "") +
     (b.favori_dans_les ? `<h2>⭐ Le favori du marché</h2><div class="carte"><div class="sous">Sur ${b.courses.toLocaleString("fr-FR")} courses : le favori gagne ${Math.round(100 * b.favori_dans_les["1"])} % du temps, finit dans les 2 premiers ${Math.round(100 * b.favori_dans_les["2"])} %, dans les 3 premiers ${Math.round(100 * b.favori_dans_les["3"])} % et dans les 4 premiers <b>${Math.round(100 * b.favori_dans_les["4"])} %</b>.</div></div>` : "") +
     segmentsHTML(b) + marcheHTML(b.marche);
 }

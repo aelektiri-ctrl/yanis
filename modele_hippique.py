@@ -212,6 +212,15 @@ def preparer(p):
     p["vit_n"] = g.transform(lambda x: x.shift(1).notna().cumsum())
     p["vit_tendance"] = p["vit_derniere"] - p["vit_moy3"]
 
+    # --- risque de faute (trot) ---
+    p["dq"] = p["incident"].fillna("").str.contains("DISQUALIFIE").astype(int)
+    mus_txt = p["musique"].fillna("").str.replace(r"\(\d+\)", "", regex=True)
+    p["dq_recent"] = mus_txt.map(lambda m: sum(1 for c, _ in re.findall(r"([0-9DATRS])([a-zA-Z])", m)[:3] if c == "D"))
+    p["dq_taux_mus"] = p["mus_dq"] / p["mus_n"].replace(0, np.nan)
+    for col, cle in (("dr", "driver_n"), ("ch", "nom"), ("en", "entraineur_n")):
+        gg = p.groupby(cle, sort=False)
+        p[f"{col}_dq_tx"] = ((gg["dq"].cumsum() - p["dq"]) + 3) / (gg.cumcount() + 15)
+    p["monte"] = (p["discipline"] == "MONTE").astype(int)
     # driver qui monte en gamme par rapport a la derniere course du cheval
     p["dr_tx_prec"] = p.groupby("nom", sort=False)["dr_tx_v"].shift(1)
     p["montee_driver"] = p["dr_tx_v"] - p["dr_tx_prec"]
@@ -251,6 +260,34 @@ def preparer(p):
     return p
 
 
+VARIABLES_FAUTE = ["mus_dq", "mus_n", "dq_recent", "dq_taux_mus", "dr_dq_tx", "ch_dq_tx", "en_dq_tx", "pf_dq",
+                   "d4", "d_ant", "d_post", "d4_nouveau", "oeil", "monte", "distance", "recul_m", "age", "nb_courses",
+                   "chg_driver", "nb_partants", "place_corde", "sous_perf", "repos_j"]
+TROT = ("ATTELE", "MONTE")
+
+
+def entrainer_faute(train):
+    """Modele du risque de disqualification au trot."""
+    tr = train[train["discipline"].isin(TROT)].replace([np.inf, -np.inf], np.nan)
+    cols = [v for v in VARIABLES_FAUTE if v in tr.columns and tr[v].notna().sum() >= 50 and tr[v].nunique() > 1]
+    if len(tr) < 3000:
+        return None
+    m = HistGradientBoostingClassifier(max_iter=200, learning_rate=0.05, max_leaf_nodes=15, min_samples_leaf=80,
+                                       l2_regularization=1.0, random_state=0).fit(tr[cols], tr["dq"])
+    return cols, m
+
+
+def predire_faute(mod, df):
+    out = pd.Series(0.0, index=df.index)
+    if mod is None:
+        return out
+    cols, m = mod
+    t = df["discipline"].isin(TROT)
+    if t.any():
+        out[t] = m.predict_proba(df.loc[t, cols].replace([np.inf, -np.inf], np.nan))[:, 1]
+    return out
+
+
 VARIABLES = [
     "p_marche", "log_cote", "rang_cote", "p_marche_matin", "derive_cote",
     "mus_n", "mus_0", "mus_1", "mus_2", "mus_moy", "mus_vict", "mus_podium", "mus_dq",
@@ -263,7 +300,7 @@ VARIABLES = [
     "vit_derniere", "vit_moy3", "vit_max5", "vit_n", "vit_tendance",
     "etranger", "terrain_c", "jour_mois", "alloc_ratio",
     "mus_meme_n", "mus_meme_moy", "mus_meme_best", "mus_autre_n", "mus_autre_moy", "mus_autre_best", "chg_discipline", "sous_perf",
-    "chg_entraineur", "retour_pause", "montee_driver",
+    "chg_entraineur", "retour_pause", "montee_driver", "dq_recent", "dq_taux_mus", "dr_dq_tx", "ch_dq_tx",
     "pf_n", "pf_place_moy", "pf_top3", "pf_vict", "pf_dq", "pf_retard_km_moy", "pf_retard_km_min", "pf_long_moy", "pf_long_min",
     "pf_alloc_moy", "pf_alloc_max", "pf_jours", "pf_niveau", "rg_pf_retard_km_moy", "rg_pf_long_moy", "rg_pf_place_moy",
     "dr_hippo_courses", "dr_hippo_tx_v", "en_hippo_tx_v", "ch_hippo_courses", "ch_hippo_tx_p", "ch_terrain_courses", "ch_terrain_tx_p",
@@ -339,12 +376,16 @@ def jouer(course, idx):
     """Paris de chaque strategie pour une course : liste (strategie, mise, retour)."""
     cle = course["cle"].iloc[0]
     tri = course.sort_values("p_v2", ascending=False)
-    nums = tri["num"].tolist()
-    n = len(nums)
+    n = len(tri)
+    # ordre « fiable » pour les combinaisons : chances d'etre dans les places, fautes comprises
+    pl = simuler_arrivees(tri["p_v2"].values, n_sim=3000, p_faute=tri["p_dq"].values if "p_dq" in tri else None)
+    ordre = np.argsort(-((pl <= (2 if n <= 7 else 3)).mean(axis=0) + 0.001 * tri["p_v2"].values))
+    nums = [tri["num"].tolist()[i] for i in ordre]
     out = []
     top = tri.iloc[0]
     cote_top = top["cote"]
-    out.append(("sg_top", 1, gain(idx, cle, "SIMPLE_GAGNANT", [nums[0]]), cote_top))
+    n1 = tri["num"].iloc[0]
+    out.append(("sg_top", 1, gain(idx, cle, "SIMPLE_GAGNANT", [n1]), cote_top))
     for row in tri.itertuples():
         if row.cote and row.p_v2 * row.cote >= 1.10 and row.p_v2 >= 0.08:
             out.append(("sg_value", 1, gain(idx, cle, "SIMPLE_GAGNANT", [row.num]), row.cote))
@@ -438,6 +479,7 @@ def entrainer_et_predire(train, test, mini_groupe=8000):
     """Un modele par discipline (trot attele, monte, plat, obstacle) si assez de donnees, sinon un modele commun."""
     train = train.replace([np.inf, -np.inf], np.nan)
     test = test.replace([np.inf, -np.inf], np.nan).copy()
+    test["p_dq"] = predire_faute(entrainer_faute(train), test)
     test["s_v"], test["s_p"] = np.nan, np.nan
     commun = None
     for grp in test["groupe"].unique():
@@ -467,6 +509,7 @@ def banc_essai(p, rap):
     # proba "placee" implicite du marche (approximation) pour la strategie sp_value
     res = {k: {"paris": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0, "par_mois": {}} for k in STRATEGIES}
     segments_res = {}
+    faute = {"y": [], "p": []}
     stats_modele = {"courses": 0, "n1_gagne": 0, "fav_gagne": 0, "logloss_modele": 0.0, "logloss_marche": 0.0}
     for i, m in enumerate(mois):
         if i < max(MOIS_MINI_ENTRAINEMENT, len(mois) - MOIS_TESTES):
@@ -476,6 +519,8 @@ def banc_essai(p, rap):
         if len(test) < 200:
             continue
         test = entrainer_et_predire(train, test)
+        tt = test[test["discipline"].isin(TROT)]
+        faute["y"] += tt["dq"].tolist(); faute["p"] += tt["p_dq"].tolist()
         test["p_marche_place"] = (test["p_marche"] * (test["places_payees"] - 0.4)).clip(upper=0.95)
         for date_j, jdf in test.groupby("date"):
             pep = choisir_pepite(jdf[jdf["fini"]])
@@ -523,6 +568,16 @@ def banc_essai(p, rap):
     }
     for k, r in res.items():
         sortie["strategies"][k] = {"nom": STRATEGIES[k], **resume(r)}
+    if faute["y"]:
+        from sklearn.metrics import roc_auc_score
+        y, pp = np.array(faute["y"]), np.array(faute["p"])
+        tranches = []
+        for lo, hi in ((0, .1), (.1, .2), (.2, .3), (.3, .45), (.45, 1.01)):
+            m = (pp >= lo) & (pp < hi)
+            if m.sum():
+                tranches.append({"tranche": f"{int(100*lo)}-{int(min(100*hi, 100))} %", "chevaux": int(m.sum()),
+                                 "annonce": round(float(pp[m].mean()), 3), "reel": round(float(y[m].mean()), 3)})
+        sortie["faute"] = {"auc": round(float(roc_auc_score(y, pp)), 3), "taux_reel": round(float(y.mean()), 3), "tranches": tranches}
     sortie["segments"] = {k: {fam: {val: resume(x, strict=True) for val, x in vals.items()} for fam, vals in fams.items()}
                           for k, fams in segments_res.items()}
     sortie["segments_valides"] = [{"strategie": k, "famille": fam, "valeur": val, **v}
@@ -637,6 +692,7 @@ def pronostics(p, banc):
             "partants": n, "places_payees": 2 if n <= 7 else 3, "favori": fav,
             **dict(zip(("menu", "desordre", "outsiders"), menu_formules(course, offerts))),
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
+                            "p_faute": round(float(getattr(r, "p_dq", 0) or 0), 3),
                             "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None}
                            for r in tri.itertuples()],
             "conseils": conseils,
@@ -650,21 +706,27 @@ NOMS_DISC = {"a": "trot attelé", "m": "trot monté", "p": "plat", "h": "haies",
 LAMBDA_PLACES = 0.6   # regle sur les vraies arrivees : derriere le gagnant, les outsiders viennent plus souvent qu'on croit
 
 
-def simuler_arrivees(probas, n_sim=20000, graine=0):
+def simuler_arrivees(probas, n_sim=20000, graine=0, p_faute=None):
     """Tire 20 000 arrivees possibles a partir des chances de victoire.
     Le 1er est tire avec les chances de victoire ; les 2e, 3e et 4e avec des chances « aplaties »
     (reglage verifie sur l'historique : favori dans les 4 prevu 72 % / reel 70 %, outsiders 15+ prevu 18 % / reel 18 %).
     Renvoie un tableau (n_sim x nb chevaux) : place de chaque cheval (5 = au-dela de la 4e)."""
     rng = np.random.default_rng(graine)
-    lp = np.log(np.clip(np.asarray(probas, float), 1e-6, None))
-    n = len(lp)
-    places = np.full((n_sim, n), 5, dtype=int)
+    pr = np.clip(np.asarray(probas, float), 1e-6, None)
+    n = len(pr)
     dispo = np.ones((n_sim, n), dtype=bool)
+    if p_faute is not None:
+        pf = np.clip(np.nan_to_num(np.asarray(p_faute, float)), 0, 0.9)
+        pr = pr / (1 - pf)                                  # chance de gagner S'IL ne fait pas de faute
+        dispo &= rng.random((n_sim, n)) >= pf               # tirage des fautes
+    lp = np.log(pr)
+    places = np.full((n_sim, n), 5, dtype=int)
     for etape in range(min(4, n)):
         w = (lp if etape == 0 else lp * LAMBDA_PLACES) + rng.gumbel(size=(n_sim, n))
         w[~dispo] = -np.inf
         choix = w.argmax(axis=1)
-        places[np.arange(n_sim), choix] = etape + 1
+        valide = np.isfinite(w[np.arange(n_sim), choix])
+        places[np.arange(n_sim)[valide], choix[valide]] = etape + 1
         dispo[np.arange(n_sim), choix] = False
     return places
 
@@ -696,12 +758,18 @@ def raisons_outsider(r):
 
 def menu_formules(course, offerts):
     """Pour une course : chaque formule possible avec ses chances de passer (simulation) et son nombre de combinaisons."""
-    tri = course.sort_values("p_v2", ascending=False).reset_index(drop=True)
-    nums = [int(x) for x in tri["num"]]
-    n = len(nums)
+    tri0 = course.reset_index(drop=True)
+    n = len(tri0)
     if n < 3:
         return [], None, []
-    places = simuler_arrivees(tri["p_v2"].values)
+    pf0 = tri0["p_dq"].values if "p_dq" in tri0 else None
+    pl0 = simuler_arrivees(tri0["p_v2"].values, n_sim=20000, p_faute=pf0)
+    nb_places0 = 2 if n <= 7 else 3
+    # ordre « fiable » : chances d'etre dans les places en tenant compte du risque de faute
+    ordre = np.argsort(-((pl0 <= nb_places0).mean(axis=0) + 0.001 * tri0["p_v2"].values))
+    tri = tri0.iloc[ordre].reset_index(drop=True)
+    places = pl0[:, ordre]
+    nums = [int(x) for x in tri["num"]]
     pos = {num: places[:, i] for i, num in enumerate(nums)}
     nb_places = 2 if n <= 7 else 3
     existe = lambda code: offerts is None or code in offerts or f"E_{code}" in offerts
@@ -749,7 +817,7 @@ def menu_formules(course, offerts):
     elif gros:
         # calcule avec les cotes du marche (c'est sur elles que le reglage a ete verifie)
         pm = tri["p_marche"].fillna(tri["p_v2"]).values
-        pl_m = simuler_arrivees(pm, n_sim=10000, graine=1)
+        pl_m = simuler_arrivees(pm, n_sim=10000, graine=1, p_faute=tri["p_dq"].values if "p_dq" in tri else None)
         idx_gros = [i for i, x in enumerate(nums) if x in gros]
         desordre = float((pl_m[:, idx_gros] <= 4).any(axis=1).mean())
     dangereux = []
@@ -773,6 +841,97 @@ def pepite_du_jour(p, banc):
              "p_place": round(float(pep["pp_v2"]), 3), "p_marche": round(float(pep["p_marche"]), 3), "depart": pep["depart"],
              "texte": f"Yanis le voit gagnant {round(100 * float(pep['p_v2']))} % du temps, le marché seulement {round(100 * float(pep['p_marche']))} %."}
             for pep in choisir_pepite(test, combien=3)]
+
+
+def memoriser_pronos(prono):
+    """On garde le dernier pronostic AVANT le depart de chaque course (jamais reecrit apres l'arrivee)."""
+    dossier = os.path.join(yanis.DOSSIER, "donnees_pronos")
+    os.makedirs(dossier, exist_ok=True)
+    par_jour = {}
+    for c in prono:
+        par_jour.setdefault(c["date"], []).append(c)
+    for date, courses in par_jour.items():
+        chemin = os.path.join(dossier, f"{date}.json")
+        memo = json.load(open(chemin, encoding="utf-8")) if os.path.exists(chemin) else {}
+        for c in courses:
+            cle = f"R{c['r']}C{c['c']}"
+            if memo.get(cle, {}).get("fige"):
+                continue
+            memo[cle] = {"top": [k["num"] for k in c["classement"][:4]],
+                         "fautes": {str(k["num"]): k.get("p_faute", 0) for k in c["classement"]},
+                         "cotes": {str(k["num"]): k.get("cote") for k in c["classement"]},
+                         "loups": [o["num"] for o in (c.get("outsiders") or [])],
+                         "raisons_loups": {str(o["num"]): o["raisons"] for o in (c.get("outsiders") or [])},
+                         "desordre": c.get("desordre")}
+        with open(chemin, "w", encoding="utf-8") as f:
+            json.dump(memo, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def bilan_jours(p):
+    """Le bilan honnete : ce que Yanis avait annonce avant le depart, compare a l'arrivee."""
+    dossier = os.path.join(yanis.DOSSIER, "donnees_pronos")
+    sortie = {}
+    for k in (0, 1):
+        date = (yanis.aujourdhui() - dt.timedelta(days=k)).isoformat()
+        chemin = os.path.join(dossier, f"{date}.json")
+        if not os.path.exists(chemin):
+            continue
+        memo = json.load(open(chemin, encoding="utf-8"))
+        jour = p[p["date"] == date]
+        courses, total = [], {"courses": 0, "dans_les_4": 0, "n1_gagne": 0, "n1_place": 0, "surprises": 0,
+                               "surprises_reperees": 0, "fautes_yanis": 0}
+        for (r, c), co in jour.groupby(["r", "c"]):
+            m = memo.get(f"R{r}C{c}")
+            if not m or co["arrivee"].isna().all():
+                continue
+            m["fige"] = True
+            arr = co[co["place_arrivee"].between(1, 4)].sort_values("place_arrivee")
+            arr4 = [int(x) for x in arr["num"]]
+            partants = set(int(x) for x in co["num"])
+            top = m["top"]
+            n1 = top[0]
+            ligne_n1 = co[co["num"] == n1]
+            places_payees = 2 if len(partants) <= 7 else 3
+            def sort_du(num):
+                l = co[co["num"] == num]
+                if l.empty:
+                    return "non partant"
+                inc = l["incident"].iloc[0]
+                inc = inc if isinstance(inc, str) else ""
+                if "DISQUALIFIE" in inc:
+                    return "disqualifié (faute)"
+                if inc:
+                    return inc.lower().replace("_", " ")
+                pl = l["place_arrivee"].iloc[0]
+                return f"{int(pl)}e" if pd.notna(pl) else "non classé"
+            surprises = []
+            for num in arr4:
+                if num not in top:
+                    cote = m["cotes"].get(str(num))
+                    surprises.append({"num": num, "cote": cote, "repere": num in m["loups"],
+                                      "raisons": m["raisons_loups"].get(str(num), [])})
+            rates = [{"num": num, "sort": sort_du(num), "risque_faute": m["fautes"].get(str(num), 0)} for num in top if num not in arr4]
+            total["courses"] += 1
+            total["dans_les_4"] += len(set(top) & set(arr4))
+            total["n1_gagne"] += int(arr4[:1] == [n1])
+            total["n1_place"] += int(n1 in arr4[:places_payees])
+            grosses = [x for x in surprises if (x["cote"] or 0) >= 15]
+            total["surprises"] += len(grosses)
+            total["surprises_reperees"] += sum(1 for x in grosses if x["repere"])
+            total["fautes_yanis"] += sum(1 for x in rates if "faute" in x["sort"])
+            courses.append({"r": int(r), "c": int(c), "top": top, "arrivee": arr4, "n1": n1, "n1_sort": sort_du(n1),
+                            "communs": len(set(top) & set(arr4)), "surprises": surprises, "rates": rates,
+                            "desordre": m.get("desordre")})
+        with open(chemin, "w", encoding="utf-8") as f:
+            json.dump(memo, f, ensure_ascii=False, separators=(",", ":"))
+        if courses:
+            n = total["courses"]
+            total.update({"moy_dans_les_4": round(total["dans_les_4"] / n, 2), "n1_gagne_pct": round(total["n1_gagne"] / n, 3),
+                          "n1_place_pct": round(total["n1_place"] / n, 3)})
+            sortie[date] = {"total": total, "courses": sorted(courses, key=lambda x: (x["r"], x["c"]))}
+    with open(os.path.join(SORTIE, "bilan.json"), "w", encoding="utf-8") as f:
+        json.dump(sortie, f, ensure_ascii=False, separators=(",", ":"))
+    return sortie
 
 
 def main():
@@ -805,6 +964,10 @@ def main():
         print(" ", k, {t: (x["paris"], x["reussite"], x["roi"]) for t, x in v.items()})
     prono = pronostics(p, banc)
     pepite = pepite_du_jour(p, banc)
+    memoriser_pronos(prono)
+    bil = bilan_jours(p)
+    for d, b in bil.items():
+        print("Bilan", d, b["total"])
     print("Pepite du jour :", pepite)
     os.makedirs(SORTIE, exist_ok=True)
     with open(os.path.join(SORTIE, "hippique_v2.json"), "w", encoding="utf-8") as f:
