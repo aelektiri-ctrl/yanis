@@ -358,14 +358,6 @@ def collecter_jour(pmu, jour, france_seulement=True):
         ecrire_jour(jour, contenu)
         return "aucune course"
     courses = lire_programme(con, date, prog, france_seulement)
-    if jour == aujourdhui():
-        try:
-            co0 = g(prog, "programme.reunions", defaut=[])[0]["courses"][0]
-            diag = {"cles_course": sorted(co0.keys()), "paris": co0.get("paris"), "cles_reunion": sorted(g(prog, "programme.reunions", defaut=[])[0].keys())}
-            with open(os.path.join(DOSSIER, "docs", "data", "diagnostic_programme.json"), "w", encoding="utf-8") as f:
-                json.dump(diag, f, ensure_ascii=False, indent=1)
-        except Exception:
-            pass
     for r, c in courses:
         part = pmu.participants(jour, r, c)
         if part is not None:
