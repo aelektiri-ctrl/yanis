@@ -223,7 +223,7 @@ function vueFiche() {
     <div class="carte">`;
   h = h.replace(/<div class="carte">$/, "");
   if (c.conseils?.length) {
-    h += `<div class="carte"><h3>Formules Yanis (étape 2)</h3>` + c.conseils.map(x => `<div style="padding:6px 0;border-top:1px solid var(--ligne)"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(x.texte)}</span>${x.validee ? '<span class="badge b-ok">validée</span>' : x.prometteur ? '<span class="badge b-value">prometteur</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>${x.raison ? `<div class="sous">${esc(x.raison)}${x.prometteur ? " (à confirmer sur 6 mois)" : ""}</div>` : ""}${miseConseillee(x) ? `<div class="sous pos">${miseConseillee(x)}</div>` : ""}</div>`).join("") +
+    h += `<div class="carte"><h3>Formules Yanis (étape 2)</h3>` + c.conseils.map(x => `<div style="padding:6px 0;border-top:1px solid var(--ligne)"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(x.texte)}</span>${x.validee ? '<span class="badge b-ok">validée</span>' : x.prometteur ? '<span class="badge b-value">prometteur</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>${x.raison ? `<div class="sous">${esc(x.raison)}${x.prometteur ? " (à confirmer sur 6 mois)" : ""}</div>` : ""}${miseConseillee(x) ? `<div class="sous pos">${miseConseillee(x)}</div>` : ""}<button class="btn sec" style="margin-top:6px;padding:7px" data-joue='${esc(JSON.stringify({type: "turf", cle: `${D[etat.fiche.source].date}/${reu.r}/${c.c}`, formule: FORMULE_DE[x.strategie] || "Autre", chevaux: x.chevaux.join("-")}))}'>J'ai joué ce pari</button></div>`).join("") +
       `<div class="sous" style="margin-top:6px">« Validée » seulement si la formule est rentable sur le banc d'essai des derniers mois.</div></div>`;
   }
   h += `<div class="carte">`;
@@ -378,6 +378,8 @@ function vueSelections() {
     <div style="margin-top:6px"><b>${esc(l.choix)}</b> · Yanis ${pct(l.s.proba)} · cote ${l.s.cote.toFixed(2)}
       <span class="badge b-value">value +${Math.round(100 * l.s.value)} %</span>
       ${l.fiable ? '<span class="badge b-ok">validé</span>' : '<span class="badge" style="background:#33332a;color:#d9d3a8">observation</span>'}</div>
+    <div class="sous">Cote minimale à exiger sur Betclic : <b>${(1.03 / l.s.proba).toFixed(2)}</b></div>
+    <button class="btn sec" style="margin-top:6px;padding:7px" data-joue='${esc(JSON.stringify({type: "sport", libelle: l.texte, chevaux: l.choix, cote: l.s.cote, coteMini: 1.03 / l.s.proba}))}'>J'ai joué ce pari</button>
   </div>`).join("");
 }
 
@@ -435,6 +437,13 @@ function rendreDirect(j) {
     </div>`;
   }).join("") + `<div class="sous" style="margin-top:8px">Scores ESPN, actualisés toutes les 30 secondes.</div>`;
 }
+
+const FORMULE_DE = {sg_value: "Simple gagnant", sg_top: "Simple gagnant", sp_top: "Simple placé", sp_value: "Simple placé",
+  cp_top2: "Couplé placé", deux_sur_4: "2 sur 4", trio_top3: "Trio", multi4_top4: "Multi"};
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-joue]"); if (!b) return;
+  try { jaiJoue(JSON.parse(b.dataset.joue)); } catch (err) {}
+});
 
 /* Argent malin : la cote a fondu d'au moins 30 % depuis le matin (ou depuis le premier releve du jour) */
 function argentMalin(p) {
@@ -504,14 +513,7 @@ function vueTableau() {
   if (!t) { vue.innerHTML = `<div class="vide">Tableau de bord indisponible.</div>`; return; }
   const b = t.bibliotheque, ix = t.indice_30j;
   const roi = ix.mise ? (ix.retour - ix.mise) / ix.mise : 0;
-  const paris = lsGet("yanis_paris", []);
-  const joue = paris.reduce((s, p) => s + (+p.mise || 0), 0), gagne = paris.reduce((s, p) => s + (+p.gain || 0), 0);
-  let h = `<h2>Mes paris</h2><div class="chiffres">
-      <div class="chiffre"><div class="v">${euros(joue)}</div><div class="l">Total joué</div></div>
-      <div class="chiffre"><div class="v">${euros(gagne)}</div><div class="l">Total gagné</div></div>
-      <div class="chiffre"><div class="v ${gagne - joue >= 0 ? "pos" : "neg"}">${euros(gagne - joue)}</div><div class="l">Bilan net</div></div>
-      <div class="chiffre"><div class="v">${paris.length ? Math.round(100 * paris.filter(p => +p.gain > 0).length / paris.length) : 0} %</div><div class="l">Paris gagnants</div></div>
-    </div>
+  let h = `<h2>Mon compte Betclic</h2>${blocCompte(compteBetclic())}
     <h2>La bibliothèque</h2>
     <div class="carte">
       <div class="sous">Historique : ${esc(b.debut || "–")} → ${esc(b.fin || "–")} · objectif ${esc(b.objectif_debut)}</div>
@@ -567,53 +569,180 @@ function tableNoms(l) {
     l.map(x => `<tr><td>${esc(x.nom)}</td><td class="n">${x.courses}</td><td class="n">${x.victoires}</td><td class="n">${Math.round(100 * x.victoires / x.courses)}</td><td class="n">${Math.round(100 * x.places / x.courses)}</td></tr>`).join("") + `</table></div>`;
 }
 
-/* ---------- MES PARIS ---------- */
-const FORMULES = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "2 sur 4", "Trio", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
+/* ---------- MES PARIS (suivi de ce qui est joue sur Betclic) ---------- */
+const FORMULES_TURF = ["Simple gagnant", "Simple placé", "Couplé gagnant", "Couplé placé", "2 sur 4", "Trio", "Multi", "Tiercé", "Quarté+", "Quinté+", "Pick 5", "Super 4", "Autre"];
+const CODE_PMU = {"Simple gagnant": "SIMPLE_GAGNANT", "Simple placé": "SIMPLE_PLACE", "Couplé gagnant": "COUPLE_GAGNANT",
+  "Couplé placé": "COUPLE_PLACE", "2 sur 4": "DEUX_SUR_QUATRE", "Trio": "TRIO", "Multi": "MULTI"};
+const nums = x => (String(x || "").match(/\d+/g) || []).map(Number);
+const memeEnsemble = (a, b) => a.length === b.length && a.every(v => b.includes(v));
+
+function lireParis() {
+  return lsGet("yanis_paris", []).map(p => ({type: "turf", ...p}));
+}
+
+/* Reglement automatique des paris hippiques des que l'arrivee est connue (rapports PMU = estimation) */
+function reglerAuto() {
+  const paris = lireParis();
+  let change = false;
+  for (const p of paris) {
+    if (p.gain != null || p.type !== "turf" || !p.cle) continue;
+    const [date, r, c] = p.cle.split("/");
+    const src = ["aujourdhui", "hier", "demain"].find(k => D[k]?.date === date);
+    const reu = src && D[src].reunions.find(x => x.r === +r);
+    const course = reu && reu.courses.find(x => x.c === +c);
+    if (!course || !course.arrivee) continue;
+    const code = CODE_PMU[p.formule];
+    if (!code) continue;
+    const jeu = nums(p.chevaux);
+    let rapport = 0;
+    for (const rp of course.rapports || []) {
+      if (rp.pari !== code || !rp.rapport) continue;
+      const comb = nums(rp.combinaison);
+      if (code === "MULTI") {
+        if ((rp.libelle || "").includes(`Multi en ${jeu.length}`) && comb.every(v => jeu.includes(v))) { rapport = rp.rapport; break; }
+      } else if (memeEnsemble(comb, jeu)) { rapport = rp.rapport; break; }
+    }
+    p.gain = Math.round(p.mise * rapport * 100) / 100;
+    p.auto = true;
+    change = true;
+  }
+  if (change) lsSet("yanis_paris", paris);
+  return paris;
+}
+
+function compteBetclic() {
+  const paris = reglerAuto();
+  const mvts = lsGet("yanis_compte", []);
+  const depots = mvts.filter(m => m.type === "depot").reduce((s, m) => s + m.montant, 0);
+  const retraits = mvts.filter(m => m.type === "retrait").reduce((s, m) => s + m.montant, 0);
+  const joue = paris.reduce((s, p) => s + (+p.mise || 0), 0);
+  const regles = paris.filter(p => p.gain != null);
+  const gagne = regles.reduce((s, p) => s + (+p.gain || 0), 0);
+  const miseReglee = regles.reduce((s, p) => s + (+p.mise || 0), 0);
+  return {paris, mvts, depots, retraits, joue, gagne, attente: joue - miseReglee,
+          bilan: gagne - miseReglee, solde: depots - retraits - joue + gagne,
+          reussite: regles.length ? regles.filter(p => +p.gain > 0).length / regles.length : 0};
+}
+
+function blocCompte(k) {
+  return `<div class="chiffres">
+      <div class="chiffre"><div class="v ${k.bilan >= 0 ? "pos" : "neg"}">${euros(k.bilan)}</div><div class="l">Bilan net des paris</div></div>
+      <div class="chiffre"><div class="v">${euros(k.solde)}</div><div class="l">Solde Betclic attendu</div></div>
+      <div class="chiffre"><div class="v">${euros(k.depots)}</div><div class="l">Déposé · retiré ${euros(k.retraits)}</div></div>
+      <div class="chiffre"><div class="v">${euros(k.joue)}</div><div class="l">Joué · gagné ${euros(k.gagne)}</div></div>
+      <div class="chiffre"><div class="v">${Math.round(100 * k.reussite)} %</div><div class="l">Paris gagnants</div></div>
+      <div class="chiffre"><div class="v">${euros(k.attente)}</div><div class="l">En attente de résultat</div></div>
+    </div>
+    <div class="sous" style="margin:6px 2px 0">Compare le « solde attendu » avec ton solde affiché sur Betclic : s'ils diffèrent, un pari ou un dépôt n'a pas été noté.</div>`;
+}
+
+/* Ouvrir le formulaire deja rempli depuis un conseil de Yanis */
+function jaiJoue(pre) { etat.onglet = "paris"; etat.prefill = pre; afficher(); }
+
 function vueParis() {
-  const paris = lsGet("yanis_paris", []);
+  const k = compteBetclic();
+  const paris = k.paris;
+  const pre = etat.prefill || {}; etat.prefill = null;
+  const type = pre.type || etat.typePari || "turf";
   const courses = [];
   for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses)
-    courses.push(`${D[src].date} R${reu.r}C${c.c} ${reu.hippodrome || ""} ${heure(c.depart)}`);
+    courses.push({cle: `${D[src].date}/${reu.r}/${c.c}`, txt: `${D[src].date.slice(8)}/${D[src].date.slice(5, 7)} R${reu.r}C${c.c} ${reu.hippodrome || ""} ${heure(c.depart)}`});
   const parFormule = {};
-  for (const p of paris) { const f = parFormule[p.formule] ||= {n: 0, g: 0, mise: 0, gain: 0}; f.n++; f.mise += +p.mise || 0; f.gain += +p.gain || 0; if (+p.gain > 0) f.g++; }
+  for (const p of paris.filter(x => x.gain != null)) { const f = parFormule[p.formule] ||= {n: 0, g: 0, mise: 0, gain: 0}; f.n++; f.mise += +p.mise || 0; f.gain += +p.gain || 0; if (+p.gain > 0) f.g++; }
   const cagnotte = lsGet("yanis_cagnotte", 0);
-  let h = `<h2>Ma cagnotte</h2><div class="carte"><div class="deux"><div class="champ"><label>Cagnotte réservée aux paris (€)</label>
+
+  let h = `<h2>Mon compte Betclic</h2>${blocCompte(k)}
+    <div class="carte" style="margin-top:10px"><div class="deux">
+      <div class="champ"><label>Montant (€)</label><input id="mvt" type="number" min="0" step="1" inputmode="decimal" placeholder="ex. 50"></div>
+      <div class="champ"><label>&nbsp;</label><div class="deux"><button class="btn sec" id="depot">+ Dépôt</button><button class="btn sec" id="retrait">− Retrait</button></div></div>
+    </div></div>
+
+    <h2>Noter un pari joué</h2><form class="carte" id="formpari">
+      <div class="puces" style="margin-bottom:6px">
+        <button type="button" class="puce ${type === "turf" ? "actif" : ""}" data-type="turf">🏇 Courses</button>
+        <button type="button" class="puce ${type === "sport" ? "actif" : ""}" data-type="sport">⚽ Sport</button></div>
+      ${type === "turf" ? `
+        <div class="champ"><label>Course</label><select name="cle">${courses.map(c => `<option value="${c.cle}" ${c.cle === pre.cle ? "selected" : ""}>${esc(c.txt)}</option>`).join("")}<option value="">Autre course</option></select></div>
+        <div class="deux"><div class="champ"><label>Formule</label><select name="formule">${FORMULES_TURF.map(f => `<option ${f === pre.formule ? "selected" : ""}>${f}</option>`).join("")}</select></div>
+        <div class="champ"><label>Mise (€)</label><input name="mise" type="number" min="0" step="0.5" inputmode="decimal" required value="${pre.mise || ""}"></div></div>
+        <div class="champ"><label>Chevaux joués (ex. 3-7-12)</label><input name="chevaux" required value="${esc(pre.chevaux || "")}"></div>`
+      : `
+        <div class="champ"><label>Match ou combat</label><input name="libelle" required value="${esc(pre.libelle || "")}" placeholder="ex. PSG – Marseille"></div>
+        <div class="champ"><label>Pari joué</label><input name="chevaux" required value="${esc(pre.chevaux || "")}" placeholder="ex. Victoire PSG"></div>
+        <div class="deux"><div class="champ"><label>Mise (€)</label><input name="mise" type="number" min="0" step="0.5" inputmode="decimal" required></div>
+        <div class="champ"><label>Cote Betclic</label><input name="cote" type="number" min="1" step="0.01" inputmode="decimal" required value="${pre.cote || ""}"></div></div>
+        ${pre.coteMini ? `<div class="sous">Cote minimale à exiger selon Yanis : <b>${pre.coteMini.toFixed(2)}</b>. En dessous, mieux vaut passer ton tour.</div>` : ""}`}
+      <button class="btn" style="margin-top:6px">Enregistrer le pari</button>
+      <div class="sous" style="margin-top:6px">${type === "turf" ? "Yanis marque tout seul le pari gagné ou perdu dès l'arrivée, avec le rapport PMU (proche de celui de Betclic, tu peux corriger)." : "Après le match, touche « Gagné » ou « Perdu » : le gain se calcule avec ta cote."}</div>
+    </form>
+
+    <h2>Ma cagnotte</h2><div class="carte"><div class="deux"><div class="champ"><label>Cagnotte réservée aux paris (€)</label>
       <input id="cagnotte" type="number" min="0" step="10" inputmode="decimal" value="${cagnotte || ""}" placeholder="ex. 300"></div>
       <div class="champ"><label>&nbsp;</label><button class="btn sec" id="okcagnotte">Enregistrer</button></div></div>
-      <div class="sous">Yanis calcule ta mise conseillée (entre 1 et 100 €) seulement sur les paris <b>validés</b>, avec une méthode prudente (Kelly divisé par 4).</div></div>
-    <h2>Noter un pari</h2><form class="carte" id="formpari">
-    <div class="champ"><label>Course</label><select name="course">${courses.map(c => `<option>${esc(c)}</option>`).join("")}<option>Autre course</option></select></div>
-    <div class="deux"><div class="champ"><label>Formule</label><select name="formule">${FORMULES.map(f => `<option>${f}</option>`).join("")}</select></div>
-    <div class="champ"><label>Mise (€)</label><input name="mise" type="number" min="0" step="0.5" inputmode="decimal" required></div></div>
-    <div class="champ"><label>Chevaux joués (ex. 3-7-12)</label><input name="chevaux" required></div>
-    <button class="btn">Enregistrer le pari</button></form>`;
+      <div class="sous">Sert à calculer ta mise conseillée (1 à 100 €), seulement sur les paris <b>validés</b>.</div></div>`;
+
   if (Object.keys(parFormule).length) {
     h += `<h2>Réussite par formule</h2><div class="carte"><table><tr><th>Formule</th><th class="n">Paris</th><th class="n">Gagnés</th><th class="n">Bilan</th></tr>` +
       Object.entries(parFormule).map(([f, x]) => `<tr><td>${esc(f)}</td><td class="n">${x.n}</td><td class="n">${x.g}</td><td class="n ${x.gain - x.mise >= 0 ? "pos" : "neg"}">${euros(x.gain - x.mise)}</td></tr>`).join("") + `</table></div>`;
   }
   h += `<h2>Mes paris (${paris.length})</h2>`;
   h += paris.length ? [...paris].reverse().map(p => `<div class="carte">
-      <div class="pari"><div><b>${esc(p.formule)}</b> · ${esc(p.chevaux)}<div class="sous">${esc(p.course)}</div></div>
-      <div style="text-align:right"><div>${euros(+p.mise)}</div><div class="sous ${p.gain == null ? "" : +p.gain > 0 ? "pos" : "neg"}">${p.gain == null ? "en attente" : "retour " + euros(+p.gain)}</div></div></div>
-      <div class="actions"><button class="btn sec" data-gain="${p.id}">Saisir le gain</button><button class="btn sec" data-perdu="${p.id}">Perdu</button><button class="btn sec" data-suppr="${p.id}">Supprimer</button></div>
+      <div class="pari"><div><b>${p.type === "sport" ? "⚽ " : "🏇 "}${esc(p.formule)}</b> · ${esc(p.chevaux)}<div class="sous">${esc(p.libelle || p.course || p.cle || "")}${p.cote ? " · cote " + (+p.cote).toFixed(2) : ""}</div></div>
+      <div style="text-align:right"><div>${euros(+p.mise)}</div><div class="sous ${p.gain == null ? "" : +p.gain > 0 ? "pos" : "neg"}">${p.gain == null ? "en attente" : (+p.gain > 0 ? "gagné " : "perdu ") + euros(+p.gain)}${p.auto ? " (auto)" : ""}</div></div></div>
+      <div class="actions">${p.type === "sport" && p.gain == null ? `<button class="btn sec" data-gagne="${p.id}">Gagné</button><button class="btn sec" data-perdu="${p.id}">Perdu</button><button class="btn sec" data-rembourse="${p.id}">Remboursé</button>`
+        : `<button class="btn sec" data-gain="${p.id}">${p.gain == null ? "Saisir le gain" : "Corriger le gain"}</button>${p.gain == null ? `<button class="btn sec" data-perdu="${p.id}">Perdu</button>` : ""}`}
+        <button class="btn sec" data-suppr="${p.id}">Supprimer</button></div>
     </div>`).join("") : `<div class="vide">Aucun pari noté pour l'instant.</div>`;
-  h += `<div class="sous" style="margin-top:12px">Tes paris sont gardés sur ce téléphone uniquement.</div>`;
+  if (k.mvts.length) h += `<h2>Dépôts et retraits</h2><div class="carte"><table>` + [...k.mvts].reverse().map(m => `<tr><td>${esc(m.date)}</td><td>${m.type === "depot" ? "Dépôt" : "Retrait"}</td><td class="n ${m.type === "depot" ? "pos" : "neg"}">${euros(m.montant)}</td><td class="n"><button class="btn sec" style="padding:4px 8px" data-supmvt="${m.id}">✕</button></td></tr>`).join("") + `</table></div>`;
+  h += `<h2>Sauvegarde</h2><div class="carte"><div class="deux"><button class="btn sec" id="exporter">Copier ma sauvegarde</button><button class="btn sec" id="importer">Restaurer</button></div>
+    <div class="sous" style="margin-top:6px">Tes données restent sur ce téléphone. Copie ta sauvegarde de temps en temps (dans une note ou un message à toi-même) pour ne rien perdre.</div></div>`;
   vue.innerHTML = h;
+
+  vue.querySelectorAll("[data-type]").forEach(b => b.onclick = () => { etat.typePari = b.dataset.type; afficher(); });
+  const mouvement = t => { const v = +document.getElementById("mvt").value; if (!v) return;
+    const m = lsGet("yanis_compte", []); m.push({id: Date.now(), type: t, montant: v, date: new Date().toLocaleDateString("fr-FR")}); lsSet("yanis_compte", m); afficher(); };
+  document.getElementById("depot").onclick = () => mouvement("depot");
+  document.getElementById("retrait").onclick = () => mouvement("retrait");
   document.getElementById("okcagnotte").onclick = () => { lsSet("yanis_cagnotte", +document.getElementById("cagnotte").value || 0); afficher(); };
   document.getElementById("formpari").onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    paris.push({id: Date.now(), course: f.get("course"), formule: f.get("formule"), mise: +f.get("mise"), chevaux: f.get("chevaux"), gain: null});
-    lsSet("yanis_paris", paris); afficher();
+    const tout = lireParis();
+    if (type === "turf") {
+      const cle = f.get("cle") || null;
+      const c = courses.find(x => x.cle === cle);
+      tout.push({id: Date.now(), type: "turf", cle, course: c ? c.txt : "Autre course", formule: f.get("formule"), mise: +f.get("mise"), chevaux: f.get("chevaux"), gain: null});
+    } else {
+      tout.push({id: Date.now(), type: "sport", libelle: f.get("libelle"), formule: "Sport", chevaux: f.get("chevaux"), mise: +f.get("mise"), cote: +String(f.get("cote")).replace(",", "."), gain: null});
+    }
+    lsSet("yanis_paris", tout); afficher();
   };
-  const maj = (id, fn) => { const p = paris.find(x => x.id === +id); if (p) { fn(p); lsSet("yanis_paris", paris); afficher(); } };
+  const maj = (id, fn) => { const t = lireParis(); const p = t.find(x => x.id === +id); if (p) { fn(p); lsSet("yanis_paris", t); afficher(); } };
   vue.querySelectorAll("[data-gain]").forEach(b => b.onclick = () => {
-    const v = prompt("Somme reçue pour ce pari (en €) :"); if (v !== null && v !== "") maj(b.dataset.gain, p => p.gain = +v.replace(",", "."));
+    const v = prompt("Somme reçue sur Betclic pour ce pari (en €) :"); if (v !== null && v !== "") maj(b.dataset.gain, p => { p.gain = +v.replace(",", "."); p.auto = false; });
   });
-  vue.querySelectorAll("[data-perdu]").forEach(b => b.onclick = () => maj(b.dataset.perdu, p => p.gain = 0));
+  vue.querySelectorAll("[data-gagne]").forEach(b => b.onclick = () => maj(b.dataset.gagne, p => p.gain = Math.round(p.mise * p.cote * 100) / 100));
+  vue.querySelectorAll("[data-rembourse]").forEach(b => b.onclick = () => maj(b.dataset.rembourse, p => p.gain = p.mise));
+  vue.querySelectorAll("[data-perdu]").forEach(b => b.onclick = () => maj(b.dataset.perdu, p => { p.gain = 0; p.auto = false; }));
   vue.querySelectorAll("[data-suppr]").forEach(b => b.onclick = () => {
-    if (confirm("Supprimer ce pari ?")) { const i = paris.findIndex(x => x.id === +b.dataset.suppr); paris.splice(i, 1); lsSet("yanis_paris", paris); afficher(); }
+    if (confirm("Supprimer ce pari ?")) { const t = lireParis(); t.splice(t.findIndex(x => x.id === +b.dataset.suppr), 1); lsSet("yanis_paris", t); afficher(); }
   });
+  vue.querySelectorAll("[data-supmvt]").forEach(b => b.onclick = () => {
+    if (confirm("Supprimer ce mouvement ?")) { const m = lsGet("yanis_compte", []); m.splice(m.findIndex(x => x.id === +b.dataset.supmvt), 1); lsSet("yanis_compte", m); afficher(); }
+  });
+  document.getElementById("exporter").onclick = async () => {
+    const txt = "YANIS:" + btoa(unescape(encodeURIComponent(JSON.stringify({paris: lireParis(), compte: lsGet("yanis_compte", []), cagnotte: lsGet("yanis_cagnotte", 0)}))));
+    try { await navigator.clipboard.writeText(txt); alert("Sauvegarde copiée. Colle-la dans une note ou un message à toi-même."); }
+    catch (e) { prompt("Copie ce texte et garde-le précieusement :", txt); }
+  };
+  document.getElementById("importer").onclick = () => {
+    const txt = prompt("Colle ici ta sauvegarde Yanis :"); if (!txt) return;
+    try {
+      const d = JSON.parse(decodeURIComponent(escape(atob(txt.trim().replace(/^YANIS:/, "")))));
+      if (!confirm(`Restaurer ${d.paris.length} paris et ${d.compte.length} mouvements ? Les données actuelles seront remplacées.`)) return;
+      lsSet("yanis_paris", d.paris); lsSet("yanis_compte", d.compte); lsSet("yanis_cagnotte", d.cagnotte || 0); afficher();
+    } catch (e) { alert("Cette sauvegarde n'est pas lisible."); }
+  };
 }
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
