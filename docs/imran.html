@@ -195,11 +195,14 @@ $('menuBtn').onclick=openDrawer;$('drawerBack').onclick=closeDrawer;$('newSessio
 async function callModel(messages,model,web){
   const base=activeBase();if(!base)throw new Error('adresse du fournisseur manquante');
   const body={model:model||settings.model,messages};if(web)body.plugins=[{id:'web'}];
-  const res=await fetch(base+'/chat/completions',{method:'POST',
-    headers:{'Authorization':'Bearer '+activeKey(),'Content-Type':'application/json','X-Title':'Imran'},
-    body:JSON.stringify(body)});
-  if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
-  const d=await res.json();return d.choices?.[0]?.message?.content?.trim()||'(réponse vide)';
+  const opts={method:'POST',headers:{'Authorization':'Bearer '+activeKey(),'Content-Type':'application/json','X-Title':'Imran'},body:JSON.stringify(body)};
+  for(let a=0;a<3;a++){
+    const res=await fetch(base+'/chat/completions',opts);
+    if(res.status===429&&a<2){statusEl.textContent='Modèle occupé, je réessaie…';await new Promise(r=>setTimeout(r,2000*(a+1)));continue;}
+    if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
+    const d=await res.json();return d.choices?.[0]?.message?.content?.trim()||'(réponse vide)';
+  }
+  throw new Error('429 : modèle saturé, réessaie dans un instant ou change de modèle');
 }
 async function applyCalc(text,question){
   if(typeof math==='undefined')return text;
