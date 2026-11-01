@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Atelier</title>
+<style>
+  :root{--bg:#f4f5f7;--panel:#ffffff;--ink:#15181d;--soft:#5c6472;--line:#e3e6ea;--accent:#7a3bff;--ok:#1f9d68;--warn:#c0392b;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--panel:#161b22;--ink:#e9edf2;--soft:#9aa4b2;--line:#262c35;}}
+  :root[data-theme="dark"]{--bg:#0e1116;--panel:#161b22;--ink:#e9edf2;--soft:#9aa4b2;--line:#262c35;}
+  *{box-sizing:border-box}html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel);border-bottom:1px solid var(--line);padding-top:calc(12px + env(safe-area-inset-top))}
+  .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#7a3bff,#2f6df6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  header h1{font-size:16px;margin:0;font-weight:650}header .sub{font-size:11px;color:var(--soft)}
+  header .spacer{flex:1}
+  .link{font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:9px}
+  main{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .card h2{margin:0 0 8px;font-size:15px}
+  textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:12px;font-size:15px;resize:vertical;min-height:90px;outline:none;font-family:inherit}
+  textarea:focus{border-color:var(--accent)}
+  .btn{border:none;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;cursor:pointer;color:#fff;background:var(--accent)}
+  .btn:disabled{opacity:.5}
+  .btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .status{font-size:13px;color:var(--soft);margin-top:8px;min-height:18px}
+  .preview{flex:1;min-height:320px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;display:none}
+  .preview.show{display:block}
+  iframe{width:100%;height:100%;border:none;background:#fff}
+  .previewwrap{flex:1;display:flex;flex-direction:column;gap:8px}
+  .hint{color:var(--soft);font-size:13px;line-height:1.5}
+  a{color:var(--accent)}
+  .warnbox{background:#2a1416;border:1px solid var(--warn);color:#ffb4ac;padding:12px;border-radius:12px;font-size:13.5px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">A</div>
+  <div><h1>Atelier</h1><div class="sub" id="sub">Décris une appli, je la fabrique</div></div>
+  <div class="spacer"></div>
+  <a class="link" href="imran.html">Imran</a>
+</header>
+<main id="main">
+  <div class="card" id="askCard">
+    <h2>Quelle appli veux-tu ?</h2>
+    <textarea id="desc" placeholder="Exemple : une appli de minuteur de cuisine avec plusieurs minuteurs en même temps, un son à la fin, et des boutons rapides 5, 10, 15 minutes."></textarea>
+    <div class="btns"><button class="btn" id="go">Créer l'appli</button></div>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="previewwrap" id="pw" style="display:none">
+    <div class="preview show"><iframe id="frame"></iframe></div>
+    <div class="btns">
+      <button class="btn sec" id="dl">Télécharger</button>
+      <button class="btn sec" id="copy">Copier le code</button>
+      <button class="btn sec" id="full">Plein écran</button>
+    </div>
+    <div class="card">
+      <h2>Modifier</h2>
+      <textarea id="change" placeholder="Exemple : ajoute un mode sombre et agrandis les boutons."></textarea>
+      <div class="btns"><button class="btn" id="apply">Appliquer la modif</button></div>
+      <div class="status" id="status2"></div>
+    </div>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}}};
+const PROVIDERS={openrouter:'https://openrouter.ai/api/v1',nvidia:'https://integrate.api.nvidia.com/v1'};
+function provider(){return LS.get('imran_provider','openrouter');}
+function base(){const p=provider();return p==='custom'?(LS.get('imran_baseCustom','')||'').replace(/\/+$/,''):PROVIDERS[p];}
+function key(){const k=LS.get('imran_keys',{});return k[provider()]||'';}
+function model(){return LS.get('imran_model','');}
+
+if(!key()||!model()){
+  $('askCard').innerHTML='<div class="warnbox">Avant de créer des applis, ouvre d\'abord <a href="imran.html">Imran</a>, mets ta clé et choisis un modèle dans les réglages. L\'Atelier utilisera les mêmes. Reviens ensuite ici.</div>';
+}
+
+const SYS=`Tu es un expert qui fabrique des applications web. Tu réponds UNIQUEMENT par le code d'un seul fichier HTML complet et autonome : <!doctype html> ... </html>, avec tout le CSS et le JavaScript écrits à l'intérieur, sans dépendance externe. Aucune explication, aucun texte, aucune balise de code markdown autour. L'interface est en français, moderne, agréable, et s'adapte au téléphone. Le code doit fonctionner tel quel.`;
+
+let messages=[],lastCode='';
+
+async function callModel(msgs){
+  const b=base();if(!b)throw new Error('fournisseur non configuré');
+  for(let a=0;a<4;a++){
+    const res=await fetch(b+'/chat/completions',{method:'POST',
+      headers:{'Authorization':'Bearer '+key(),'Content-Type':'application/json','X-Title':'Atelier'},
+      body:JSON.stringify({model:model(),messages:msgs})});
+    if(res.status===429&&a<3){await new Promise(r=>setTimeout(r,2000*(a+1)));continue;}
+    if(!res.ok){const t=await res.text();throw new Error(res.status+' : '+t.slice(0,160));}
+    const d=await res.json();return d.choices?.[0]?.message?.content||'';
+  }
+  throw new Error('modèle indisponible, réessaie');
+}
+function extractHtml(t){
+  let s=t.trim();
+  s=s.replace(/^```[a-zA-Z]*\s*/,'').replace(/```\s*$/,'');
+  const i=s.search(/<!doctype html>|<html[\s>]/i);
+  if(i>0)s=s.slice(i);
+  return s.trim();
+}
+function showCode(code){
+  lastCode=code;$('frame').srcdoc=code;$('pw').style.display='flex';
+}
+async function generate(desc,isChange,statusEl){
+  statusEl.textContent='Fabrication en cours… (ça peut prendre une minute)';
+  try{
+    if(!isChange)messages=[{role:'system',content:SYS},{role:'user',content:'Fabrique cette appli : '+desc}];
+    else messages.push({role:'user',content:'Modifie l\'appli précédente : '+desc+'. Renvoie le fichier HTML complet mis à jour.'});
+    const out=await callModel(messages);
+    const code=extractHtml(out);
+    if(!/<html|<!doctype/i.test(code)){statusEl.textContent='Le modèle n\'a pas renvoyé une appli complète. Réessaie, ou choisis un modèle plus costaud dans Imran.';return;}
+    messages.push({role:'assistant',content:code});
+    showCode(code);statusEl.textContent='Prête. Tu peux la tester, la télécharger, ou la modifier.';
+    window.scrollTo(0,0);
+  }catch(e){statusEl.textContent='Souci : '+e.message;}
+}
+$('go').onclick=()=>{const d=$('desc').value.trim();if(!d)return;$('go').disabled=true;generate(d,false,$('status')).finally(()=>$('go').disabled=false);};
+$('apply').onclick=()=>{const d=$('change').value.trim();if(!d)return;$('apply').disabled=true;generate(d,true,$('status2')).finally(()=>{$('apply').disabled=false;$('change').value='';});};
+$('dl').onclick=()=>{const b=new Blob([lastCode],{type:'text/html'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='mon-appli.html';a.click();URL.revokeObjectURL(u);};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(lastCode);$('status2').textContent='Code copié.';}catch(e){$('status2').textContent='Copie impossible sur ce navigateur.';}};
+$('full').onclick=()=>{const w=window.open('');if(w){w.document.open();w.document.write(lastCode);w.document.close();}};
+const vv=window.visualViewport;function fit(){if(vv)document.body.style.height=vv.height+'px';}
+if(vv){vv.addEventListener('resize',fit);}fit();
+</script>
+</body>
+</html>
