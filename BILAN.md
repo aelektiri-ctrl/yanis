@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 01/11/2026 a 15:29.
+Mis a jour le 01/11/2026 a 15:46.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 01/11/2026 a 15:29.
 | Reunions | 726 |
 | Courses | 5479 |
 | Partants | 64836 |
-| Rapports | 89891 |
-| Partants avec cote finale | 61501 |
-| Partants avec place a l'arrivee | 51093 |
+| Rapports | 89940 |
+| Partants avec cote finale | 61527 |
+| Partants avec place a l'arrivee | 51126 |
 
 ## Courses par discipline
 
@@ -35,7 +35,7 @@ Mis a jour le 01/11/2026 a 15:29.
 | C. DEMURO | 699 | 88 | 12.6 | 39.1 |
 | PC. BOUDOT | 483 | 80 | 16.6 | 42.9 |
 | TH. BRIAND | 371 | 77 | 20.8 | 45.0 |
-| Y. LEBOURGEOIS | 403 | 76 | 18.9 | 36.7 |
+| Y. LEBOURGEOIS | 404 | 76 | 18.8 | 36.6 |
 | M. GUYON | 533 | 76 | 14.3 | 40.3 |
 | A. ABRIVARD | 498 | 73 | 14.7 | 37.1 |
 | A. COLLETTE | 647 | 67 | 10.4 | 28.9 |
