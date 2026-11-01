@@ -56,6 +56,19 @@ DEMI_VIE_JOURS = 365          # un match d'il y a un an compte moitie moins qu'u
 SEUIL_PROBA = 0.50            # filtre 1 : plus d'une chance sur deux
 SEUIL_VALUE = 0.03            # filtre 2 : la cote paie au moins 3 % de plus que le risque reel
 
+# Journal du parieur virtuel : Yanis joue pour de faux, mais honnetement.
+# Chaque jour il repart avec 100 EUR. Il est SELECTIF : il ne mise que sur ses
+# meilleurs coups du jour (2 au maximum), et quand rien ne vaut le coup, il ne
+# joue pas du tout. Le soir, on solde avec les vrais resultats. Pas de triche :
+# sur la duree, ce compteur va probablement baisser, et c'est justement la preuve
+# qui se joue sous les yeux d'Abdel.
+CREDIT_JOUR = 100.0           # credit remis a zero chaque jour
+MISE_PARI = 10.0             # mise fixe par pari (un seul jour ne peut pas tout faire exploser)
+MAX_PARIS_JOUR = 2            # joueur methodique : deux coups par jour au maximum
+SEUIL_VALUE_JOURNAL = 0.05    # selectif : on ne retient que la vraie valeur, pas le tout-venant
+MARCHE_LABEL = {"1": "Victoire domicile", "N": "Match nul", "2": "Victoire exterieur",
+                "+2.5": "Plus de 2,5 buts", "-2.5": "Moins de 2,5 buts"}
+
 
 # --------------------------------------------------------------------------
 # Bibliotheque
@@ -447,6 +460,185 @@ def classement_forces(par_ligue):
     return out
 
 
+# --------------------------------------------------------------------------
+# Journal du parieur virtuel : 100 EUR par jour, selectif, solde sur les vrais resultats
+# --------------------------------------------------------------------------
+
+JOURNAL = os.path.join(SORTIE, "journal.json")
+
+
+def resultat_marche(m, marche):
+    """Le pari est-il gagne, au vu du vrai score ? Meme logique que le banc d'essai."""
+    reel = "1" if m["bd"] > m["be"] else "N" if m["bd"] == m["be"] else "2"
+    if marche in ("1", "N", "2"):
+        return marche == reel
+    if marche == "+2.5":
+        return m["bd"] + m["be"] >= 3
+    if marche == "-2.5":
+        return m["bd"] + m["be"] <= 2
+    return False
+
+
+def _recap_jour(info):
+    """Recalcule le bilan d'un jour a partir de ses paris (seuls les paris soldes comptent)."""
+    soldes = [p for p in info["paris"] if p["statut"] in ("gagne", "perdu")]
+    mise = sum(p["mise"] for p in soldes)
+    retour = sum(p["retour"] for p in soldes)
+    en_attente = sum(1 for p in info["paris"] if p["statut"] == "en_attente")
+    info["mise_totale"] = round(mise, 2)
+    info["retour_total"] = round(retour, 2)
+    info["net"] = round(retour - mise, 2)
+    info["capital_fin"] = round(info["capital_depart"] + retour - mise, 2)
+    info["en_attente"] = en_attente
+    info["statut"] = "en_cours" if en_attente else "clos"
+
+
+def _resume_global(jours):
+    tj = sorted(jours.items())
+    tm = tr = cumul = 0.0
+    nj = ns = paris = gagnes = 0
+    courbe = []
+    for d, info in tj:
+        tm += info.get("mise_totale", 0.0)
+        tr += info.get("retour_total", 0.0)
+        for p in info["paris"]:
+            if p["statut"] in ("gagne", "perdu"):
+                paris += 1
+                gagnes += int(p["statut"] == "gagne")
+        if info.get("sans_pari"):
+            ns += 1
+        elif any(p["statut"] in ("gagne", "perdu") for p in info["paris"]):
+            nj += 1
+        cumul += info.get("net", 0.0)
+        courbe.append({"date": d, "net": round(info.get("net", 0.0), 2),
+                       "cumul": round(cumul, 2), "statut": info.get("statut")})
+    return {"jours_joues": nj, "jours_sans_pari": ns, "paris": paris, "gagnes": gagnes,
+            "reussite": round(gagnes / paris, 3) if paris else None,
+            "total_mise": round(tm, 2), "total_retour": round(tr, 2), "total_net": round(tr - tm, 2),
+            "roi": round((tr - tm) / tm, 4) if tm else None,
+            "capital_cumule": round(CREDIT_JOUR + cumul, 2), "courbe": courbe}
+
+
+def _par_formule(jours):
+    agg = {}
+    for _, info in jours.items():
+        for p in info["paris"]:
+            if p["statut"] not in ("gagne", "perdu"):
+                continue
+            x = agg.setdefault(p["marche"], {"paris": 0, "gagnes": 0, "mise": 0.0, "retour": 0.0})
+            x["paris"] += 1
+            x["gagnes"] += int(p["statut"] == "gagne")
+            x["mise"] += p["mise"]
+            x["retour"] += p["retour"]
+    out = []
+    for marche, x in agg.items():
+        out.append({"marche": marche, "nom": MARCHE_LABEL.get(marche, marche),
+                    "paris": x["paris"], "gagnes": x["gagnes"],
+                    "reussite": round(x["gagnes"] / x["paris"], 3) if x["paris"] else None,
+                    "net": round(x["retour"] - x["mise"], 2),
+                    "roi": round((x["retour"] - x["mise"]) / x["mise"], 4) if x["mise"] else None})
+    out.sort(key=lambda r: r["net"], reverse=True)
+    return out
+
+
+def _bilans_semaine(jours):
+    sem = {}
+    for d, info in jours.items():
+        try:
+            y, w, _ = dt.date.fromisoformat(d).isocalendar()
+        except Exception:
+            continue
+        s = sem.setdefault((y, w), {"mise": 0.0, "retour": 0.0, "net": 0.0, "paris": 0, "gagnes": 0, "jours": 0})
+        s["mise"] += info.get("mise_totale", 0.0)
+        s["retour"] += info.get("retour_total", 0.0)
+        s["net"] += info.get("net", 0.0)
+        s["jours"] += 1
+        for p in info["paris"]:
+            if p["statut"] in ("gagne", "perdu"):
+                s["paris"] += 1
+                s["gagnes"] += int(p["statut"] == "gagne")
+    out = []
+    for (y, w), s in sorted(sem.items(), reverse=True):
+        lundi = dt.date.fromisocalendar(y, w, 1)
+        out.append({"semaine": f"Semaine du {lundi.strftime('%d/%m')}", "lundi": lundi.isoformat(),
+                    "mise": round(s["mise"], 2), "retour": round(s["retour"], 2), "net": round(s["net"], 2),
+                    "paris": s["paris"], "gagnes": s["gagnes"],
+                    "roi": round(s["net"] / s["mise"], 4) if s["mise"] else None})
+    return out
+
+
+def journal_virtuel(par_ligue, a_venir):
+    """Fait vivre le parieur virtuel : solde les paris en attente avec les vrais
+    resultats, puis place (une seule fois) les coups selectifs du jour."""
+    auj = maintenant().date()
+    try:
+        with open(JOURNAL, encoding="utf-8") as f:
+            J = json.load(f)
+    except Exception:
+        J = {"regles": {"credit_jour": CREDIT_JOUR, "mise_pari": MISE_PARI,
+                        "max_paris": MAX_PARIS_JOUR, "seuil_value": SEUIL_VALUE_JOURNAL}, "jours": {}}
+    jours = J.setdefault("jours", {})
+
+    # index des resultats connus pour solder
+    res_idx = {}
+    for lg, matchs in par_ligue.items():
+        for m in matchs:
+            if m["bd"] is not None and m["be"] is not None:
+                res_idx[(m["date"].isoformat(), m["dom"], m["ext"])] = m
+
+    # 1. solder les paris en attente
+    for djour, info in jours.items():
+        for pari in info["paris"]:
+            if pari["statut"] != "en_attente":
+                continue
+            m = res_idx.get((pari["date_match"], pari["dom"], pari["ext"]))
+            if m:
+                gagne = resultat_marche(m, pari["marche"])
+                pari["statut"] = "gagne" if gagne else "perdu"
+                pari["score_reel"] = f'{m["bd"]}-{m["be"]}'
+                pari["retour"] = round(pari["mise"] * pari["cote"], 2) if gagne else 0.0
+            else:
+                try:
+                    trop_vieux = (auj - dt.date.fromisoformat(pari["date_match"])).days > 7
+                except Exception:
+                    trop_vieux = False
+                if trop_vieux:  # match reporte ou introuvable : pari annule, mise rendue
+                    pari["statut"] = "annule"
+                    pari["retour"] = 0.0
+        _recap_jour(info)
+
+    # 2. placer les coups du jour, une seule fois
+    cle = auj.isoformat()
+    if cle not in jours:
+        candidats = []
+        for match in a_venir:
+            if match.get("date") != cle:
+                continue
+            for s in match.get("selections", []):
+                if s.get("value", 0) >= SEUIL_VALUE_JOURNAL:
+                    candidats.append((s["value"], match, s))
+        candidats.sort(key=lambda x: -x[0])
+        paris = []
+        for value, match, s in candidats[:MAX_PARIS_JOUR]:
+            paris.append({"date_match": match["date"], "heure": match.get("heure"),
+                          "ligue": match["ligue"], "dom": match["dom"], "ext": match["ext"],
+                          "marche": s["marche"], "cote": s["cote"], "proba": s["proba"],
+                          "value": s["value"], "mise": MISE_PARI, "statut": "en_attente",
+                          "retour": 0.0, "score_reel": None})
+        info = {"capital_depart": CREDIT_JOUR, "paris": paris, "sans_pari": len(paris) == 0}
+        _recap_jour(info)
+        jours[cle] = info
+
+    J["jours"] = jours
+    J["maj"] = maintenant().strftime("%d/%m/%Y %H:%M")
+    J["resume"] = _resume_global(jours)
+    J["semaines"] = _bilans_semaine(jours)
+    J["par_formule"] = _par_formule(jours)
+    with open(JOURNAL, "w", encoding="utf-8") as f:
+        json.dump(J, f, ensure_ascii=False, separators=(",", ":"))
+    return J
+
+
 def main():
     complet = "--complet" in sys.argv
     t0 = time.time()
@@ -462,6 +654,10 @@ def main():
     print(f"Banc d'essai 12 mois : {banc['paris']} paris, reussite {banc['reussite']}, rentabilite {banc['roi']}.")
     recent = bilan_recent(par_ligue)
     print(f"Bilan recent : {len(recent['recents'])} matchs affiches, gains simules {recent['gains']['total_net']} EUR sur {recent['gains']['jours']} j.")
+    jrn = journal_virtuel(par_ligue, a_venir)
+    rj = jrn["resume"]
+    print(f"Journal virtuel : {len(jrn['jours'])} jours, {rj['paris']} paris soldes, "
+          f"capital cumule {rj['capital_cumule']} EUR (depart 100/jour).")
     dates = [m["date"] for v in par_ligue.values() for m in v]
     os.makedirs(SORTIE, exist_ok=True)
     with open(os.path.join(SORTIE, "foot.json"), "w", encoding="utf-8") as f:

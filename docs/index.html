@@ -118,8 +118,8 @@ async function charger(nom) {
 
 async function demarrer() {
   try {
-    const [a, h, d, t, f, sp, v2, bilan] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports", "hippique_v2", "bilan"].map(n => charger(n).catch(() => null)));
-    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp, v2, bilan});
+    const [a, h, d, t, f, sp, v2, bilan, jrn] = await Promise.all(["aujourdhui", "hier", "demain", "tableau", "foot", "sports", "hippique_v2", "bilan", "journal"].map(n => charger(n).catch(() => null)));
+    Object.assign(D, {aujourdhui: a, hier: h, demain: d, tableau: t, foot: f, sports: sp, v2, bilan, journal: jrn});
     fusionnerV2();
     document.getElementById("maj").textContent = t ? `Mis à jour le ${t.maj}` : "Données indisponibles";
   } catch (e) {
@@ -353,7 +353,7 @@ function rapportsHTML(c) {
 const MARCHE_NOM = {"1": "Victoire domicile", "N": "Match nul", "2": "Victoire extérieur", "+2.5": "Plus de 2,5 buts", "-2.5": "Moins de 2,5 buts"};
 const dateFr = d => new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
 
-const ONGLETS_SPORT = [["selections", "⭐ Sélections"], ["foot", "Football"], ["nba", "NBA"], ["nhl", "NHL"], ["nfl", "NFL"],
+const ONGLETS_SPORT = [["selections", "⭐ Sélections"], ["journal", "🎯 Journal 100€"], ["foot", "Football"], ["nba", "NBA"], ["nhl", "NHL"], ["nfl", "NFL"],
   ["mlb", "MLB"], ["atp", "Tennis ATP"], ["wta", "Tennis WTA"], ["ufc", "MMA UFC"], ["direct", "🔴 En direct"]];
 
 function vueSport() {
@@ -361,6 +361,7 @@ function vueSport() {
   if (etat.sport === "direct") { vue.innerHTML = h + `<div id="direct"></div>`; lierSport(); return vueDirect(); }
   arreterDirect();
   if (etat.sport === "selections") { vue.innerHTML = h + vueSelections(); return lierSport(); }
+  if (etat.sport === "journal") { vue.innerHTML = h + vueJournal(); return lierSport(); }
   if (etat.sport !== "foot") { vue.innerHTML = h + vueDiscipline(etat.sport); return lierSport(); }
   const f = D.foot;
   if (!f) { vue.innerHTML = h + `<div class="vide">Les données football arrivent au prochain passage de Yanis.</div>`; return lierSport(); }
@@ -468,6 +469,65 @@ function carteDuel(m, sportNom) {
     <div class="sous">${m.cotes ? `Cotes : ${m.cotes.dom.toFixed(2)} / ${m.cotes.ext.toFixed(2)}` : "Pas de cote disponible"}${m.fiable ? "" : " · peu d'historique, prudence"}</div>
     ${s ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#2b2410;border:1px solid #5a4a1a"><b>${esc(s.camp === "dom" ? m.dom : m.ext)}</b> gagnant · Yanis ${pct(s.proba)} · cote ${s.cote.toFixed(2)} <span class="badge b-value">value +${Math.round(100 * s.value)} %</span></div>` : ""}
   </div>`;
+}
+
+function statutBadge(s) {
+  if (s === "gagne") return '<span class="badge b-ok">gagné</span>';
+  if (s === "perdu") return '<span class="badge b-ko">perdu</span>';
+  if (s === "annule") return '<span class="badge">annulé</span>';
+  return '<span class="badge" style="background:#2b2410;color:#d8c07a">en attente</span>';
+}
+
+function carteJourJournal(j, info) {
+  let h = `<div class="sous" style="margin:14px 2px 6px;text-transform:capitalize">${dateFr(j)}`;
+  if (info.statut === "clos") h += ` · net <b class="${info.net >= 0 ? "pos" : "neg"}">${info.net >= 0 ? "+" : ""}${info.net.toFixed(2)} €</b>`;
+  else if (info.en_attente) h += ` · ${info.en_attente} en attente`;
+  h += `</div>`;
+  if (info.sans_pari) return h + `<div class="carte sous">Aucun coup sélectif ce jour. Yanis a préféré passer son tour.</div>`;
+  for (const p of info.paris) {
+    const gain = p.statut === "gagne" ? `<b class="pos">+${(p.retour - p.mise).toFixed(2)} €</b>`
+      : p.statut === "perdu" ? `<b class="neg">−${p.mise.toFixed(2)} €</b>` : "";
+    h += `<div class="carte">
+      <div class="sous">${esc(p.ligue)} · ${esc(p.heure || "")}</div>
+      <div style="display:flex;justify-content:space-between;font-weight:600;margin-top:2px"><span>${esc(p.dom)} – ${esc(p.ext)}</span><span>${p.score_reel ? esc(p.score_reel) : ""}</span></div>
+      <div style="margin-top:6px">${MARCHE_NOM[p.marche] || esc(p.marche)} · cote ${p.cote.toFixed(2)} · mise ${p.mise.toFixed(0)} € ${statutBadge(p.statut)} ${gain}</div>
+    </div>`;
+  }
+  return h;
+}
+
+function vueJournal() {
+  const J = D.journal;
+  if (!J || !J.resume) return `<div class="vide">Le journal de Yanis démarre au prochain passage.</div>`;
+  const r = J.resume;
+  const pos = r.total_net >= 0;
+  let h = `<div class="bandeau"><b>🎯 Le pari virtuel de Yanis.</b> Chaque jour, 100 € pour de faux. Il est sélectif : deux coups par jour au maximum, et quand rien ne vaut vraiment le coup, il ne joue pas. Le soir, on solde avec les vrais résultats. Rien de truqué : sur la durée, ce compteur va sûrement baisser, et c'est justement la preuve, jour après jour, qu'on gagne rarement sur la longueur.</div>`;
+  h += `<div class="carte">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="sous">Capital cumulé (si les jours s'enchaînaient)</div>
+        <div style="font-size:26px;font-weight:700" class="${r.capital_cumule >= 100 ? "pos" : "neg"}">${r.capital_cumule.toFixed(2)} €</div></div>
+      <div style="text-align:right"><div class="sous">Bilan total</div>
+        <div style="font-size:18px;font-weight:700" class="${pos ? "pos" : "neg"}">${pos ? "+" : ""}${r.total_net.toFixed(2)} €</div></div>
+    </div>
+    <div class="sous" style="margin-top:8px">${r.paris} paris soldés · ${r.reussite != null ? Math.round(100 * r.reussite) : "–"} % gagnés · rentabilité <b class="${(r.roi || 0) >= 0 ? "pos" : "neg"}">${r.roi != null ? (100 * r.roi).toFixed(1) + " %" : "–"}</b> · ${r.jours_joues} jours joués, ${r.jours_sans_pari} sans pari</div>
+  </div>`;
+  const jrs = Object.keys(J.jours).sort().reverse();
+  h += `<h2>Jour par jour</h2>`;
+  for (const j of jrs) h += carteJourJournal(j, J.jours[j]);
+  if (J.semaines && J.semaines.length) {
+    h += `<h2>Bilan par semaine</h2><div class="carte"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr class="sous"><td>Semaine</td><td style="text-align:right">Paris</td><td style="text-align:right">Net</td><td style="text-align:right">Rent.</td></tr>`;
+    for (const s of J.semaines) h += `<tr><td>${esc(s.semaine)}</td><td style="text-align:right">${s.paris}</td><td style="text-align:right" class="${s.net >= 0 ? "pos" : "neg"}">${s.net >= 0 ? "+" : ""}${s.net.toFixed(2)} €</td><td style="text-align:right">${s.roi != null ? (100 * s.roi).toFixed(0) + " %" : "–"}</td></tr>`;
+    h += `</table></div>`;
+  }
+  if (J.par_formule && J.par_formule.length) {
+    h += `<h2>Quelles formules gagnent, lesquelles coulent</h2><div class="carte"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr class="sous"><td>Formule</td><td style="text-align:right">Paris</td><td style="text-align:right">Gagnés</td><td style="text-align:right">Net</td></tr>`;
+    for (const fo of J.par_formule) h += `<tr><td>${esc(fo.nom)}</td><td style="text-align:right">${fo.paris}</td><td style="text-align:right">${fo.gagnes}</td><td style="text-align:right" class="${fo.net >= 0 ? "pos" : "neg"}">${fo.net >= 0 ? "+" : ""}${fo.net.toFixed(2)} €</td></tr>`;
+    h += `</table></div>`;
+  }
+  h += `<div class="sous" style="margin-top:12px">Mis à jour le ${esc(J.maj || "")}. Football pour commencer ; le PMU et les autres sports suivront.</div>`;
+  return h;
 }
 
 function vueDiscipline(k) {
