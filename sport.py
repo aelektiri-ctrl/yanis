@@ -324,6 +324,69 @@ def banc_essai(par_ligue, debut, pas_jours=14):
 
 
 # --------------------------------------------------------------------------
+# Bilan recent : les pronos deja joues, leur vrai resultat, et ce que ca aurait rapporte
+# --------------------------------------------------------------------------
+
+def bilan_recent(par_ligue, jours=28, jours_affiches=10):
+    """Pour chaque match des 'jours' derniers jours ou Yanis avait une selection :
+    on compare le prono au vrai resultat, et on calcule ce qu'un euro par pari aurait
+    rapporte (cote de cloture si gagne). Le modele est celui du matin du match, il ne
+    voit jamais le resultat. Sert a dire la verite : est-ce que ca rapporte, oui ou non."""
+    fin = maintenant().date()
+    debut = fin - dt.timedelta(days=jours)
+    limite_aff = fin - dt.timedelta(days=jours_affiches)
+    par_jour, recents = {}, []
+    for lg, matchs in par_ligue.items():
+        fenetre = [m for m in matchs if debut <= m["date"] < fin and m["bd"] is not None and m["be"] is not None]
+        if not fenetre:
+            continue
+        mods = {}
+        for m in sorted(fenetre, key=lambda x: x["date"]):
+            d = m["date"]
+            if d not in mods:
+                mods[d] = Modele(matchs, d)
+            mod = mods[d]
+            if not mod.connait(m["dom"], m["ext"]):
+                continue
+            p = mod.probas(m["dom"], m["ext"])
+            sels = selections(m, p)
+            if not sels:
+                continue
+            reel = "1" if m["bd"] > m["be"] else "N" if m["bd"] == m["be"] else "2"
+            jour = par_jour.setdefault(d.isoformat(), {"mise": 0.0, "retour": 0.0})
+            sorties = []
+            for s in sels:
+                marche = s["marche"]
+                cote = m.get(MARCHES_COTES[marche][2]) or s["cote"]
+                gagne = (marche == reel) or (marche == "+2.5" and m["bd"] + m["be"] >= 3) or \
+                        (marche == "-2.5" and m["bd"] + m["be"] <= 2)
+                jour["mise"] += 1
+                jour["retour"] += cote if gagne else 0
+                sorties.append({"marche": marche, "cote": round(cote, 2), "gagne": gagne,
+                                "retour": round(cote if gagne else 0, 2)})
+            if d >= limite_aff:
+                fav = max(("1", "N", "2"), key=lambda k: p[k])
+                recents.append({"date": d.isoformat(), "ligue": LIGUES.get(lg, lg),
+                                "dom": m["dom"], "ext": m["ext"],
+                                "score_reel": f'{m["bd"]}-{m["be"]}', "score_prevu": p["score"],
+                                "favori": fav, "favori_ok": fav == reel, "selections": sorties})
+    jours_tries = sorted(par_jour.items())
+    cumul, par_jour_liste = 0.0, []
+    for d, v in jours_tries:
+        net = v["retour"] - v["mise"]
+        cumul += net
+        par_jour_liste.append({"date": d, "mise": round(v["mise"], 2), "retour": round(v["retour"], 2),
+                               "net": round(net, 2), "cumul": round(cumul, 2)})
+    tm = sum(v["mise"] for _, v in jours_tries)
+    tr = sum(v["retour"] for _, v in jours_tries)
+    recents.sort(key=lambda x: (x["date"], x["ligue"]), reverse=True)
+    return {"recents": recents[:80],
+            "gains": {"par_jour": par_jour_liste, "total_mise": round(tm, 2), "total_retour": round(tr, 2),
+                      "total_net": round(tr - tm, 2), "roi": round((tr - tm) / tm, 4) if tm else None,
+                      "jours": jours}}
+
+
+# --------------------------------------------------------------------------
 # Matchs a venir
 # --------------------------------------------------------------------------
 
@@ -397,6 +460,8 @@ def main():
     auj = maintenant().date()
     banc = banc_essai(par_ligue, auj - dt.timedelta(days=365))
     print(f"Banc d'essai 12 mois : {banc['paris']} paris, reussite {banc['reussite']}, rentabilite {banc['roi']}.")
+    recent = bilan_recent(par_ligue)
+    print(f"Bilan recent : {len(recent['recents'])} matchs affiches, gains simules {recent['gains']['total_net']} EUR sur {recent['gains']['jours']} j.")
     dates = [m["date"] for v in par_ligue.values() for m in v]
     os.makedirs(SORTIE, exist_ok=True)
     with open(os.path.join(SORTIE, "foot.json"), "w", encoding="utf-8") as f:
@@ -408,6 +473,8 @@ def main():
                              "fin": max(dates).isoformat() if dates else None},
             "a_venir": a_venir,
             "banc_essai": banc,
+            "recents": recent["recents"],
+            "gains": recent["gains"],
             "forces": classement_forces(par_ligue),
             "etat_sources": etat,
         }, f, ensure_ascii=False, separators=(",", ":"))

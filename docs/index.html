@@ -380,6 +380,7 @@ function vueSport() {
     if (m.date !== jour) { jour = m.date; h += `<div class="sous" style="margin:14px 2px 6px;text-transform:capitalize">${dateFr(m.date)}</div>`; }
     h += carteMatch(m, false);
   }
+  h += sportResultats(f);
   h += `<div class="sous" style="margin-top:14px">Bibliothèque : ${f.bibliotheque.matchs.toLocaleString("fr-FR")} matchs, ${f.bibliotheque.championnats} championnats, depuis ${esc(f.bibliotheque.debut || "–")}. Mis à jour le ${esc(f.maj)}.</div>`;
   vue.innerHTML = h;
   lierSport();
@@ -407,6 +408,44 @@ function carteMatch(m, detail) {
   return h + `</div>`;
 }
 
+function sportResultats(f) {
+  if (!f.recents || !f.recents.length) return "";
+  const g = f.gains || {};
+  const nbParis = g.par_jour ? g.par_jour.reduce((a, j) => a + j.mise, 0) : 0;
+  let h = `<h2>Résultats récents (ce que Yanis avait flairé)</h2>
+    <div class="bandeau" style="${(g.total_net || 0) >= 0 ? "background:#123222;border-color:#2a6b45;color:#bff0d0" : ""}">
+      Sur ${g.jours} jours, si tu avais joué 1 € sur chacun des ${Math.round(nbParis)} paris du filtre : misé ${Math.round(g.total_mise)} €, récupéré ${g.total_retour.toFixed(0)} €,
+      bilan <b class="${g.total_net >= 0 ? "pos" : "neg"}">${g.total_net >= 0 ? "+" : ""}${g.total_net.toFixed(1)} €</b>
+      (rentabilité ${g.roi != null ? (100 * g.roi).toFixed(1) + " %" : "–"}). Les vrais résultats, sans avoir misé un centime.</div>`;
+  let jour = "";
+  for (const r of f.recents) {
+    if (r.date !== jour) { jour = r.date; h += `<div class="sous" style="margin:14px 2px 6px;text-transform:capitalize">${dateFr(r.date)}</div>`; }
+    const sg = r.selections.map(s => `${MARCHE_NOM[s.marche] || esc(s.marche)} <span class="badge ${s.gagne ? "b-ok" : "b-ko"}">${s.gagne ? "gagné" : "perdu"}</span>`).join(" · ");
+    h += `<div class="carte">
+      <div class="sous">${esc(r.ligue)}</div>
+      <div style="display:flex;justify-content:space-between;font-weight:600;margin-top:2px"><span>${esc(r.dom)} – ${esc(r.ext)}</span><span>${esc(r.score_reel)}</span></div>
+      <div class="sous" style="margin-top:2px">Prono Yanis : score probable ${esc(r.score_prevu)} · favori ${r.favori_ok ? '<span class="badge b-ok">juste</span>' : '<span class="badge b-ko">raté</span>'}</div>
+      <div style="margin-top:6px">${sg}</div></div>`;
+  }
+  return h;
+}
+
+function sportGains() {
+  const f = D.foot;
+  if (!f || !f.gains || !f.gains.par_jour.length) return "";
+  const g = f.gains;
+  return `<h2>Sport : si tu avais joué (football, ${g.jours} j)</h2>
+    <div class="carte">
+      <div class="sous">1 € sur chaque pari du double filtre, aux cotes de clôture. La vérité sur l'argent, sans miser.</div>
+      <div style="margin-top:8px">Misé <b>${Math.round(g.total_mise)} €</b> · récupéré <b>${g.total_retour.toFixed(0)} €</b> ·
+        bilan <b class="${g.total_net >= 0 ? "pos" : "neg"}">${g.total_net >= 0 ? "+" : ""}${g.total_net.toFixed(1)} €</b>
+        (${g.roi != null ? (100 * g.roi).toFixed(1) + " %" : "–"})</div>
+      <table style="margin-top:10px"><tr><th>Jour</th><th class="n">Paris</th><th class="n">Net</th><th class="n">Cumul</th></tr>` +
+    g.par_jour.slice().reverse().map(j => `<tr><td>${dateFr(j.date)}</td><td class="n">${Math.round(j.mise)}</td>
+        <td class="n ${j.net >= 0 ? "pos" : "neg"}">${j.net >= 0 ? "+" : ""}${j.net.toFixed(1)}</td>
+        <td class="n ${j.cumul >= 0 ? "pos" : "neg"}">${j.cumul >= 0 ? "+" : ""}${j.cumul.toFixed(1)}</td></tr>`).join("") +
+    `</table></div>`;
+}
 
 const fiabiliteSport = b => b && b.paris >= 100 && b.roi > 0;
 
@@ -671,7 +710,7 @@ function vueTableau() {
     <h2>Drivers et jockeys (12 mois)</h2>${tableNoms(t.drivers)}
     <h2>Entraîneurs (12 mois)</h2>${tableNoms(t.entraineurs)}
     <h2>Courses par discipline</h2><div class="carte"><table>${t.disciplines.map(d => `<tr><td>${DISC[d.nom] || esc(d.nom)}</td><td class="n">${d.courses.toLocaleString("fr-FR")}</td></tr>`).join("")}</table></div>`;
-  vue.innerHTML = h;
+  vue.innerHTML = h + sportGains();
 }
 function bancV2() {
   const b = D.v2?.banc_essai; if (!b) return "";
