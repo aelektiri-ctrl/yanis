@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 02/11/2026 a 15:50.
+Mis a jour le 02/11/2026 a 16:07.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 02/11/2026 a 15:50.
 | Reunions | 734 |
 | Courses | 5532 |
 | Partants | 65518 |
-| Rapports | 91102 |
-| Partants avec cote finale | 62320 |
-| Partants avec place a l'arrivee | 52009 |
+| Rapports | 91139 |
+| Partants avec cote finale | 62334 |
+| Partants avec place a l'arrivee | 52038 |
 
 ## Courses par discipline
 
@@ -41,5 +41,5 @@ Mis a jour le 02/11/2026 a 15:50.
 | A. COLLETTE | 647 | 67 | 10.4 | 28.9 |
 | M. ABRIVARD | 470 | 63 | 13.4 | 38.3 |
 | P. PH. PLOQUIN | 585 | 61 | 10.4 | 31.1 |
-| M. GRANDIN | 592 | 56 | 9.5 | 30.7 |
+| M. GRANDIN | 593 | 56 | 9.4 | 30.7 |
 | D. THOMAIN | 404 | 51 | 12.6 | 33.9 |
