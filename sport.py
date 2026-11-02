@@ -222,6 +222,11 @@ class Modele:
         recents = [m for m in matchs if m["date"] < jusqua and (jusqua - m["date"]).days <= 3 * 365]
         self.equipes = sorted({m["dom"] for m in recents} | {m["ext"] for m in recents})
         self.idx = {e: i for i, e in enumerate(self.equipes)}
+        # nombre de matchs recents qui nourrissent l'estimation de chaque equipe (signal de fiabilite)
+        self.n = {}
+        for m in recents:
+            self.n[m["dom"]] = self.n.get(m["dom"], 0) + 1
+            self.n[m["ext"]] = self.n.get(m["ext"], 0) + 1
         self.ok = len(recents) >= 80
         if not self.ok:
             return
@@ -260,6 +265,12 @@ class Modele:
 
     def connait(self, dom, ext):
         return self.ok and dom in self.idx and ext in self.idx
+
+    def fiabilite(self, dom, ext):
+        """Combien de matchs recents soutiennent cette prediction. Moins il y en a, moins on est sur."""
+        n = min(self.n.get(dom, 0), self.n.get(ext, 0))
+        niveau = "solide" if n >= 30 else "moyenne" if n >= 12 else "faible"
+        return {"niveau": niveau, "matchs": n}
 
     def probas(self, dom, ext):
         i, j = self.idx[dom], self.idx[ext]
@@ -446,6 +457,7 @@ def matchs_a_venir(par_ligue):
             "probas": {k: round(float(v), 3) for k, v in p.items() if k not in ("score",)},
             "score": p["score"],
             "cotes": {k: {"moy": m.get(c), "max": m.get(x)} for k, (c, x, _) in MARCHES_COTES.items() if m.get(c)},
+            "fiabilite": mod.fiabilite(m["dom"], m["ext"]),
             "selections": sel,
         })
     out.sort(key=lambda x: (x["date"], x["heure"] or "", x["ligue"]))
@@ -737,6 +749,8 @@ def journal_virtuel(par_ligue, a_venir, espn_idx=None):
         for match in a_venir:
             if match.get("date") != cle:
                 continue
+            if match.get("fiabilite", {}).get("niveau") == "faible":
+                continue  # parieur prudent : pas de pari quand les donnees sont trop minces
             for s in match.get("selections", []):
                 if s.get("value", 0) >= SEUIL_VALUE_JOURNAL:
                     candidats.append((s["value"], match, s))

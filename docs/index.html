@@ -399,6 +399,7 @@ function carteMatch(m, detail) {
   let h = `<div class="carte">
     <div class="sous">${esc(m.ligue)} · ${detail ? dateFr(m.date) + " · " : ""}${esc(m.heure || "")}</div>
     <div style="font-weight:600;margin-top:2px">${esc(m.dom)} – ${esc(m.ext)}</div>
+    ${m.fiabilite ? `<div class="sous" style="margin-top:2px">Fiabilité des données : <b style="color:${({solide:"var(--vert)",moyenne:"#c79a3a",faible:"#d9534f"})[m.fiabilite.niveau]}">${m.fiabilite.niveau}</b> · ${m.fiabilite.matchs} matchs récents par équipe</div>` : ""}
     ${barre1N2(p)}
     <div class="sous" style="margin-top:4px">Cotes moyennes 1/N/2 : ${cote("1")} / ${cote("N")} / ${cote("2")} · +2,5 buts : ${pct(p["+2.5"])} · les deux marquent : ${pct(p["BTTS oui"])} · score probable ${esc(m.score)}</div>`;
   if (m.score_reel) {
