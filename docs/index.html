@@ -135,10 +135,10 @@ function fusionnerV2() {
   for (const c of v2.courses || []) parCle[`${c.date}/${c.r}/${c.c}`] = c;
   for (const src of ["aujourdhui", "demain"]) for (const reu of D[src]?.reunions || []) for (const c of reu.courses) {
     const x = parCle[`${D[src].date}/${reu.r}/${c.c}`]; if (!x) continue;
-    const info = {}; x.classement.forEach((k, i) => info[k.num] = {rang: i + 1, p: k.p_gagnant, pp: k.p_place, pf: k.p_faute});
+    const info = {}; x.classement.forEach((k, i) => info[k.num] = {rang: i + 1, p: k.p_gagnant, pp: k.p_place, pf: k.p_faute, pm: k.p_marche, pmat: k.p_matin, der: k.derive});
     for (const pt of c.partants) {
       const k = info[pt.num];
-      if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.p_faute = k.pf; pt.value = false; } else { pt.rang = null; }
+      if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.p_faute = k.pf; pt.p_marche = k.pm; pt.p_matin = k.pmat; pt.derive = k.der; pt.value = false; } else { pt.rang = null; }
     }
     c.conseils = x.conseils; c.v2 = true;
   }
@@ -328,7 +328,7 @@ function vueFiche() {
       <div class="nomc">${p.num}. ${esc(p.nom)} <small>${p.sexe ? esc(p.sexe[0]) : ""}${p.age || ""}</small>
         ${np ? `<span class="badge b-np">non partant</span>` : ""}${p.value ? `<span class="badge b-value">value</span>` : ""}${malin ? `<span class="badge" style="background:#1d3550;color:#9fd0ff">💰 argent malin ${malin}</span>` : ""}${!np && pt_faute(p) ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">⚠️ risque de faute ${Math.round(100 * p.p_faute)} %</span>` : ""}${chaud ? `<span class="badge" style="background:#5a1d1d;color:#ffb3b3">🔥 joué dans la dernière heure ${chaud}</span>` : ""}${estFavori ? `<span class="badge" style="background:#2c2350;color:#cdbcff">⭐ favori${D.v2?.banc_essai?.favori_dans_les ? ` · 4 premiers ${Math.round(100 * D.v2.banc_essai.favori_dans_les["4"])} %` : ""}</span>` : ""}
         ${p.place ? `<span class="badge ${p.place <= 3 ? "b-ok" : "b-ko"}">${p.place}e</span>` : ""}${p.incident && !np ? `<span class="badge b-ko">${esc(p.incident.toLowerCase().replace(/_/g, " "))}</span>` : ""}</div>
-      <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
+      <div class="droite"><div class="cote">${p.cote ?? p.cote_ref ?? "–"}</div><div class="pct">Yanis ${pct(p.proba)}${p.p_marche != null ? `<br>marché ${pct(p.p_marche)}` : ""}${p.p_place != null ? `<br>placé ${pct(p.p_place)}` : ""}</div></div>
       <div class="detail">${esc(nomPropre(p.driver))} (${tx(sd)}) · Ent. ${esc(nomPropre(p.entraineur))} (${tx(se)})<br>
         Musique ${esc(p.musique || "–")}${equip ? " · " + esc(equip) : ""}</div>
     </div>`;

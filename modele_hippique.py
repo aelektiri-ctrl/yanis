@@ -693,7 +693,10 @@ def pronostics(p, banc):
             **dict(zip(("menu", "desordre", "outsiders"), menu_formules(course, offerts))),
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
                             "p_faute": round(float(getattr(r, "p_dq", 0) or 0), 3),
-                            "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None}
+                            "p_place": round(float(r.pp_v2), 3), "cote": r.cote if pd.notna(r.cote) else None,
+                            "p_marche": round(float(r.p_marche), 3) if pd.notna(getattr(r, "p_marche", None)) else None,
+                            "p_matin": round(float(r.p_marche_matin), 3) if pd.notna(getattr(r, "p_marche_matin", None)) else None,
+                            "derive": round(float(r.derive_cote), 3) if pd.notna(getattr(r, "derive_cote", None)) else None}
                            for r in tri.itertuples()],
             "conseils": conseils,
         })
