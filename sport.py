@@ -434,6 +434,16 @@ def heure_paris(d, h):
         return h
 
 
+def lisibilite_foot(m):
+    """Lecture de la FORME du marche : le marche est-il concentre sur une issue (lisible) ou eparpille (loterie) ?"""
+    inv = [1 / m[c] for c in ("c1", "cN", "c2") if m.get(c) and m[c] > 1]
+    if len(inv) < 2:
+        return {"niveau": None, "fav_marche": None}
+    fm = max(inv) / sum(inv)
+    niv = "loterie" if fm < 0.40 else "ouverte" if fm < 0.55 else "assez lisible" if fm < 0.70 else "lisible"
+    return {"niveau": niv, "fav_marche": round(fm, 3)}
+
+
 def matchs_a_venir(par_ligue):
     chemin = os.path.join(BIBLIO, "a_venir.csv")
     if not os.path.exists(chemin):
@@ -458,6 +468,7 @@ def matchs_a_venir(par_ligue):
             "score": p["score"],
             "cotes": {k: {"moy": m.get(c), "max": m.get(x)} for k, (c, x, _) in MARCHES_COTES.items() if m.get(c)},
             "fiabilite": mod.fiabilite(m["dom"], m["ext"]),
+            "lisibilite": lisibilite_foot(m),
             "selections": sel,
         })
     out.sort(key=lambda x: (x["date"], x["heure"] or "", x["ligue"]))

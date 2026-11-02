@@ -140,7 +140,7 @@ function fusionnerV2() {
       const k = info[pt.num];
       if (k) { pt.rang = k.rang; pt.proba = k.p; pt.p_place = k.pp; pt.p_faute = k.pf; pt.p_marche = k.pm; pt.p_matin = k.pmat; pt.derive = k.der; pt.value = false; } else { pt.rang = null; }
     }
-    c.conseils = x.conseils; c.v2 = true;
+    c.conseils = x.conseils; c.lisibilite = x.lisibilite; c.v2 = true;
   }
 }
 
@@ -299,6 +299,7 @@ function vueFiche() {
         <h3>R${reu.r}C${c.c} · ${esc(c.libelle)}</h3>
         <div class="sous">${esc(reu.hippodrome || "")} · ${heure(c.depart)} · ${DISC[c.discipline] || esc(c.discipline || "")} · ${c.distance || "?"} m${c.terrain ? " · terrain " + esc(c.terrain) : ""}${c.allocation ? " · " + c.allocation.toLocaleString("fr-FR") + " €" : ""}</div>
       </div></div>
+      ${c.lisibilite && c.lisibilite.niveau ? `<div class="sous" style="margin-top:6px">Lecture du marché : <b>${c.lisibilite.niveau}</b> · le marché donne le favori à ${pct(c.lisibilite.fav_marche)}${c.lisibilite.niveau === "loterie" ? " — course très ouverte, méfiance" : c.lisibilite.niveau === "lisible" ? " — favori net, confiance haute" : ""}</div>` : ""}
       ${c.arrivee ? `<div class="top" style="margin-top:8px">Arrivée : <b>${esc(c.arrivee.split("-").join(" - "))}</b></div>` : ""}
       ${(() => { const ip = infoPartants(c); return ip.np ? `<div class="bandeau" style="margin:10px 0 0">⚠️ <b>${ip.np} non-partant${ip.np > 1 ? "s" : ""}</b> : il reste ${ip.vrais} partants. Yanis a refait ses calculs sans eux.${ip.ordre ? ` Avec ${ip.vrais} partants, seulement <b>2 places payées</b>, et couplé et trio se jouent <b>dans l'ordre</b>.` : ""}</div>`
         : ip.ordre ? `<div class="sous" style="margin-top:8px">${ip.vrais} partants : 2 places payées, couplé et trio dans l'ordre.</div>` : ""; })()}
@@ -400,6 +401,7 @@ function carteMatch(m, detail) {
     <div class="sous">${esc(m.ligue)} · ${detail ? dateFr(m.date) + " · " : ""}${esc(m.heure || "")}</div>
     <div style="font-weight:600;margin-top:2px">${esc(m.dom)} – ${esc(m.ext)}</div>
     ${m.fiabilite ? `<div class="sous" style="margin-top:2px">Fiabilité des données : <b style="color:${({solide:"var(--vert)",moyenne:"#c79a3a",faible:"#d9534f"})[m.fiabilite.niveau]}">${m.fiabilite.niveau}</b> · ${m.fiabilite.matchs} matchs récents par équipe</div>` : ""}
+    ${m.lisibilite && m.lisibilite.niveau ? `<div class="sous" style="margin-top:2px">Lecture du marché : <b>${m.lisibilite.niveau}</b>${m.lisibilite.niveau === "loterie" ? " · issue très ouverte, méfiance" : m.lisibilite.niveau === "lisible" ? " · favori net, marché confiant" : ""}</div>` : ""}
     ${barre1N2(p)}
     <div class="sous" style="margin-top:4px">Cotes moyennes 1/N/2 : ${cote("1")} / ${cote("N")} / ${cote("2")} · +2,5 buts : ${pct(p["+2.5"])} · les deux marquent : ${pct(p["BTTS oui"])} · score probable ${esc(m.score)}</div>`;
   if (m.score_reel) {

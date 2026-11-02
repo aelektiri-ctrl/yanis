@@ -687,9 +687,12 @@ def pronostics(p, banc):
             if cns["strategie"] == "sg_value":
                 row = course[course["num"] == cns["chevaux"][0]].iloc[0]
                 cns["proba"], cns["cote"] = round(float(row["p_v2"]), 3), float(row["cote"]) if pd.notna(row["cote"]) else None
+        fm = float(course["p_marche"].max()) if course["p_marche"].notna().any() else None
+        lis = None if fm is None else ("loterie" if fm < 0.25 else "ouverte" if fm < 0.35 else "assez lisible" if fm < 0.45 else "lisible")
         out.append({
             "date": course["date"].iloc[0], "r": int(course["r"].iloc[0]), "c": int(course["c"].iloc[0]),
             "partants": n, "places_payees": 2 if n <= 7 else 3, "favori": fav,
+            "lisibilite": {"niveau": lis, "fav_marche": round(fm, 3) if fm is not None else None},
             **dict(zip(("menu", "desordre", "outsiders"), menu_formules(course, offerts))),
             "classement": [{"num": int(r.num), "nom": r.nom, "p_gagnant": round(float(r.p_v2), 3),
                             "p_faute": round(float(getattr(r, "p_dq", 0) or 0), 3),
