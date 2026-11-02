@@ -401,6 +401,13 @@ function carteMatch(m, detail) {
     <div style="font-weight:600;margin-top:2px">${esc(m.dom)} – ${esc(m.ext)}</div>
     ${barre1N2(p)}
     <div class="sous" style="margin-top:4px">Cotes moyennes 1/N/2 : ${cote("1")} / ${cote("N")} / ${cote("2")} · +2,5 buts : ${pct(p["+2.5"])} · les deux marquent : ${pct(p["BTTS oui"])} · score probable ${esc(m.score)}</div>`;
+  if (m.score_reel) {
+    const [hg, ag] = m.score_reel.split("-").map(Number);
+    const reel = hg > ag ? "1" : hg === ag ? "N" : "2";
+    const pred = (p["1"] >= p.N && p["1"] >= p["2"]) ? "1" : (p.N >= p["2"] ? "N" : "2");
+    const ok = pred === reel;
+    h += `<div style="margin-top:6px;font-weight:600">Résultat réel : ${esc(m.score_reel)} <span class="badge ${ok ? "b-ok" : "b-ko"}">${ok ? "favori juste" : "favori raté"}</span></div>`;
+  }
   for (const s of m.selections) {
     h += `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#2b2410;border:1px solid #5a4a1a">
       <b>${MARCHE_NOM[s.marche] || esc(s.marche)}</b> · Yanis ${pct(s.proba)} · cote ${s.cote.toFixed(2)}${s.meilleure_cote ? ` (meilleure ${s.meilleure_cote.toFixed(2)})` : ""}

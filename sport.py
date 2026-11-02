@@ -22,6 +22,8 @@ import csv
 import datetime as dt
 import io
 import json
+import re
+import unicodedata
 import math
 import os
 import sys
@@ -51,6 +53,13 @@ LIGUES = {
     "D1": "Bundesliga", "D2": "2. Bundesliga", "N1": "Eredivisie", "B1": "Jupiler Pro League",
     "P1": "Liga Portugal", "T1": "Super Lig", "G1": "Super League Grece", "SC0": "Premiership Ecosse",
 }
+# Correspondance vers les codes ESPN (source rapide de resultats, additive).
+ESPN_LIGUES = {
+    "F1": "fra.1", "F2": "fra.2", "E0": "eng.1", "E1": "eng.2", "E2": "eng.3", "E3": "eng.4",
+    "SP1": "esp.1", "SP2": "esp.2", "I1": "ita.1", "I2": "ita.2", "D1": "ger.1", "D2": "ger.2",
+    "N1": "ned.1", "B1": "bel.1", "P1": "por.1", "T1": "tur.1", "G1": "gre.1", "SC0": "sco.1",
+}
+NOM_VERS_ESPN = {LIGUES[c]: s for c, s in ESPN_LIGUES.items()}
 NB_SAISONS = 10
 DEMI_VIE_JOURS = 365          # un match d'il y a un an compte moitie moins qu'un match d'hier
 SEUIL_PROBA = 0.50            # filtre 1 : plus d'une chance sur deux
@@ -461,6 +470,113 @@ def classement_forces(par_ligue):
 
 
 # --------------------------------------------------------------------------
+# Resultats rapides via ESPN (source additive : ne remplace jamais la bibliotheque,
+# sert a afficher le vrai score le jour meme et a solder le journal sans attendre).
+# --------------------------------------------------------------------------
+
+_ESPN_STOP = {"fc", "sc", "ac", "cf", "afc", "cd", "ud", "sd", "ss", "as", "if", "sk",
+              "bk", "club", "calcio", "futbol", "football", "de", "la", "le", "the",
+              "1899", "1900", "1904", "1909", "04", "05"}
+
+
+def _norm_equipe(nom):
+    s = unicodedata.normalize("NFKD", nom or "").encode("ascii", "ignore").decode()
+    s = re.sub(r"[^a-z0-9 ]", " ", s.lower())
+    return [t for t in s.split() if t and t not in _ESPN_STOP]
+
+
+def _equipes_proches(a, b):
+    if not a or not b:
+        return False
+    communs = set(a) & set(b)
+    if communs and max(len(t) for t in communs) >= 4:
+        return True
+    ja, jb = "".join(a), "".join(b)
+    return bool(ja) and bool(jb) and (ja in jb or jb in ja)
+
+
+def telecharger_json(url):
+    for essai in range(2):
+        try:
+            req = urllib.request.Request(url, headers=ENTETES)
+            with urllib.request.urlopen(req, timeout=25) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception:
+            time.sleep(2 * (essai + 1))
+    return None
+
+
+def resultats_espn(besoins):
+    """Scores finaux via l'API publique ESPN. besoins = iterable de (slug, 'YYYYMMDD').
+    Retour : {date_iso: [(toks_dom, toks_ext, buts_dom, buts_ext), ...]}. En cas d'echec : {}."""
+    idx = {}
+    for slug, jour in sorted(set(besoins)):
+        data = telecharger_json(
+            f"https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={jour}")
+        if not data:
+            continue
+        for ev in data.get("events", []):
+            try:
+                comp = ev["competitions"][0]
+                st = (comp.get("status") or ev.get("status") or {}).get("type") or {}
+                if not st.get("completed"):
+                    continue
+                dom = ext = hg = ag = None
+                for c in comp["competitors"]:
+                    equipe = c.get("team") or {}
+                    nom = equipe.get("displayName") or equipe.get("name") or ""
+                    sc = c.get("score")
+                    sc = int(sc) if sc not in (None, "") else None
+                    if c.get("homeAway") == "home":
+                        dom, hg = nom, sc
+                    else:
+                        ext, ag = nom, sc
+                if None in (dom, ext, hg, ag):
+                    continue
+                date_iso = f"{jour[:4]}-{jour[4:6]}-{jour[6:]}"
+                idx.setdefault(date_iso, []).append((_norm_equipe(dom), _norm_equipe(ext), hg, ag))
+            except Exception:
+                continue
+    return idx
+
+
+def espn_chercher(idx, date_iso, dom, ext):
+    td, te = _norm_equipe(dom), _norm_equipe(ext)
+    for hd, ht, hg, ag in idx.get(date_iso, []):
+        if _equipes_proches(td, hd) and _equipes_proches(te, ht):
+            return hg, ag
+    return None
+
+
+def _besoins_espn_et_resultats(a_venir, auj):
+    """Les scores a aller chercher : matchs du jour + paris en attente recents. Puis on les recupere."""
+    besoins = set()
+    ajd = auj.strftime("%Y%m%d")
+    for m in a_venir:
+        if m["date"] == auj.isoformat():
+            slug = NOM_VERS_ESPN.get(m["ligue"])
+            if slug:
+                besoins.add((slug, ajd))
+    try:
+        with open(JOURNAL, encoding="utf-8") as f:
+            J = json.load(f)
+        for info in J.get("jours", {}).values():
+            for p in info.get("paris", []):
+                if p.get("statut") != "en_attente":
+                    continue
+                slug = NOM_VERS_ESPN.get(p.get("ligue"))
+                try:
+                    d = dt.date.fromisoformat(p["date_match"])
+                except Exception:
+                    d = None
+                if slug and d and 0 <= (auj - d).days <= 7:
+                    besoins.add((slug, d.strftime("%Y%m%d")))
+    except Exception:
+        pass
+    return resultats_espn(besoins) if besoins else {}
+
+
+# --------------------------------------------------------------------------
 # Journal du parieur virtuel : 100 EUR par jour, selectif, solde sur les vrais resultats
 # --------------------------------------------------------------------------
 
@@ -567,7 +683,7 @@ def _bilans_semaine(jours):
     return out
 
 
-def journal_virtuel(par_ligue, a_venir):
+def journal_virtuel(par_ligue, a_venir, espn_idx=None):
     """Fait vivre le parieur virtuel : solde les paris en attente avec les vrais
     resultats, puis place (une seule fois) les coups selectifs du jour."""
     auj = maintenant().date()
@@ -598,13 +714,20 @@ def journal_virtuel(par_ligue, a_venir):
                 pari["score_reel"] = f'{m["bd"]}-{m["be"]}'
                 pari["retour"] = round(pari["mise"] * pari["cote"], 2) if gagne else 0.0
             else:
-                try:
-                    trop_vieux = (auj - dt.date.fromisoformat(pari["date_match"])).days > 7
-                except Exception:
-                    trop_vieux = False
-                if trop_vieux:  # match reporte ou introuvable : pari annule, mise rendue
-                    pari["statut"] = "annule"
-                    pari["retour"] = 0.0
+                r = espn_chercher(espn_idx or {}, pari["date_match"], pari["dom"], pari["ext"])
+                if r:
+                    gagne = resultat_marche({"bd": r[0], "be": r[1]}, pari["marche"])
+                    pari["statut"] = "gagne" if gagne else "perdu"
+                    pari["score_reel"] = f"{r[0]}-{r[1]}"
+                    pari["retour"] = round(pari["mise"] * pari["cote"], 2) if gagne else 0.0
+                else:
+                    try:
+                        trop_vieux = (auj - dt.date.fromisoformat(pari["date_match"])).days > 7
+                    except Exception:
+                        trop_vieux = False
+                    if trop_vieux:  # match reporte ou introuvable : pari annule, mise rendue
+                        pari["statut"] = "annule"
+                        pari["retour"] = 0.0
         _recap_jour(info)
 
     # 2. placer les coups du jour, une seule fois
@@ -650,11 +773,20 @@ def main():
     a_venir = matchs_a_venir(par_ligue)
     print(f"Matchs a venir analyses : {len(a_venir)}.")
     auj = maintenant().date()
+    espn_idx = _besoins_espn_et_resultats(a_venir, auj)
+    enrichis = 0
+    for m in a_venir:
+        if m["date"] == auj.isoformat() and not m.get("score_reel"):
+            r = espn_chercher(espn_idx, m["date"], m["dom"], m["ext"])
+            if r:
+                m["score_reel"] = f"{r[0]}-{r[1]}"
+                enrichis += 1
+    print(f"Resultats ESPN rattaches aux matchs du jour : {enrichis}.")
     banc = banc_essai(par_ligue, auj - dt.timedelta(days=365))
     print(f"Banc d'essai 12 mois : {banc['paris']} paris, reussite {banc['reussite']}, rentabilite {banc['roi']}.")
     recent = bilan_recent(par_ligue)
     print(f"Bilan recent : {len(recent['recents'])} matchs affiches, gains simules {recent['gains']['total_net']} EUR sur {recent['gains']['jours']} j.")
-    jrn = journal_virtuel(par_ligue, a_venir)
+    jrn = journal_virtuel(par_ligue, a_venir, espn_idx)
     rj = jrn["resume"]
     print(f"Journal virtuel : {len(jrn['jours'])} jours, {rj['paris']} paris soldes, "
           f"capital cumule {rj['capital_cumule']} EUR (depart 100/jour).")
