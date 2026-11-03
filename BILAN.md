@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 03/11/2026 a 12:20.
+Mis a jour le 03/11/2026 a 12:35.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 03/11/2026 a 12:20.
 | Reunions | 743 |
 | Courses | 5596 |
 | Partants | 66233 |
-| Rapports | 91683 |
+| Rapports | 91699 |
 | Partants avec cote finale | 62761 |
-| Partants avec place a l'arrivee | 52522 |
+| Partants avec place a l'arrivee | 52531 |
 
 ## Courses par discipline
 
@@ -33,7 +33,7 @@ Mis a jour le 03/11/2026 a 12:20.
 | M. BARZALONA | 432 | 108 | 25.0 | 56.7 |
 | M. MOTTIER | 584 | 90 | 15.4 | 33.0 |
 | C. DEMURO | 699 | 88 | 12.6 | 39.1 |
-| TH. BRIAND | 377 | 80 | 21.2 | 45.1 |
+| TH. BRIAND | 378 | 80 | 21.2 | 45.0 |
 | PC. BOUDOT | 490 | 80 | 16.3 | 43.3 |
 | Y. LEBOURGEOIS | 413 | 77 | 18.6 | 36.6 |
 | M. GUYON | 537 | 77 | 14.3 | 40.2 |
