@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 06/11/2026 a 16:07.
+Mis a jour le 06/11/2026 a 16:21.
 
 | | |
 |---|---|
@@ -10,8 +10,8 @@ Mis a jour le 06/11/2026 a 16:07.
 | Courses | 14084 |
 | Partants | 170795 |
 | Rapports | 237537 |
-| Partants avec cote finale | 163947 |
-| Partants avec place a l'arrivee | 137129 |
+| Partants avec cote finale | 163948 |
+| Partants avec place a l'arrivee | 137141 |
 
 ## Courses par discipline
 
@@ -28,8 +28,8 @@ Mis a jour le 06/11/2026 a 16:07.
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 1748 | 366 | 20.9 | 45.4 |
-| B. ROCHARD | 1902 | 337 | 17.7 | 42.7 |
+| E. RAFFIN | 1749 | 366 | 20.9 | 45.4 |
+| B. ROCHARD | 1903 | 337 | 17.7 | 42.8 |
 | M. MOTTIER | 1433 | 225 | 15.7 | 35.3 |
 | A. ABRIVARD | 1296 | 195 | 15.0 | 36.1 |
 | M. BARZALONA | 815 | 193 | 23.7 | 53.4 |
@@ -41,5 +41,5 @@ Mis a jour le 06/11/2026 a 16:07.
 | M. GUYON | 995 | 158 | 15.9 | 42.4 |
 | P. PH. PLOQUIN | 1504 | 156 | 10.4 | 30.5 |
 | D. THOMAIN | 1098 | 146 | 13.3 | 33.5 |
-| M. ABRIVARD | 1254 | 144 | 11.5 | 33.9 |
+| M. ABRIVARD | 1255 | 144 | 11.5 | 33.9 |
 | A. ORANI | 822 | 138 | 16.8 | 42.2 |
