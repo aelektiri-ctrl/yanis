@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 07/11/2026 a 12:17.
+Mis a jour le 07/11/2026 a 12:33.
 
 | | |
 |---|---|
@@ -11,7 +11,7 @@ Mis a jour le 07/11/2026 a 12:17.
 | Partants | 171922 |
 | Rapports | 238028 |
 | Partants avec cote finale | 164440 |
-| Partants avec place a l'arrivee | 137487 |
+| Partants avec place a l'arrivee | 137492 |
 
 ## Courses par discipline
 
@@ -40,6 +40,6 @@ Mis a jour le 07/11/2026 a 12:17.
 | A. COLLETTE | 1521 | 165 | 10.8 | 29.4 |
 | M. GUYON | 997 | 158 | 15.8 | 42.4 |
 | P. PH. PLOQUIN | 1508 | 156 | 10.3 | 30.4 |
-| D. THOMAIN | 1105 | 148 | 13.4 | 33.5 |
+| D. THOMAIN | 1106 | 148 | 13.4 | 33.5 |
 | M. ABRIVARD | 1260 | 145 | 11.5 | 33.9 |
 | A. ORANI | 825 | 139 | 16.8 | 42.4 |
