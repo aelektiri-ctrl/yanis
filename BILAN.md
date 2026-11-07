@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 07/11/2026 a 12:33.
+Mis a jour le 07/11/2026 a 13:05.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 07/11/2026 a 12:33.
 | Reunions | 1859 |
 | Courses | 14181 |
 | Partants | 171922 |
-| Rapports | 238028 |
+| Rapports | 238063 |
 | Partants avec cote finale | 164440 |
-| Partants avec place a l'arrivee | 137492 |
+| Partants avec place a l'arrivee | 137527 |
 
 ## Courses par discipline
 
@@ -36,7 +36,7 @@ Mis a jour le 07/11/2026 a 12:33.
 | Y. LEBOURGEOIS | 959 | 192 | 20.0 | 37.4 |
 | TH. BRIAND | 952 | 192 | 20.2 | 43.8 |
 | C. DEMURO | 1484 | 186 | 12.5 | 37.5 |
-| M. GRANDIN | 1608 | 179 | 11.1 | 32.2 |
+| M. GRANDIN | 1609 | 179 | 11.1 | 32.2 |
 | A. COLLETTE | 1521 | 165 | 10.8 | 29.4 |
 | M. GUYON | 997 | 158 | 15.8 | 42.4 |
 | P. PH. PLOQUIN | 1508 | 156 | 10.3 | 30.4 |
