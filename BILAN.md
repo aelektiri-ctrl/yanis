@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 08/11/2026 a 12:28.
+Mis a jour le 08/11/2026 a 13:00.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 08/11/2026 a 12:28.
 | Reunions | 1865 |
 | Courses | 14232 |
 | Partants | 172502 |
-| Rapports | 238814 |
-| Partants avec cote finale | 164988 |
-| Partants avec place a l'arrivee | 138196 |
+| Rapports | 238850 |
+| Partants avec cote finale | 165033 |
+| Partants avec place a l'arrivee | 138226 |
 
 ## Courses par discipline
 
@@ -28,10 +28,10 @@ Mis a jour le 08/11/2026 a 12:28.
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 1764 | 371 | 21.0 | 45.5 |
+| E. RAFFIN | 1765 | 371 | 21.0 | 45.4 |
 | B. ROCHARD | 1916 | 340 | 17.7 | 42.8 |
 | M. MOTTIER | 1433 | 225 | 15.7 | 35.3 |
-| M. BARZALONA | 821 | 195 | 23.8 | 53.3 |
+| M. BARZALONA | 822 | 195 | 23.7 | 53.4 |
 | A. ABRIVARD | 1302 | 195 | 15.0 | 35.9 |
 | Y. LEBOURGEOIS | 963 | 193 | 20.0 | 37.4 |
 | TH. BRIAND | 952 | 192 | 20.2 | 43.8 |
@@ -41,5 +41,5 @@ Mis a jour le 08/11/2026 a 12:28.
 | M. GUYON | 1002 | 159 | 15.9 | 42.3 |
 | P. PH. PLOQUIN | 1513 | 157 | 10.4 | 30.5 |
 | D. THOMAIN | 1106 | 148 | 13.4 | 33.5 |
-| M. ABRIVARD | 1265 | 145 | 11.5 | 33.9 |
+| M. ABRIVARD | 1266 | 145 | 11.5 | 34.0 |
 | A. ORANI | 828 | 140 | 16.9 | 42.5 |
