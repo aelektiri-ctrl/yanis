@@ -298,7 +298,7 @@
     // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
     var loup = null;
     H.forEach(function (h, i) {
-      if (i === A || i === B || !h.cote || h.cote < 7) return;
+      if (i === A || i === B || !h.cote || h.cote < 6 || h.cote > 25 || h.p < 0.07) return;
       var sc = 0, why = [];
       var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
       if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
@@ -307,7 +307,8 @@
       if (h.valueY) { sc += 0.5; why.push('signalé « value » par Yanis'); }
       if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
       if (h.top[2] >= 0.30) sc += 0.5;
-      if (sc >= 2.5 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+      var strong = (first && first / h.cote >= 1.6) || (h.pm && h.p / h.pm >= 1.8);
+      if (strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
     });
     var L = loup ? loup.i : -1;
 
@@ -359,7 +360,7 @@
     var why = [];
     var hA = H[A], hB = H[B];
     if (level === 'SEC') why.push('Course nette : le n°' + hA.num + ' (' + pct(pA) + ') et le n°' + hB.num + ' (' + pct(pB) + ') dominent. Le couplé ' + hA.num + '-' + hB.num + ' sort dans ' + pct(pCoupleAB) + ' des 20 000 simulations d\'arrivée.');
-    else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + kChoice + ' chevaux.');
+    else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + (trioK[5].p - trioK[4].p > 0.06 ? 5 : 4) + ' chevaux.');
     else why.push('Course ouverte : le premier choix n°' + hA.num + ' n\'a que ' + pct(pA) + ' de chances de gagner. On joue la sécurité avec un 2 sur 4 et un trio en champ réduit.');
     if (loup) why.push('🐺 Anguille sous roche : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') — ' + loup.why.join(', ') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
     if (hA.ev != null && hA.ev >= 1.15) why.push('Le n°' + hA.num + ' est sous-coté par le public : espérance ' + hA.ev.toFixed(2).replace('.', ',') + ' € par euro joué au gagnant.');
