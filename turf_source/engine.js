@@ -21,7 +21,7 @@
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function comb(n, k) { if (k < 0 || k > n) return 0; var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
   function pct(x) { return Math.round(x * 100) + ' %'; }
-  function fmtCote(c) { return c == null ? '—' : (c < 10 ? c.toFixed(1) : Math.round(c)).toString().replace('.', ','); }
+  function fmtCote(c) { return !c ? '—' : (c < 10 ? c.toFixed(1) : Math.round(c)).toString().replace('.', ','); }
 
   // ---------- musique ----------
   function parseMusique(m) {
@@ -296,9 +296,10 @@
     else level = 'DOUTE';
 
     // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
-    var loup = null;
+    var loup = null, watch = null;
     H.forEach(function (h, i) {
-      if (i === A || i === B || !h.cote || h.cote < 6 || h.cote > 25 || h.p < 0.07) return;
+      if (i === A || i === B || !h.cote || h.cote < 5 || h.cote > 40 || h.p < 0.04) return;
+      var okLoup = h.cote >= 6 && h.cote <= 25 && h.p >= 0.07;
       var sc = 0, why = [];
       var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
       if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
@@ -308,7 +309,8 @@
       if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
       if (h.top[2] >= 0.30) sc += 0.5;
       var strong = (first && first / h.cote >= 1.6) || (h.pm && h.p / h.pm >= 1.8);
-      if (strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+      if (okLoup && strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+      if (sc >= 1.5 && (!watch || sc > watch.sc)) watch = { i: i, sc: sc, why: why };
     });
     var L = loup ? loup.i : -1;
 
@@ -353,7 +355,7 @@
       var qb = B3 || B2, qo = B3 ? o5L : o5, need = 5 - qb.length;
       add('QUINTE_PLUS', 'Quinté+ champ réduit — ' + qb.length + ' bases + ' + qo.length + (B3 ? ' 🐺' : '') + ' (désordre)', 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), /sordre/i);
     }
-    if (!jeux.some(function (j) { return j.main; }) && jeux.length) jeux[0].main = true;
+    if (!jeux.some(function (j) { return j.main; }) && jeux.length) { var pref = jeux.filter(function (j) { return j.type === 'TRIO'; })[0] || jeux.filter(function (j) { return j.type === 'MULTI'; })[0] || jeux[0]; pref.main = true; }
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
 
     // explication du format
@@ -402,6 +404,7 @@
     }
 
     res.loup = loup ? H[L] : null;
+    res.watch = loup ? { h: H[L], why: loup.why, strong: true } : watch ? { h: H[watch.i], why: watch.why, strong: false } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });

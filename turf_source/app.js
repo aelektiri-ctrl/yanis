@@ -200,6 +200,7 @@ function allCourses(){
   S.prog.reunions.forEach(function(r){r.courses.forEach(function(c){out.push({r:r,c:c,a:S.an[key(r.numOfficiel,c.numOrdre)]})})});
   return out;
 }
+function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+(w.strong?' → 3 bases + 5':'')+'</div>'}
 function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return (a.loup?'<span class="badge LOUP">🐺 LOUP</span> ':'')+'<span class="badge '+a.level+'">'+LVL[a.level]+'</span>'}
 function resultTag(a){if(!a||!a.arrivee||!a.main)return '';return a.main.gagne?' <span class="ok">✓ gagnant</span>':' <span class="ko">✗ perdu</span>'}
 
@@ -272,7 +273,7 @@ function viewSel(){
     var a=x.a,m=a.main,base=a.ranking[0];
     h+='<div class="card tap sp-'+(/TROT/.test(x.c.specialite)?'trot':'galop')+'" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'">'+liveStrip(x.c,a)+
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
-      '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+
+      '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+wolf(a)+
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
       '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre ce jeu : <b>'+E.pct(1-a.conf)+'</b></div></div>';
   });
@@ -287,7 +288,7 @@ function viewProg(){
     r.courses.forEach(function(c){
       var a=S.an[key(r.numOfficiel,c.numOrdre)];
       var sub=a&&a.ok&&a.main?esc(a.main.label)+' · '+esc(a.main.detail):(a&&a.message?esc(a.message):'Analyse en attente');
-      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+liveStrip(c,a)+rapportsMini(c)+'</span>'+badge(a)+'</div>';
+      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+(a&&!a.arrivee?wolf(a):'')+liveStrip(c,a)+rapportsMini(c)+'</span>'+badge(a)+'</div>';
     });
     h+='</div></div>';
   });
@@ -324,6 +325,7 @@ function sheet(k){
   if(c.conditions)h+='<div class="mute" style="margin-top:4px">'+esc(c.conditions)+'</div>';
   if(!a||!a.ok){sheetOpen(h+'<div class="card" style="margin-top:12px">'+esc(a&&a.message||'Analyse en attente.')+'</div>');return}
   h+='<div style="margin-top:10px">'+liveStrip(c,a)+'</div>';
+  h+=wolf(a);if(a.watch&&!a.watch.strong&&a.watch.why.length)h+='<div class="mute" style="margin-top:4px">Pourquoi le surveiller : '+esc(a.watch.why.join(', '))+'. Pas assez fort pour passer à 3 bases : à ajouter si tu veux élargir.</div>';
   h+='<a class="btn-eq" href="'+equidiaUrl(c,r)+'" target="_blank" rel="noopener">▶ Regarder sur Equidia (direct et replay)</a>';
   h+='<h2>Jeux proposés</h2>';
   a.jeux.forEach(function(j){
@@ -335,7 +337,7 @@ function sheet(k){
   a.ranking.forEach(function(hh,i){
     var rs=E.horseReasons(hh).slice(0,5);
     var ev=hh.ev!=null?(hh.ev>=1.15?' · <span class="ok">value '+hh.ev.toFixed(2).replace('.',',')+'</span>':''):'';
-    h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+ev+'</div></span></div>'+
+    h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+(hh.suivi&&hh.suivi.length>1?' <span style="opacity:.8">(début '+E.fmtCote(hh.suivi[0][1])+')</span>':hh.coteRef&&hh.coteRef!==hh.cote?' <span style="opacity:.8">(réf. '+E.fmtCote(hh.coteRef)+')</span>':'')+ev+'</div></span></div>'+
       '<div class="mute" style="margin-left:36px">Gagne '+E.pct(hh.top[0])+' · Top 3 '+E.pct(hh.top[2])+' · Top 4 '+E.pct(hh.top[3])+'</div>'+
       (rs.length?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+'</ul>':'')+'</div>';
   });
@@ -403,6 +405,15 @@ async function getESPN(path){
 var ICON={rugby:'🏉',foot:'⚽',nba:'🏀',wnba:'🏀',nfl:'🏈',nhl:'🏒',mlb:'⚾',tennis:'🎾',mma:'🥊'};
 var SNAME={all:'Tous',rugby:'Rugby',foot:'Football',nba:'NBA',wnba:'WNBA',nfl:'NFL',nhl:'NHL',mlb:'MLB',tennis:'Tennis',mma:'MMA'};
 var SLVL={SEC:'SEC',FORT:'SOLIDE',DOUTE:'PRUDENT'};
+function advice(p){
+  if(p>=0.80)return {t:'Mise normale',c:'ok'};
+  if(p>=0.65)return {t:'Mise petite',c:'warn'};
+  if(p>=0.50)return {t:'Très petite mise, c\'est serré',c:'warn'};
+  return {t:'Seulement si la cote dépasse '+(1/p).toFixed(2).replace('.',','),c:'ko'};
+}
+function fair(p){return (1/Math.max(0.01,p)).toFixed(2).replace('.',',')}
+function bestProp(x){var P=(x.sim&&x.sim.props)||[];return P.filter(function(q){return q.p>=0.55&&q.p<=0.88}).sort(function(a,b){return Math.abs(a.p-0.70)-Math.abs(b.p-0.70)})[0]||null}
+function oddsRow(x){var V=SportEngine.valueBets(x);if(!V.length)return '';return '<div class="odds">💶 '+(x.state.state==='in'?'Cotes d\'avant-match : ':'Cotes réelles : ')+V.map(function(v){return '<span>'+esc(v.label.replace('Victoire ',''))+' <b>'+v.dec.toFixed(2).replace('.',',')+'</b></span>'}).join('')+'</div>'}
 function hk(x){return (x.lid||x.path||x.sport)+'|'+x.id}
 var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('fr-FR')+' matchs simulés'},tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
   setSt:function(t){SP.st=t;if(S.mode==='sport')$('st').textContent=t},
@@ -451,6 +462,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(isLive&&sc&&sc[0]!=null){var ok=null;if(x.main.ok)ok=x.main.ok(sc[0],sc[1]);else if(x.favHome!=null)ok=x.favHome?sc[0]>sc[1]:sc[1]>sc[0];if(ok!=null)trend=ok?' <span class="ok">· en bonne voie</span>':' <span class="ko">· menacé</span>'}
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
+    tv=oddsRow(x)+tv;
+    if(isLive){var bp=bestProp(x);if(bp){var ad=advice(bp.p);tv='<div class="lprop">💡 En direct : <b>'+esc(bp.label)+'</b> · '+E.pct(bp.p)+' · cote mini '+fair(bp.p)+' · <span class="'+ad.c+'">'+ad.t+'</span></div>'+tv}}
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
@@ -494,6 +507,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     h+='<div class="ttl" style="font-size:18px">'+(ICON[x.sport]||'')+' '+esc(x.title)+'</div><div class="mute">'+esc(x.league)+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.txt?' · '+esc(x.state.txt):'')+'</div>';
     var sc=x.live||x.score;if(sc&&sc[0]!=null&&x.sport!=='tennis'&&x.sport!=='mma')h+='<div class="card board big2" style="margin-top:10px"><span class="tm">'+esc(x.home)+'</span><b class="sc">'+sc[0]+' - '+sc[1]+'</b><span class="tm r">'+esc(x.away)+'</span></div><div class="mute" style="text-align:center">'+(x.state.state==='in'?'🔴 En direct '+esc(x.state.txt||''):x.state.done?'Score final':'')+'</div>';
     if(x.setTxt)h+='<div class="card" style="margin-top:10px;text-align:center"><b class="sc">'+esc(x.setTxt)+'</b></div>';
+    h+=oddsRow(x);
     h+='<div class="tv" style="margin-top:8px">'+(x.tv&&x.tv.length?'📺 Diffusion annoncée : '+esc(x.tv.join(', '))+' · ':'')+'<a href="https://www.google.com/search?q='+encodeURIComponent(x.home+' '+x.away+' diffusion tv chaîne')+'" target="_blank" rel="noopener">Où regarder ce match ?</a></div>';
     h+='<h2>Pronostic principal</h2><div class="jeu main"><div class="row"><span class="ttl">★ '+esc(x.main.label)+'</span><span class="conf">'+E.pct(x.main.p)+'</span></div>'+(x.main.dec?'<div class="mute">Cote '+x.main.dec.toFixed(2).replace('.',',')+' · espérance '+(x.main.p*x.main.dec).toFixed(2).replace('.',',')+' € par euro</div>':'')+(x.won===true?'<div class="ok">✓ gagnant</div>':x.won===false?'<div class="ko">✗ perdu</div>':'')+'</div>';
     if(x.safe&&x.safe.p>=0.7)h+='<div class="jeu"><div class="row"><span class="ttl">Option la plus sûre : '+esc(x.safe.label)+'</span><span class="conf">'+E.pct(x.safe.p)+'</span></div></div>';
@@ -519,6 +533,10 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       if(x.sport==='foot')h+='<div class="mk"><span>'+esc(x.home)+' / Nul / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[1])+' · '+E.pct(S2.p[2])+'</span></div>';
       else h+='<div class="mk"><span>Victoire '+esc(x.home)+' / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[2])+'</span></div>';
       if(S2.top&&S2.top.length){h+='<div class="mute" style="margin-top:6px">'+(S2.margin?'Écarts finaux les plus fréquents ('+esc(x.home)+')':'Scores finaux les plus fréquents')+' :</div>';S2.top.forEach(function(t){var lab=S2.margin?((+t[0]>0?'+':'')+t[0]):t[0];h+='<div class="simbar"><span>'+esc(lab)+'</span><i style="width:'+Math.round(t[1]/S2.top[0][1]*100)+'%"></i><b>'+E.pct(t[1])+'</b></div>'})}
+      if(S2.props&&S2.props.length){var PP=S2.props.slice().filter(function(q){return q.p>=0.03&&q.p<=0.985}).sort(function(a,b){return b.p-a.p});
+        h+='</div><h2>💡 Propositions '+(lv?'à l\'instant T (minute '+(S2.minute!=null?S2.minute:'')+')':'avant-match')+'</h2><div class="card"><div class="mute" style="margin-bottom:6px">« Cote mini » = la cote à partir de laquelle le pari devient rentable. Si ton opérateur propose plus, c\'est un bon pari ; moins, passe ton tour.</div>';
+        PP.forEach(function(q){var ad=advice(q.p);h+='<div class="prow"><span>'+esc(q.label)+'</span><b>'+E.pct(q.p)+'</b><span class="mute">mini '+fair(q.p)+'</span><span class="'+ad.c+' adv">'+ad.t+'</span></div>'});
+      }
       var hs=SP.hist[hk(x)];if(lv&&hs&&hs.length>1)h+='<div class="mute" style="margin-top:6px">Évolution en direct : '+hs.slice(-12).map(function(v){return Math.round(v*100)}).join(' → ')+' %</div>';
       h+='</div>';
     }

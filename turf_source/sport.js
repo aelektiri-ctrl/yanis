@@ -216,22 +216,33 @@
     var strongH = x.lam[0] > x.lam[1] * 1.3, strongA = x.lam[1] > x.lam[0] * 1.3;
     var bh = x.lam[0] * rh / WTOT, ba = x.lam[1] * ra / WTOT;
     var h0 = live ? x.live[0] : 0, a0 = live ? x.live[1] : 0, w1 = 0, wx = 0, w2 = 0, mainOk = 0, sc = {}, comeback = 0, trailing = h0 !== a0;
+    var T0 = h0 + a0, tot = {}, nextH = 0, nextA = 0, btts = 0;
     for (var i = 0; i < NSIM; i++) {
       var h = h0, a = a0;
+      var first = 0;
       for (var t = m0; t < 94; t++) {
         var w = minuteW(t), d = h - a, fh = 1, fa = 1;
         if (d < 0) { fh = d === -1 ? 1.20 : 1.32; fa = 0.90; if (strongH) fh *= 1.10; }
         else if (d > 0) { fa = d === 1 ? 1.20 : 1.32; fh = 0.90; if (strongA) fa *= 1.10; }
-        if (R() < bh * w * fh) h++;
-        if (R() < ba * w * fa) a++;
+        if (R() < bh * w * fh) { h++; if (!first) first = 1; }
+        if (R() < ba * w * fa) { a++; if (!first) first = 2; }
       }
+      tot[h + a] = (tot[h + a] || 0) + 1; if (first === 1) nextH++; else if (first === 2) nextA++; if (h > 0 && a > 0) btts++;
       var k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
       if (h > a) w1++; else if (h === a) wx++; else w2++;
       if (x.main && x.main.ok && x.main.ok(h, a)) mainOk++;
       if (trailing && ((h0 < a0 && h >= a) || (a0 < h0 && a >= h))) comeback++;
     }
     var top = Object.keys(sc).sort(function (u, v) { return sc[v] - sc[u]; }).slice(0, 5).map(function (k) { return [k, sc[k] / NSIM]; });
-    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes };
+    // propositions de paris à l'instant T
+    var props = [], P = function (lab, p, kind) { props.push({ label: lab, p: p, kind: kind }); };
+    var over = function (k) { var c = 0; Object.keys(tot).forEach(function (g) { if (+g > k) c += tot[g]; }); return c / NSIM; };
+    for (var k = T0; k <= T0 + 2; k++) { var po = over(k + 0.5); P('Plus de ' + (k + 0.5).toString().replace('.', ',') + ' buts', po, 'total'); P('Moins de ' + (k + 0.5).toString().replace('.', ',') + ' buts', 1 - po, 'total'); }
+    P('Victoire ' + x.home, w1 / NSIM, 'res'); P('Match nul', wx / NSIM, 'res'); P('Victoire ' + x.away, w2 / NSIM, 'res');
+    P(x.home + ' ou nul', (w1 + wx) / NSIM, 'dc'); P(x.away + ' ou nul', (w2 + wx) / NSIM, 'dc'); P(x.home + ' ou ' + x.away + ' (pas de nul)', (w1 + w2) / NSIM, 'dc');
+    if (!(h0 > 0 && a0 > 0)) { P('Les deux équipes marquent', btts / NSIM, 'btts'); P('Au moins une équipe ne marque pas', 1 - btts / NSIM, 'btts'); }
+    if (live) { P('Prochain but : ' + x.home, nextH / NSIM, 'next'); P('Prochain but : ' + x.away, nextA / NSIM, 'next'); P('Plus aucun but', 1 - (nextH + nextA) / NSIM, 'next'); }
+    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes, props: props };
   }
   function simUS(x) {
     if (x.mu == null) return null;
@@ -244,7 +255,12 @@
     }
     var top = Object.keys(mg).sort(function (u, v) { return mg[v] - mg[u]; }).slice(0, 5).map(function (k) { return [k, mg[k] / NSIM]; });
     var ph = win / NSIM;
-    return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true };
+    var props = [{ label: 'Victoire ' + x.home, p: ph, kind: 'res' }, { label: 'Victoire ' + x.away, p: 1 - ph, kind: 'res' }];
+    // handicaps : écart final simulé
+    var keys = Object.keys(mg).map(Number), cover = function (line) { var c = 0; keys.forEach(function (k) { if (k + line > 0) c += mg[k]; }); return c / NSIM; };
+    var step = x.sport === 'nhl' || x.sport === 'mlb' ? 1.5 : 5.5;
+    [-step, step].forEach(function (l) { props.push({ label: x.home + ' ' + (l > 0 ? '+' : '') + l.toString().replace('.', ','), p: cover(l), kind: 'hcp' }); });
+    return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true, props: props };
   }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
   function simTennis(x) {

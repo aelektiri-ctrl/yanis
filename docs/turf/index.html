@@ -54,7 +54,7 @@ main{padding:12px 16px calc(env(safe-area-inset-bottom) + 40px);max-width:760px;
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ttl{font-weight:800}.mute{color:var(--mute);font-size:13px}
 .badge{font-size:11px;font-weight:900;letter-spacing:.5px;padding:3px 9px;border-radius:20px;color:var(--accent-ink);white-space:nowrap}
-.LOUP{background:linear-gradient(90deg,#ff4b4b,#ff9f1c);color:#fff}.livesim{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px 10px;border-radius:10px;background:rgba(255,75,75,.14);font-size:13px}.livesim b{color:#fff;font-size:16px}.simbar{display:grid;grid-template-columns:48px 1fr 44px;align-items:center;gap:8px;font-size:13px;margin:3px 0}.simbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--yellow))}.simbar b{text-align:right;color:var(--yellow)}.risk{font-size:12px;color:var(--mute);margin-top:5px}.risk b{color:var(--bad)}.vgrid{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:6px;margin:10px 0 6px}.vgrid div{background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center}.vgrid span{display:block;font-size:11px;color:var(--mute)}.vgrid b{font-size:20px}.vgrid .cote{color:var(--yellow)}.vgrid .lose{background:rgba(255,94,122,.16);border:1px solid rgba(255,94,122,.5)}.vgrid .lose b{color:var(--bad);font-size:24px}.ev{font-size:13px;margin:4px 0}.ev b{color:var(--teal)}.card.vcard{border-left-color:var(--yellow)}.rmini{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:4px}.rmini b{color:var(--yellow)}.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
+.LOUP{background:linear-gradient(90deg,#ff4b4b,#ff9f1c);color:#fff}.livesim{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px 10px;border-radius:10px;background:rgba(255,75,75,.14);font-size:13px}.livesim b{color:#fff;font-size:16px;white-space:nowrap}.simbar{display:grid;grid-template-columns:48px 1fr 44px;align-items:center;gap:8px;font-size:13px;margin:3px 0}.simbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--yellow))}.simbar b{text-align:right;color:var(--yellow)}.risk{font-size:12px;color:var(--mute);margin-top:5px}.risk b{color:var(--bad)}.vgrid{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:6px;margin:10px 0 6px}.vgrid div{background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center}.vgrid span{display:block;font-size:11px;color:var(--mute)}.vgrid b{font-size:20px}.vgrid .cote{color:var(--yellow)}.vgrid .lose{background:rgba(255,94,122,.16);border:1px solid rgba(255,94,122,.5)}.vgrid .lose b{color:var(--bad);font-size:24px}.ev{font-size:13px;margin:4px 0}.ev b{color:var(--teal)}.card.vcard{border-left-color:var(--yellow)}.wolf{display:inline-block;margin:6px 0 2px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:800;background:rgba(155,107,255,.18);color:#d9c8ff;border:1px solid rgba(155,107,255,.45)}.wolf.strong{background:linear-gradient(90deg,rgba(255,75,75,.3),rgba(255,159,28,.3));color:#fff;border-color:rgba(255,120,60,.7)}.odds{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:6px}.odds b{color:var(--yellow)}.lprop{margin-top:6px;padding:7px 10px;border-radius:10px;background:rgba(46,230,197,.12);border:1px solid rgba(46,230,197,.35);font-size:13px}.lprop b{color:var(--teal)}.warn{color:var(--orange);font-weight:800}.prow{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:14px}.prow:first-of-type{border-top:0}.prow b{color:var(--yellow)}.prow .adv{grid-column:1/-1;font-size:12px}.rmini{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:4px}.rmini b{color:var(--yellow)}.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
 .big{font-size:18px;font-weight:900;margin:6px 0 2px}
 .conf{font-variant-numeric:tabular-nums;font-weight:900;color:var(--yellow)}
 .meter{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--orange),var(--yellow),var(--teal));background-size:200% 100%;animation:flow 4s linear infinite}
@@ -105,7 +105,7 @@ a{color:var(--teal)}
 <header>
   <div class="lamps" aria-hidden="true"><i style="left:4%;animation-delay:0.0s,0.0s"></i><i style="left:12%;animation-delay:0.4s,0.5s"></i><i style="left:20%;animation-delay:0.8s,1.0s"></i><i style="left:28%;animation-delay:1.2s,0.0s"></i><i style="left:36%;animation-delay:0.0s,0.5s"></i><i style="left:44%;animation-delay:0.4s,1.0s"></i><i style="left:52%;animation-delay:0.8s,0.0s"></i><i style="left:60%;animation-delay:1.2s,0.5s"></i><i style="left:68%;animation-delay:0.0s,1.0s"></i><i style="left:76%;animation-delay:0.4s,0.0s"></i><i style="left:84%;animation-delay:0.8s,0.5s"></i><i style="left:92%;animation-delay:1.2s,1.0s"></i></div>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v11</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v12</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes">🔔<b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -141,7 +141,7 @@ a{color:var(--teal)}
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function comb(n, k) { if (k < 0 || k > n) return 0; var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
   function pct(x) { return Math.round(x * 100) + ' %'; }
-  function fmtCote(c) { return c == null ? '—' : (c < 10 ? c.toFixed(1) : Math.round(c)).toString().replace('.', ','); }
+  function fmtCote(c) { return !c ? '—' : (c < 10 ? c.toFixed(1) : Math.round(c)).toString().replace('.', ','); }
 
   // ---------- musique ----------
   function parseMusique(m) {
@@ -416,9 +416,10 @@ a{color:var(--teal)}
     else level = 'DOUTE';
 
     // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
-    var loup = null;
+    var loup = null, watch = null;
     H.forEach(function (h, i) {
-      if (i === A || i === B || !h.cote || h.cote < 6 || h.cote > 25 || h.p < 0.07) return;
+      if (i === A || i === B || !h.cote || h.cote < 5 || h.cote > 40 || h.p < 0.04) return;
+      var okLoup = h.cote >= 6 && h.cote <= 25 && h.p >= 0.07;
       var sc = 0, why = [];
       var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
       if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
@@ -428,7 +429,8 @@ a{color:var(--teal)}
       if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
       if (h.top[2] >= 0.30) sc += 0.5;
       var strong = (first && first / h.cote >= 1.6) || (h.pm && h.p / h.pm >= 1.8);
-      if (strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+      if (okLoup && strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+      if (sc >= 1.5 && (!watch || sc > watch.sc)) watch = { i: i, sc: sc, why: why };
     });
     var L = loup ? loup.i : -1;
 
@@ -473,7 +475,7 @@ a{color:var(--teal)}
       var qb = B3 || B2, qo = B3 ? o5L : o5, need = 5 - qb.length;
       add('QUINTE_PLUS', 'Quinté+ champ réduit — ' + qb.length + ' bases + ' + qo.length + (B3 ? ' 🐺' : '') + ' (désordre)', 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), /sordre/i);
     }
-    if (!jeux.some(function (j) { return j.main; }) && jeux.length) jeux[0].main = true;
+    if (!jeux.some(function (j) { return j.main; }) && jeux.length) { var pref = jeux.filter(function (j) { return j.type === 'TRIO'; })[0] || jeux.filter(function (j) { return j.type === 'MULTI'; })[0] || jeux[0]; pref.main = true; }
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
 
     // explication du format
@@ -522,6 +524,7 @@ a{color:var(--teal)}
     }
 
     res.loup = loup ? H[L] : null;
+    res.watch = loup ? { h: H[L], why: loup.why, strong: true } : watch ? { h: H[watch.i], why: watch.why, strong: false } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });
@@ -760,22 +763,33 @@ a{color:var(--teal)}
     var strongH = x.lam[0] > x.lam[1] * 1.3, strongA = x.lam[1] > x.lam[0] * 1.3;
     var bh = x.lam[0] * rh / WTOT, ba = x.lam[1] * ra / WTOT;
     var h0 = live ? x.live[0] : 0, a0 = live ? x.live[1] : 0, w1 = 0, wx = 0, w2 = 0, mainOk = 0, sc = {}, comeback = 0, trailing = h0 !== a0;
+    var T0 = h0 + a0, tot = {}, nextH = 0, nextA = 0, btts = 0;
     for (var i = 0; i < NSIM; i++) {
       var h = h0, a = a0;
+      var first = 0;
       for (var t = m0; t < 94; t++) {
         var w = minuteW(t), d = h - a, fh = 1, fa = 1;
         if (d < 0) { fh = d === -1 ? 1.20 : 1.32; fa = 0.90; if (strongH) fh *= 1.10; }
         else if (d > 0) { fa = d === 1 ? 1.20 : 1.32; fh = 0.90; if (strongA) fa *= 1.10; }
-        if (R() < bh * w * fh) h++;
-        if (R() < ba * w * fa) a++;
+        if (R() < bh * w * fh) { h++; if (!first) first = 1; }
+        if (R() < ba * w * fa) { a++; if (!first) first = 2; }
       }
+      tot[h + a] = (tot[h + a] || 0) + 1; if (first === 1) nextH++; else if (first === 2) nextA++; if (h > 0 && a > 0) btts++;
       var k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
       if (h > a) w1++; else if (h === a) wx++; else w2++;
       if (x.main && x.main.ok && x.main.ok(h, a)) mainOk++;
       if (trailing && ((h0 < a0 && h >= a) || (a0 < h0 && a >= h))) comeback++;
     }
     var top = Object.keys(sc).sort(function (u, v) { return sc[v] - sc[u]; }).slice(0, 5).map(function (k) { return [k, sc[k] / NSIM]; });
-    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes };
+    // propositions de paris à l'instant T
+    var props = [], P = function (lab, p, kind) { props.push({ label: lab, p: p, kind: kind }); };
+    var over = function (k) { var c = 0; Object.keys(tot).forEach(function (g) { if (+g > k) c += tot[g]; }); return c / NSIM; };
+    for (var k = T0; k <= T0 + 2; k++) { var po = over(k + 0.5); P('Plus de ' + (k + 0.5).toString().replace('.', ',') + ' buts', po, 'total'); P('Moins de ' + (k + 0.5).toString().replace('.', ',') + ' buts', 1 - po, 'total'); }
+    P('Victoire ' + x.home, w1 / NSIM, 'res'); P('Match nul', wx / NSIM, 'res'); P('Victoire ' + x.away, w2 / NSIM, 'res');
+    P(x.home + ' ou nul', (w1 + wx) / NSIM, 'dc'); P(x.away + ' ou nul', (w2 + wx) / NSIM, 'dc'); P(x.home + ' ou ' + x.away + ' (pas de nul)', (w1 + w2) / NSIM, 'dc');
+    if (!(h0 > 0 && a0 > 0)) { P('Les deux équipes marquent', btts / NSIM, 'btts'); P('Au moins une équipe ne marque pas', 1 - btts / NSIM, 'btts'); }
+    if (live) { P('Prochain but : ' + x.home, nextH / NSIM, 'next'); P('Prochain but : ' + x.away, nextA / NSIM, 'next'); P('Plus aucun but', 1 - (nextH + nextA) / NSIM, 'next'); }
+    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes, props: props };
   }
   function simUS(x) {
     if (x.mu == null) return null;
@@ -788,7 +802,12 @@ a{color:var(--teal)}
     }
     var top = Object.keys(mg).sort(function (u, v) { return mg[v] - mg[u]; }).slice(0, 5).map(function (k) { return [k, mg[k] / NSIM]; });
     var ph = win / NSIM;
-    return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true };
+    var props = [{ label: 'Victoire ' + x.home, p: ph, kind: 'res' }, { label: 'Victoire ' + x.away, p: 1 - ph, kind: 'res' }];
+    // handicaps : écart final simulé
+    var keys = Object.keys(mg).map(Number), cover = function (line) { var c = 0; keys.forEach(function (k) { if (k + line > 0) c += mg[k]; }); return c / NSIM; };
+    var step = x.sport === 'nhl' || x.sport === 'mlb' ? 1.5 : 5.5;
+    [-step, step].forEach(function (l) { props.push({ label: x.home + ' ' + (l > 0 ? '+' : '') + l.toString().replace('.', ','), p: cover(l), kind: 'hcp' }); });
+    return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true, props: props };
   }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
   function simTennis(x) {
@@ -1567,6 +1586,7 @@ function allCourses(){
   S.prog.reunions.forEach(function(r){r.courses.forEach(function(c){out.push({r:r,c:c,a:S.an[key(r.numOfficiel,c.numOrdre)]})})});
   return out;
 }
+function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+(w.strong?' → 3 bases + 5':'')+'</div>'}
 function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return (a.loup?'<span class="badge LOUP">🐺 LOUP</span> ':'')+'<span class="badge '+a.level+'">'+LVL[a.level]+'</span>'}
 function resultTag(a){if(!a||!a.arrivee||!a.main)return '';return a.main.gagne?' <span class="ok">✓ gagnant</span>':' <span class="ko">✗ perdu</span>'}
 
@@ -1639,7 +1659,7 @@ function viewSel(){
     var a=x.a,m=a.main,base=a.ranking[0];
     h+='<div class="card tap sp-'+(/TROT/.test(x.c.specialite)?'trot':'galop')+'" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'">'+liveStrip(x.c,a)+
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
-      '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+
+      '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+wolf(a)+
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
       '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre ce jeu : <b>'+E.pct(1-a.conf)+'</b></div></div>';
   });
@@ -1654,7 +1674,7 @@ function viewProg(){
     r.courses.forEach(function(c){
       var a=S.an[key(r.numOfficiel,c.numOrdre)];
       var sub=a&&a.ok&&a.main?esc(a.main.label)+' · '+esc(a.main.detail):(a&&a.message?esc(a.message):'Analyse en attente');
-      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+liveStrip(c,a)+rapportsMini(c)+'</span>'+badge(a)+'</div>';
+      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+(a&&!a.arrivee?wolf(a):'')+liveStrip(c,a)+rapportsMini(c)+'</span>'+badge(a)+'</div>';
     });
     h+='</div></div>';
   });
@@ -1691,6 +1711,7 @@ function sheet(k){
   if(c.conditions)h+='<div class="mute" style="margin-top:4px">'+esc(c.conditions)+'</div>';
   if(!a||!a.ok){sheetOpen(h+'<div class="card" style="margin-top:12px">'+esc(a&&a.message||'Analyse en attente.')+'</div>');return}
   h+='<div style="margin-top:10px">'+liveStrip(c,a)+'</div>';
+  h+=wolf(a);if(a.watch&&!a.watch.strong&&a.watch.why.length)h+='<div class="mute" style="margin-top:4px">Pourquoi le surveiller : '+esc(a.watch.why.join(', '))+'. Pas assez fort pour passer à 3 bases : à ajouter si tu veux élargir.</div>';
   h+='<a class="btn-eq" href="'+equidiaUrl(c,r)+'" target="_blank" rel="noopener">▶ Regarder sur Equidia (direct et replay)</a>';
   h+='<h2>Jeux proposés</h2>';
   a.jeux.forEach(function(j){
@@ -1702,7 +1723,7 @@ function sheet(k){
   a.ranking.forEach(function(hh,i){
     var rs=E.horseReasons(hh).slice(0,5);
     var ev=hh.ev!=null?(hh.ev>=1.15?' · <span class="ok">value '+hh.ev.toFixed(2).replace('.',',')+'</span>':''):'';
-    h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+ev+'</div></span></div>'+
+    h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+(hh.suivi&&hh.suivi.length>1?' <span style="opacity:.8">(début '+E.fmtCote(hh.suivi[0][1])+')</span>':hh.coteRef&&hh.coteRef!==hh.cote?' <span style="opacity:.8">(réf. '+E.fmtCote(hh.coteRef)+')</span>':'')+ev+'</div></span></div>'+
       '<div class="mute" style="margin-left:36px">Gagne '+E.pct(hh.top[0])+' · Top 3 '+E.pct(hh.top[2])+' · Top 4 '+E.pct(hh.top[3])+'</div>'+
       (rs.length?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+'</ul>':'')+'</div>';
   });
@@ -1770,6 +1791,15 @@ async function getESPN(path){
 var ICON={rugby:'🏉',foot:'⚽',nba:'🏀',wnba:'🏀',nfl:'🏈',nhl:'🏒',mlb:'⚾',tennis:'🎾',mma:'🥊'};
 var SNAME={all:'Tous',rugby:'Rugby',foot:'Football',nba:'NBA',wnba:'WNBA',nfl:'NFL',nhl:'NHL',mlb:'MLB',tennis:'Tennis',mma:'MMA'};
 var SLVL={SEC:'SEC',FORT:'SOLIDE',DOUTE:'PRUDENT'};
+function advice(p){
+  if(p>=0.80)return {t:'Mise normale',c:'ok'};
+  if(p>=0.65)return {t:'Mise petite',c:'warn'};
+  if(p>=0.50)return {t:'Très petite mise, c\'est serré',c:'warn'};
+  return {t:'Seulement si la cote dépasse '+(1/p).toFixed(2).replace('.',','),c:'ko'};
+}
+function fair(p){return (1/Math.max(0.01,p)).toFixed(2).replace('.',',')}
+function bestProp(x){var P=(x.sim&&x.sim.props)||[];return P.filter(function(q){return q.p>=0.55&&q.p<=0.88}).sort(function(a,b){return Math.abs(a.p-0.70)-Math.abs(b.p-0.70)})[0]||null}
+function oddsRow(x){var V=SportEngine.valueBets(x);if(!V.length)return '';return '<div class="odds">💶 '+(x.state.state==='in'?'Cotes d\'avant-match : ':'Cotes réelles : ')+V.map(function(v){return '<span>'+esc(v.label.replace('Victoire ',''))+' <b>'+v.dec.toFixed(2).replace('.',',')+'</b></span>'}).join('')+'</div>'}
 function hk(x){return (x.lid||x.path||x.sport)+'|'+x.id}
 var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('fr-FR')+' matchs simulés'},tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
   setSt:function(t){SP.st=t;if(S.mode==='sport')$('st').textContent=t},
@@ -1818,6 +1848,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(isLive&&sc&&sc[0]!=null){var ok=null;if(x.main.ok)ok=x.main.ok(sc[0],sc[1]);else if(x.favHome!=null)ok=x.favHome?sc[0]>sc[1]:sc[1]>sc[0];if(ok!=null)trend=ok?' <span class="ok">· en bonne voie</span>':' <span class="ko">· menacé</span>'}
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
+    tv=oddsRow(x)+tv;
+    if(isLive){var bp=bestProp(x);if(bp){var ad=advice(bp.p);tv='<div class="lprop">💡 En direct : <b>'+esc(bp.label)+'</b> · '+E.pct(bp.p)+' · cote mini '+fair(bp.p)+' · <span class="'+ad.c+'">'+ad.t+'</span></div>'+tv}}
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
@@ -1861,6 +1893,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     h+='<div class="ttl" style="font-size:18px">'+(ICON[x.sport]||'')+' '+esc(x.title)+'</div><div class="mute">'+esc(x.league)+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.txt?' · '+esc(x.state.txt):'')+'</div>';
     var sc=x.live||x.score;if(sc&&sc[0]!=null&&x.sport!=='tennis'&&x.sport!=='mma')h+='<div class="card board big2" style="margin-top:10px"><span class="tm">'+esc(x.home)+'</span><b class="sc">'+sc[0]+' - '+sc[1]+'</b><span class="tm r">'+esc(x.away)+'</span></div><div class="mute" style="text-align:center">'+(x.state.state==='in'?'🔴 En direct '+esc(x.state.txt||''):x.state.done?'Score final':'')+'</div>';
     if(x.setTxt)h+='<div class="card" style="margin-top:10px;text-align:center"><b class="sc">'+esc(x.setTxt)+'</b></div>';
+    h+=oddsRow(x);
     h+='<div class="tv" style="margin-top:8px">'+(x.tv&&x.tv.length?'📺 Diffusion annoncée : '+esc(x.tv.join(', '))+' · ':'')+'<a href="https://www.google.com/search?q='+encodeURIComponent(x.home+' '+x.away+' diffusion tv chaîne')+'" target="_blank" rel="noopener">Où regarder ce match ?</a></div>';
     h+='<h2>Pronostic principal</h2><div class="jeu main"><div class="row"><span class="ttl">★ '+esc(x.main.label)+'</span><span class="conf">'+E.pct(x.main.p)+'</span></div>'+(x.main.dec?'<div class="mute">Cote '+x.main.dec.toFixed(2).replace('.',',')+' · espérance '+(x.main.p*x.main.dec).toFixed(2).replace('.',',')+' € par euro</div>':'')+(x.won===true?'<div class="ok">✓ gagnant</div>':x.won===false?'<div class="ko">✗ perdu</div>':'')+'</div>';
     if(x.safe&&x.safe.p>=0.7)h+='<div class="jeu"><div class="row"><span class="ttl">Option la plus sûre : '+esc(x.safe.label)+'</span><span class="conf">'+E.pct(x.safe.p)+'</span></div></div>';
@@ -1886,6 +1919,10 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       if(x.sport==='foot')h+='<div class="mk"><span>'+esc(x.home)+' / Nul / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[1])+' · '+E.pct(S2.p[2])+'</span></div>';
       else h+='<div class="mk"><span>Victoire '+esc(x.home)+' / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[2])+'</span></div>';
       if(S2.top&&S2.top.length){h+='<div class="mute" style="margin-top:6px">'+(S2.margin?'Écarts finaux les plus fréquents ('+esc(x.home)+')':'Scores finaux les plus fréquents')+' :</div>';S2.top.forEach(function(t){var lab=S2.margin?((+t[0]>0?'+':'')+t[0]):t[0];h+='<div class="simbar"><span>'+esc(lab)+'</span><i style="width:'+Math.round(t[1]/S2.top[0][1]*100)+'%"></i><b>'+E.pct(t[1])+'</b></div>'})}
+      if(S2.props&&S2.props.length){var PP=S2.props.slice().filter(function(q){return q.p>=0.03&&q.p<=0.985}).sort(function(a,b){return b.p-a.p});
+        h+='</div><h2>💡 Propositions '+(lv?'à l\'instant T (minute '+(S2.minute!=null?S2.minute:'')+')':'avant-match')+'</h2><div class="card"><div class="mute" style="margin-bottom:6px">« Cote mini » = la cote à partir de laquelle le pari devient rentable. Si ton opérateur propose plus, c\'est un bon pari ; moins, passe ton tour.</div>';
+        PP.forEach(function(q){var ad=advice(q.p);h+='<div class="prow"><span>'+esc(q.label)+'</span><b>'+E.pct(q.p)+'</b><span class="mute">mini '+fair(q.p)+'</span><span class="'+ad.c+' adv">'+ad.t+'</span></div>'});
+      }
       var hs=SP.hist[hk(x)];if(lv&&hs&&hs.length>1)h+='<div class="mute" style="margin-top:6px">Évolution en direct : '+hs.slice(-12).map(function(v){return Math.round(v*100)}).join(' → ')+' %</div>';
       h+='</div>';
     }
