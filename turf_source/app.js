@@ -319,6 +319,8 @@ function intro(){
   return '<div class="card">Chargement du programme…</div>';
 }
 
+var TOPN=null;function topNames(){if(TOPN||!YD.ent)return TOPN;var L=Object.entries(YD.ent.driver||{}).sort(function(a,b){return b[1][1]-a[1][1]}).slice(0,20).map(function(x){return x[0]});TOPN=L;return L}
+function bigName(h){var T=topNames();if(!T||!h.cote||h.cote>3)return '';if(T.indexOf((h.driver||'').toUpperCase())<0)return '';return '<li class="p">▲ Grand nom à cote courte : sur 14 mois, les 20 drivers/jockeys qui gagnent le plus, à cote ≤ 3, gagnent 41 à 43 % des courses quand leurs cotes en annoncent 38 % (dans les 3 premiers : 70 %)</li>'}
 function entLine(role,name){
   var T=YD.ent&&YD.ent[role],s=T&&T[(name||'').toUpperCase()];if(!s)return '';
   var ae=s[1]/Math.max(0.1,s[2]),lab=role==='driver'?'Driver/jockey':'Entraîneur',txt=lab+' '+name+' : '+s[1]+' victoires pour '+String(s[2]).replace('.',',')+' attendues par les cotes sur '+s[0]+' courses';
@@ -348,7 +350,7 @@ function sheet(k){
     var ev=hh.ev!=null?(hh.ev>=1.15?' · <span class="ok">value '+hh.ev.toFixed(2).replace('.',',')+'</span>':''):'';
     h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+(hh.suivi&&hh.suivi.length>1?' <span style="opacity:.8">(début '+E.fmtCote(hh.suivi[0][1])+')</span>':hh.coteRef&&hh.coteRef!==hh.cote?' <span style="opacity:.8">(réf. '+E.fmtCote(hh.coteRef)+')</span>':'')+ev+'</div></span></div>'+
       '<div class="mute" style="margin-left:36px">Gagne '+E.pct(hh.top[0])+' · Top 3 '+E.pct(hh.top[2])+' · Top 4 '+E.pct(hh.top[3])+'</div>'+
-      (rs.length||YD.ent?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+entLine('driver',hh.driver)+entLine('entraineur',hh.entraineur)+'</ul>':'')+'</div>';
+      (rs.length||YD.ent?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+bigName(hh)+entLine('driver',hh.driver)+entLine('entraineur',hh.entraineur)+'</ul>':'')+'</div>';
   });
   h+='</div><p class="mute">Entourage (driver, entraîneur) : victoires réelles comparées à ce que leurs cotes annonçaient, sur 14 mois. Information seulement : testé sur 5 818 courses, cet historique n\'améliore pas les prédictions (le public l\'intègre déjà dans les cotes), il n\'entre donc pas dans le calcul. Un écart sur quelques dizaines de courses peut être dû au hasard et ne prouve aucune intention.</p><p class="mute">Probabilités = forme (musique pondérée), régularité, classe (gains), spécificités (ferrure, recul, poids, corde, avis entraîneur) combinées avec la cote du public. Les arrangements de course et incidents ne sont pas calculables.</p>';
   sheetOpen(h);
