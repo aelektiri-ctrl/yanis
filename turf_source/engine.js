@@ -299,22 +299,28 @@
     else if (pABtop3 >= 0.38) level = 'FORT';
     else level = 'DOUTE';
 
-    // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
-    var loup = null, watch = null;
+    // ---- détection du « loup » : modèle appris sur 70 011 outsiders réels (cote 6 à 30) ----
+    // Test juin-nov. 2026 : le loup finit dans les 3 premiers 36,2 % du temps contre 25,9 % pour un outsider moyen.
+    var LM = {"K":["crash","ratio","drv","trn30","top3","last","faults","classe","def4","recul"],"th":[0.9570120509013292,0.756958202910257,0.18957662399096503,0.018187547213985675,-0.029705408571765537,0.026679019234022695,0.004340842577486994,-0.021259927324050434,-0.021566764946600515,-0.027344736772994333,0.16104837153213555,0.027085462988724645],"th0":[0.7205514737367565,0.6665409323389321]};
+    var loup = null, watch = null, gpsS = H.map(function (h) { return h.gps || 0; }).sort(function (u, v) { return v - u; });
     H.forEach(function (h, i) {
-      if (i === A || i === B || !h.cote || h.cote < 5 || h.cote > 40 || h.p < 0.04) return;
-      var okLoup = h.cote >= 6 && h.cote <= 25 && h.p >= 0.07;
-      var sc = 0, why = [];
-      var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
-      if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
-      if (h.pm && h.p / h.pm >= 1.5) { sc += 1.5; why.push('le modèle le voit ' + Math.round(h.p / h.pm * 10) / 10 + ' fois plus souvent gagnant que le public'); }
-      if (h.pf && h.pm && h.pf / h.pm >= 2) { sc += 1; why.push('analyse détaillée très supérieure à sa cote'); }
-      if (h.valueY) { sc += 0.5; why.push('signalé « value » par Yanis'); }
-      if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
-      if (h.top[2] >= 0.30) sc += 0.5;
-      var strong = (first && first / h.cote >= 1.6) || (h.pm && h.p / h.pm >= 1.8);
-      if (okLoup && strong && sc >= 3 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
-      if (sc >= 1.5 && (!watch || sc > watch.sc)) watch = { i: i, sc: sc, why: why };
+      if (i === A || !h.cote || h.cote < 6 || h.cote > 30 || !h.pm) return;
+      var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef, mus = h.f.recent || [];
+      var D = h.stD && h.stD[0] >= 20 ? Math.log((h.stD[1] + 1) / (h.stD[0] + 10) / 0.1) : 0;
+      var f = { crash: first && first > 1 ? Math.log(first / h.cote) : 0, ratio: Math.log(h.p / h.pm), drv: D, trn30: 0,
+        top3: mus.slice(0, 5).filter(function (x) { return /^[123]$/.test(x); }).length, last: /^[123]$/.test(mus[0] || '') ? 1 : 0, faults: h.f.faults,
+        classe: h.gps ? gpsS.indexOf(h.gps) / H.length : 1, def4: h.fx && h.fx.def4 || 0, recul: h.fx && h.fx.recul || 0 };
+      var z = LM.th[0] + LM.th[1] * Math.log(h.pm); LM.K.forEach(function (k, j) { z += LM.th[j + 2] * (f[k] || 0); });
+      var pp = 1 / (1 + Math.exp(-z)), p0 = 1 / (1 + Math.exp(-(LM.th0[0] + LM.th0[1] * Math.log(h.pm)))), e = pp / p0;
+      var why = [];
+      if (f.crash >= 0.25) why.push('argent de dernière minute : cote passée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote));
+      if (f.def4) why.push('déferré des 4 pieds');
+      if (f.top3 >= 2) why.push(f.top3 + ' fois dans les 3 premiers sur ses 5 dernières courses');
+      if (f.ratio > 0.2) why.push('le modèle le voit plus souvent gagnant que sa cote');
+      if (f.drv > 0.5) why.push('driver/jockey qui gagne souvent (' + h.stD[1] + ' victoires sur ' + h.stD[0] + ')');
+      var cand = { i: i, sc: e, why: why, pPlace: pp, pBase: p0 };
+      if (i !== B && e >= 1.15 && (!loup || e > loup.sc)) loup = cand;
+      if (!watch || e > watch.sc) watch = cand;
     });
     var L = loup ? loup.i : -1;
 
@@ -372,7 +378,7 @@
     if (level === 'SEC') why.push('Course nette : le n°' + hA.num + ' (' + pct(pA) + ') et le n°' + hB.num + ' (' + pct(pB) + ') dominent. Le couplé ' + hA.num + '-' + hB.num + ' sort dans ' + pct(pCoupleAB) + ' des 20 000 arrivées simulées (refaites à chaque mise à jour des cotes).');
     else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + (trioK[5].p - trioK[4].p > 0.06 ? 5 : 4) + ' chevaux.');
     else why.push('Course ouverte : le premier choix n°' + hA.num + ' n\'a que ' + pct(pA) + ' de chances de gagner. On joue la sécurité (jeu principal choisi parmi les formats les moins risqués, champs réduits proposés en complément).');
-    if (loup) why.push('🐺 Anguille sous roche : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') — ' + loup.why.join(', ') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
+    if (loup) why.push('🐺 Loup : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') finit dans les 3 premiers ' + pct(loup.pPlace) + ' du temps, contre ' + pct(loup.pBase) + ' pour un outsider à cette cote' + (loup.why.length ? ' (' + loup.why.join(', ') + ')' : '') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
     if (hA.ev != null && hA.ev >= 1.15) why.push('Le n°' + hA.num + ' est sous-coté par le public : espérance ' + hA.ev.toFixed(2).replace('.', ',') + ' € par euro joué au gagnant.');
     if (H.yanis) why.push('Probabilités du modèle appris sur 14 914 courses réelles (forme, ferrure, recul, poids, corde, drivers, mouvement de cote, correction du biais du public), croisé avec le modèle Yanis.');
     else why.push(H.learned ? 'Poids des facteurs appris sur l\'historique réel des courses (' + (family(course) === 'trot' ? 'trot' : 'galop') + ').' : 'Poids des facteurs par défaut : lance l\'apprentissage dans l\'onglet Bilan pour les caler sur les vrais résultats.');
@@ -413,7 +419,7 @@
 
     jeux.forEach(function (j) { j.hist = HIST[j.type + (j.main ? '*' : '')] || HIST[j.type] || null; });
     res.loup = loup ? H[L] : null;
-    res.watch = loup ? { h: H[L], why: loup.why, strong: true } : watch ? { h: H[watch.i], why: watch.why, strong: false } : null;
+    res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });

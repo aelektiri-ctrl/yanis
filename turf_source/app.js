@@ -200,7 +200,7 @@ function allCourses(){
   S.prog.reunions.forEach(function(r){r.courses.forEach(function(c){out.push({r:r,c:c,a:S.an[key(r.numOfficiel,c.numOrdre)]})})});
   return out;
 }
-function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+(w.strong?' → 3 bases + 5':'')+'</div>'}
+function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+' · dans les 3 : '+E.pct(w.pPlace)+' (outsider moyen '+E.pct(w.pBase)+')'+(w.strong?' → 3 bases + 5':'')+'</div>'}
 function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return (a.loup?'<span class="badge LOUP">🐺 LOUP</span> ':'')+'<span class="badge '+a.level+'">'+LVL[a.level]+'</span>'}
 function resultTag(a){if(!a||!a.arrivee||!a.main)return '';return a.main.gagne?' <span class="ok">✓ gagnant</span>':' <span class="ko">✗ perdu</span>'}
 
@@ -326,7 +326,7 @@ function sheet(k){
   if(c.conditions)h+='<div class="mute" style="margin-top:4px">'+esc(c.conditions)+'</div>';
   if(!a||!a.ok){sheetOpen(h+'<div class="card" style="margin-top:12px">'+esc(a&&a.message||'Analyse en attente.')+'</div>');return}
   h+='<div style="margin-top:10px">'+liveStrip(c,a)+'</div>';
-  h+=wolf(a);if(a.watch&&!a.watch.strong&&a.watch.why.length)h+='<div class="mute" style="margin-top:4px">Pourquoi le surveiller : '+esc(a.watch.why.join(', '))+'. Pas assez fort pour passer à 3 bases : à ajouter si tu veux élargir.</div>';
+  h+=wolf(a);if(a.watch&&!a.watch.strong&&a.watch.why.length)h+='<div class="mute" style="margin-top:4px">Pourquoi le surveiller : '+esc(a.watch.why.join(', '))+'. Écart trop faible avec un outsider ordinaire pour passer à 3 bases : à ajouter si tu veux élargir.</div>';
   h+='<a class="btn-eq" href="'+equidiaUrl(c,r)+'" target="_blank" rel="noopener">▶ Regarder sur Equidia (direct et replay)</a>';
   h+='<h2>Jeux proposés</h2>';
   a.jeux.forEach(function(j){
@@ -396,7 +396,7 @@ $('bell').onclick=alertSheet;
 var ESPN_LOCAL=(new URLSearchParams(location.search).get('espn'))||'/espn/';
 var ESPN=(new URLSearchParams(location.search).get('espnfull'))||'https://site.api.espn.com/apis/';
 async function getESPN(path){
-  var urls=YANIS?[ESPN+path]:[ESPN_LOCAL+path,ESPN+path],last;
+  var urls=/^https?:/.test(path)?[path]:YANIS?[ESPN+path]:[ESPN_LOCAL+path,ESPN+path],last;
   for(var i=0;i<urls.length;i++){
     try{var r=await Promise.race([fetch(urls[i],{cache:'no-store'}),timeout(15000)]);if(!r.ok)throw new Error('HTTP '+r.status);var ct=r.headers.get('content-type')||'';if(ct.indexOf('json')<0&&i===0)throw new Error('réponse non JSON');return await r.json()}
     catch(e){last=new Error((i?'ESPN direct':'serveur Netlify')+' : '+e.message)}
@@ -464,6 +464,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
     tv=oddsRow(x)+tv;
+    if(x.buteurs&&x.buteurs.length&&!done){var b0=x.buteurs[0];tv='<div class="odds">⚽ Buteur le plus probable : <b>'+esc(b0.name)+'</b> ('+esc(b0.team)+') '+E.pct(b0.p)+' · cote mini '+fair(b0.p)+'</div>'+tv}
     if(isLive){var bp=bestProp(x);if(bp){var ad=advice(bp.p);tv='<div class="lprop">💡 En direct : <b>'+esc(bp.label)+'</b> · '+E.pct(bp.p)+' · cote mini '+fair(bp.p)+' · <span class="'+ad.c+'">'+ad.t+'</span></div>'+tv}}
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
@@ -522,6 +523,13 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       else if(x.sport==='foot')h+='<div class="mute" style="margin-top:8px">Compositions pas encore publiées (en général 1 h avant le coup d\'envoi).</div>';
       if(en.bpi!=null)h+='<div class="mute" style="margin-top:8px">Prédicteur ESPN : '+esc(x.home)+' '+E.pct(en.bpi)+'</div>';
       if(en.form5)h+='<div class="mute">Forme 5 derniers matchs : '+esc(x.home)+' '+esc(en.form5[0]||'—')+' · '+esc(x.away)+' '+esc(en.form5[1]||'—')+'</div>';
+      h+='</div>';
+    }
+    if(x.sport==='foot'&&!x.state.done){
+      h+='<h2>⚽ Buteurs potentiels'+(x.state.state==='in'?' (temps restant)':'')+'</h2><div class="card">';
+      if(x.buteurs&&x.buteurs.length){h+='<div class="mute" style="margin-bottom:6px">Chance de marquer = part des buts de l\'équipe marqués par le joueur cette saison × buts attendus de son équipe dans ce match'+(x.enr&&x.enr.lineups?', composition officielle prise en compte':', composition pas encore connue')+'. Cote mini = cote à exiger chez ton opérateur.</div>';
+        x.buteurs.forEach(function(b){var ad=advice(b.p);h+='<div class="prow"><span>'+esc(b.name)+' <span class="mute">'+esc(b.team)+' · '+b.goals+' but'+(b.goals>1?'s':'')+(b.starter===false?' · remplaçant':b.starter?' · titulaire':'')+'</span></span><b>'+E.pct(b.p)+'</b><span class="mute">mini '+fair(b.p)+'</span></div>'})}
+      else h+='<div class="mute">Classement des buteurs indisponible pour cette compétition dans la source gratuite.</div>';
       h+='</div>';
     }
     if(x.sim){var S2=x.sim,lv=x.state.state==='in';

@@ -274,7 +274,63 @@
     var S = x.sport === 'foot' ? simFoot(x) : x.sport === 'tennis' ? simTennis(x) : x.sport === 'mma' ? null : simUS(x);
     x.sim = S;
     if (S && x.state.state === 'in') x.liveP = S.main;
+    if (x.sport === 'foot') x.buteurs = scorerProbs(x);
     return x;
+  }
+
+  // ---------- buteurs : meilleurs buteurs de la compétition, croisés avec les buts attendus du match ----------
+  function parseScorers(j) {
+    var out = {}, seen = {}, NAMES = {};
+    (j && j.categories || []).forEach(function (c) { if (Array.isArray(c.names)) NAMES[c.name] = c.names; });
+    function add(name, tid, goals, aid) { if (!name || tid == null || !(goals >= 0)) return; var k = String(tid) + '|' + name; if (seen[k] && seen[k].goals >= goals) return; var o = { name: name, goals: goals, id: aid }; seen[k] = o; out[tid] = (out[tid] || []).filter(function (x) { return x.name !== name; }); out[tid].push(o); }
+    (function walk(n, cat) {
+      if (!n || typeof n !== 'object') return;
+      if (Array.isArray(n)) { n.forEach(function (x) { walk(x, cat); }); return; }
+      var nm = String(n.name || n.displayName || n.abbreviation || n.label || '');
+      var c = /goal|^g$|buts?$/i.test(nm) && !/assist|against|conced|keeper|save|per|ratio|own/i.test(nm) ? 'goals' : cat;
+      var ath = n.athlete || (n.athletes && n.athletes[0] && n.athletes[0].athlete);
+      if (ath && c === 'goals') {
+        var tid = pick(ath, 'team.id') || pick(n, 'team.id') || pick(ath, 'teams.0.id');
+        var v = num(n.value != null ? n.value : n.displayValue);
+        add(ath.displayName || ath.fullName || ath.shortName, tid, v, ath.id);
+      }
+      if (ath && Array.isArray(n.categories)) {   // format « byathlete » : noms en tête, valeurs par joueur
+        n.categories.forEach(function (c) { var nms = c.names || NAMES[c.name] || [], vals = c.values || c.totals || []; var gi = nms.indexOf('goals'); if (gi < 0) gi = nms.indexOf('totalGoals'); if (gi >= 0) add(ath.displayName || ath.fullName, pick(ath, 'teams.0.id') || pick(ath, 'team.id') || ath.teamId || pick(n, 'team.id'), num(vals[gi]), ath.id); });
+      }
+      if (ath && Array.isArray(n.statistics || n.stats)) {   // format « par joueur » : { athlete, stats/categories }
+        (n.statistics || n.stats).forEach(function (st, i) { var nm2 = String(st.name || st.abbreviation || (Array.isArray(n.names) ? n.names[i] : '') || ''); if (/^(goals|totalGoals|g)$/i.test(nm2)) add(ath.displayName, pick(ath, 'team.id') || pick(n, 'team.id'), num(st.value != null ? st.value : st.displayValue), ath.id); });
+      }
+      Object.keys(n).forEach(function (k) { if (k !== 'athlete') walk(n[k], c); });
+    })(j, null);
+    Object.keys(out).forEach(function (t) { out[t].sort(function (a, b) { return b.goals - a.goals; }); out[t] = out[t].slice(0, 12); });
+    return Object.keys(out).length ? out : null;
+  }
+  var SC_PATHS = function (lid) { return ['site/v2/sports/soccer/' + lid + '/statistics', 'https://site.web.api.espn.com/apis/common/v3/sports/soccer/' + lid + '/statistics/byathlete?category=general&sort=general.goals:desc&limit=200', 'site/v2/sports/soccer/' + lid + '/leaders']; };
+  async function scorers(getJSON, lid, store, ymd) {
+    var key = 'sc.' + lid, c = store.get(key);
+    if (c && c.d === ymd) return c.s;
+    var res = null, P = SC_PATHS(lid);
+    for (var i = 0; i < P.length && !res; i++) { try { res = parseScorers(await getJSON(P[i])); } catch (e) { } }
+    store.set(key, { d: ymd, s: res });
+    return res;
+  }
+  function scorerProbs(x) {
+    if (!x.scorers || !x.lam) return null;
+    var E = x.enr || {}, out = [], live = x.state.state === 'in', rem = live && x.sim ? x.sim.r : 1;
+    [0, 1].forEach(function (k) {
+      var tid = String(k ? x.aid : x.hid), L = x.scorers[tid]; if (!L || !L.length) return;
+      var tot = Math.max(L.reduce(function (s, p) { return s + p.goals; }, 0) + 2.5, 2.8 * L[0].goals);
+      var injured = E.abs ? E.abs[k].list.filter(function (p) { return /out|absent|suspen|doubt/i.test(p.status); }).map(function (p) { return p.name; }) : [];
+      var starters = E.lineups && E.lineups[k] ? E.lineups[k].starters : null;
+      var lamT = x.lam[k] * rem;
+      L.forEach(function (p) {
+        if (injured.indexOf(p.name) >= 0) return;
+        var share = (p.goals + 0.15) / tot, play = starters ? (starters.indexOf(p.name) >= 0 ? 0.92 : 0.25) : 0.80;
+        var pr = 1 - Math.exp(-lamT * share * play * 0.9);
+        out.push({ name: p.name, team: k ? x.away : x.home, goals: p.goals, p: pr, starter: starters ? starters.indexOf(p.name) >= 0 : null });
+      });
+    });
+    return out.sort(function (a, b) { return b.p - a.p; }).slice(0, 10);
   }
 
   // ---------- paris « value » : la cote paie plus que le risque réel ----------
@@ -625,7 +681,8 @@
       if (!evs.length) return;
       var F = null;
       try { var G = await history(getJSON, 'soccer/' + lg.id, '', store, tN); F = fitSoccer(G, tN, tN); backtest(G, tN, 'foot', null, cal, 'foot'); if (F) { info.games += F.n; info.leagues++; } } catch (e) { }
-      evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) out.push(r); });
+      var SCR = null; try { SCR = await scorers(getJSON, lg.id, store, ymd); } catch (e) { }
+      evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) { r.scorers = SCR; out.push(r); } });
     }); });
     US.forEach(function (lg) { jobs.push(async function () {
       var sb = await getJSON('site/v2/sports/' + lg.path + '/scoreboard?dates=' + ymd + (lg.q || '')); diag(lg.sport, sb);
@@ -663,7 +720,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 
