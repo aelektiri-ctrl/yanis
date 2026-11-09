@@ -1,0 +1,27 @@
+Courses 5902 | log-loss gagnant: moteur 1.9194 marché 1.9036 | n°1 moteur gagne 32.4% favori 32.0%
+Par niveau (jeu principal): annoncé / réel / ROI
+  SEC    132 annoncé 29.0% réel 34.1% ROI -3.9%
+  DOUTE  587 annoncé 48.9% réel 49.1% ROI -11.3%
+  FORT   62 annoncé 51.3% réel 53.2% ROI 7.0%
+Par type de jeu (* = principal): n / annoncé / réel / ROI
+  COUPLE_GAGNANT*       98 annoncé 21.7% réel 28.6% ROI -0.7%
+  COUPLE_PLACE         513 annoncé 27.4% réel 28.8% ROI -4.6%
+  COUPLE_PLACE*        221 annoncé 24.2% réel 24.4% ROI -12.3%
+  DEUX_SUR_QUATRE      449 annoncé 36.9% réel 37.2% ROI -8.6%
+  DEUX_SUR_QUATRE*     422 annoncé 62.2% réel 62.6% ROI -10.7%
+  MULTI                238 annoncé 12.2% réel 16.4% ROI -34.2%
+  QUINTE_PLUS           17 annoncé 6.1% réel 0.0% ROI -57.9%
+  SIMPLE_GAGNANT        91 annoncé 50.5% réel 45.1% ROI -15.2%
+  SIMPLE_GAGNANT*       34 annoncé 50.1% réel 50.0% ROI -12.9%
+  TRIO                 722 annoncé 20.1% réel 23.4% ROI -30.0%
+  TRIO*                  6 annoncé 48.8% réel 50.0% ROI 17.5%
+Calibration jeu principal:
+  0-20% 134 annoncé 15.1% réel 14.2%
+  20-40% 173 annoncé 28.0% réel 35.3%
+  40-60% 212 annoncé 51.2% réel 48.1%
+  60-80% 250 annoncé 68.1% réel 70.8%
+  80-101% 12 annoncé 81.9% réel 58.3%
+VALUE simple gagnant : 201 paris, gagnants 14.4% ROI 3.1%
+  valeur 1,10-1,20 163 paris, gagnants 13.5% ROI -20.7%
+  valeur 1,20-1,30 21 paris, gagnants 14.3% ROI -30.5%
+  valeur ≥1,30 17 paris, gagnants 23.5% ROI 272.4%

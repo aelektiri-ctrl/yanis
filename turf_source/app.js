@@ -244,6 +244,7 @@ function viewValue(){
   var L=valueList(),h='';
   h+='<div class="chips"><button data-vf="all" class="'+(VF.f==='all'?'on':'')+'">💎 Tout</button><button data-vf="turf" class="'+(VF.f==='turf'?'on':'')+'">🏇 Courses</button><button data-vf="sport" class="'+(VF.f==='sport'?'on':'')+'">⚽ Matchs</button></div>';
   h+='<div class="card hl"><div class="ttl">Ce que montre cet onglet</div><p class="mute" style="margin:6px 0 0">Pas les favoris : les paris où <b>la cote paie plus que le risque réel</b>. Exemple : un cheval à 6 contre 1 qui gagne en réalité 1 fois sur 4. En face de chaque pari, le chiffre en rouge est le <b>risque de perdre</b>. Une belle cote veut dire qu\'on perd souvent : la valeur ne se voit que sur des dizaines de paris, jamais sur un seul.</p>';
+  var hv=E.HIST_VALUE;if(hv)h+='<p class="mute" style="margin:6px 0 0">Test du moteur sur juin–novembre ('+hv.n+' paris value au simple gagnant, rapports officiels) : '+E.pct(hv.hit)+' gagnants, rentabilité <span class="'+(hv.roi>=0?'ok':'ko')+'">'+(hv.roi>=0?'+':'')+String(Math.round(hv.roi*1000)/10).replace('.',',')+' %</span>. Trop peu de paris pour conclure : à suivre.</p>';
   var b=YD.banc&&YD.banc.strategies&&YD.banc.strategies.sg_value;
   if(b)h+='<p class="mute" style="margin:6px 0 0">Test réel Yanis sur '+b.paris.toLocaleString('fr-FR')+' paris value au simple gagnant : '+E.pct(b.reussite)+' gagnants, rentabilité <span class="'+(b.roi>=0?'ok':'ko')+'">'+(b.roi>=0?'+':'')+String(Math.round(b.roi*1000)/10).replace('.',',')+' %</span>.</p>';
   h+='</div>';
@@ -277,7 +278,7 @@ function viewSel(){
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
       '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre ce jeu : <b>'+E.pct(1-a.conf)+'</b></div></div>';
   });
-  return h+'<p class="mute">Le pourcentage est la probabilité estimée, sur 20 000 simulations d\'arrivée, que le jeu principal soit gagnant.</p>';
+  return h+'<p class="mute">Le pourcentage est la probabilité estimée sur 20 000 arrivées simulées. Vérifié sur 5 902 courses réelles : quand l\'appli annonce 60 à 80 %, le jeu passe 71 % du temps.</p>';
 }
 function viewProg(){
   if(!S.prog)return intro();
@@ -329,7 +330,7 @@ function sheet(k){
   h+='<a class="btn-eq" href="'+equidiaUrl(c,r)+'" target="_blank" rel="noopener">▶ Regarder sur Equidia (direct et replay)</a>';
   h+='<h2>Jeux proposés</h2>';
   a.jeux.forEach(function(j){
-    h+='<div class="jeu'+(j.main?' main':'')+'"><div class="row"><span class="ttl">'+(j.main?'★ ':'')+esc(j.label)+'</span><span class="conf">'+E.pct(j.p)+'</span></div><div>'+esc(j.detail)+'</div><div class="mute">'+j.combos+' combinaison'+(j.combos>1?'s':'')+' · '+euros(j.cout)+(YANIS?' (1 € par combinaison)':' en mise de base')+(j.gagne===true?' · <span class="ok">✓ gagnant'+(j.rapportOk?' : retour '+euros(j.retour):'')+'</span>':j.gagne===false?' · <span class="ko">✗ perdu</span>':'')+'</div></div>';
+    h+='<div class="jeu'+(j.main?' main':'')+'"><div class="row"><span class="ttl">'+(j.main?'★ ':'')+esc(j.label)+'</span><span class="conf">'+E.pct(j.p)+'</span></div><div>'+esc(j.detail)+'</div><div class="mute">'+j.combos+' combinaison'+(j.combos>1?'s':'')+' · '+euros(j.cout)+(YANIS?' (1 € par combinaison)':' en mise de base')+(j.hist?'<br>📊 Testé sur '+j.hist.n+' courses réelles : '+E.pct(j.hist.hit)+' gagnants · rentabilité <span class="'+(j.hist.roi>=0?'ok':'ko')+'">'+(j.hist.roi>=0?'+':'')+String(Math.round(j.hist.roi*1000)/10).replace('.',',')+' %</span>':'')+(j.gagne===true?' · <span class="ok">✓ gagnant'+(j.rapportOk?' : retour '+euros(j.retour):'')+'</span>':j.gagne===false?' · <span class="ko">✗ perdu</span>':'')+'</div></div>';
   });
   h+=rapportsTable(c);
   h+='<h2>Pourquoi ce choix</h2><div class="card">'+a.why.map(function(w){return '<p style="margin:4px 0">'+esc(w)+'</p>'}).join('')+'</div>';
