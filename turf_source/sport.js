@@ -215,7 +215,7 @@
     if (m == null) m = st.period >= 2 ? 60 : 20;
     return Math.min(93, Math.max(0, m));
   }
-  function simFoot(x) {
+  function simFoot(x, withBuilder) {
     if (!x.lam) return null;
     var live = x.live && x.live[0] != null && x.state.state === 'in';
     var R = rng(hash(x.id + '|' + (live ? x.live.join('-') : '') + '|' + x.state.txt)), m0 = live ? Math.floor(minuteNow(x)) : 0;
@@ -228,16 +228,32 @@
     var bh = x.lam[0] * rh / WTOT, ba = x.lam[1] * ra / WTOT;
     var h0 = live ? x.live[0] : 0, a0 = live ? x.live[1] : 0, w1 = 0, wx = 0, w2 = 0, mainOk = 0, sc = {}, comeback = 0, trailing = h0 !== a0;
     var T0 = h0 + a0, tot = {}, nextH = 0, nextA = 0, btts = 0;
+    // buteurs possibles de chaque équipe (3 premiers) pour attribuer chaque but simulé
+    var SW = [0, 1].map(function (k) {
+      var L = x.hsc && x.hsc[String(k ? x.aid : x.hid)] || [], st = E.lineups && E.lineups[k] ? E.lineups[k].starters : null;
+      var inj = E.abs ? E.abs[k].list.filter(function (p) { return /out|absent|suspen|doubt/i.test(p.status); }).map(function (p) { return p.name; }) : [];
+      return L.filter(function (p) { return inj.indexOf(p.name) < 0; }).slice(0, 3).map(function (p) { var sh = (p.goals + 0.3) / (p.goals / Math.max(p.share, 0.01) + 3); return { name: p.name, w: sh * (st ? (st.indexOf(p.name) >= 0 ? 0.92 : 0.25) : 0.80) / 0.85 }; });
+    });
+    var OUT = withBuilder ? new Array(NSIM) : null; // issue de chaque match simulé, pour les montages de paris (calculés à l'ouverture de la fiche)
     for (var i = 0; i < NSIM; i++) {
       var h = h0, a = a0;
-      var first = 0;
+      var first = 0, fm = -1, fs = -1, mask = 0, hh = h0, ha = a0;
       for (var t = m0; t < 94; t++) {
         var w = minuteW(t), d = h - a, fh = 1, fa = 1;
         if (d < 0) { fh = d === -1 ? 1.20 : 1.32; fa = 0.90; if (strongH) fh *= 1.10; }
         else if (d > 0) { fa = d === 1 ? 1.20 : 1.32; fh = 0.90; if (strongA) fa *= 1.10; }
-        if (R() < bh * w * fh) { h++; if (!first) first = 1; }
-        if (R() < ba * w * fa) { a++; if (!first) first = 2; }
+        for (var side = 0; side < 2; side++) {
+          if (R() < (side ? ba * w * fa : bh * w * fh)) {
+            if (side) a++; else h++;
+            var u = R(), acc = 0, who = -1, L2 = SW[side];
+            for (var q = 0; q < L2.length; q++) { acc += L2[q].w; if (u < acc) { who = q; break; } }
+            if (who >= 0) mask |= 1 << (side * 3 + who);
+            if (!first) { first = side + 1; fm = t; fs = who >= 0 ? side * 3 + who : -1; }
+          }
+        }
+        if (t === 45) { hh = h; ha = a; }
       }
+      if (OUT) OUT[i] = [h, a, first, fm, fs, mask, hh, ha];
       tot[h + a] = (tot[h + a] || 0) + 1; if (first === 1) nextH++; else if (first === 2) nextA++; if (h > 0 && a > 0) btts++;
       var k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
       if (h > a) w1++; else if (h === a) wx++; else w2++;
@@ -253,7 +269,63 @@
     P(x.home + ' ou nul', (w1 + wx) / NSIM, 'dc'); P(x.away + ' ou nul', (w2 + wx) / NSIM, 'dc'); P(x.home + ' ou ' + x.away + ' (pas de nul)', (w1 + w2) / NSIM, 'dc');
     if (!(h0 > 0 && a0 > 0)) { P('Les deux équipes marquent', btts / NSIM, 'btts'); P('Au moins une équipe ne marque pas', 1 - btts / NSIM, 'btts'); }
     if (live) { P('Prochain but : ' + x.home, nextH / NSIM, 'next'); P('Prochain but : ' + x.away, nextA / NSIM, 'next'); P('Plus aucun but', 1 - (nextH + nextA) / NSIM, 'next'); }
-    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes, props: props };
+    var res = { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes, props: props };
+    if (OUT) res.builder = builder(x, OUT, SW, live && T0 > 0, m0);
+    return res;
+  }
+
+  // ---------- montages de paris (Créa Bet) : probabilité jointe lue directement sur les matchs simulés ----------
+  function builder(x, OUT, SW, goalAlready, m0) {
+    var N = OUT.length, legs = [], H = x.home, A = x.away;
+    function L(id, label, f, grp) { var c = 0; for (var i = 0; i < N; i++) if (f(OUT[i])) c++; legs.push({ id: id, label: label, f: f, p: c / N, grp: grp }); }
+    var fav = x.lam[0] >= x.lam[1] ? 0 : 1, F = fav ? A : H, O = fav ? H : A;
+    var fW = function (o) { return fav ? o[1] > o[0] : o[0] > o[1]; };
+    L('w', 'Victoire ' + F, fW, 'res');
+    L('dc', F + ' ou nul', function (o) { return fav ? o[1] >= o[0] : o[0] >= o[1]; }, 'res');
+    L('w2', F + ' gagne par 2 buts ou plus', function (o) { return (fav ? o[1] - o[0] : o[0] - o[1]) >= 2; }, 'res');
+    L('cs', F + ' gagne sans encaisser', function (o) { return fW(o) && (fav ? o[0] : o[1]) === 0; }, 'res');
+    L('ht', F + ' mène à la pause et gagne', function (o) { return fW(o) && (fav ? o[7] > o[6] : o[6] > o[7]); }, 'res');
+    [1.5, 2.5, 3.5].forEach(function (k) { L('o' + k, 'Plus de ' + String(k).replace('.', ',') + ' buts', function (o) { return o[0] + o[1] > k; }, 'tot'); L('u' + k, 'Moins de ' + String(k).replace('.', ',') + ' buts', function (o) { return o[0] + o[1] < k; }, 'tot'); });
+    L('btts', 'Les deux équipes marquent', function (o) { return o[0] > 0 && o[1] > 0; }, 'btts');
+    L('nbtts', O + ' ne marque pas', function (o) { return (fav ? o[0] : o[1]) === 0; }, 'btts');
+    if (!goalAlready) {
+      L('ff', F + ' marque le premier but', function (o) { return o[2] === fav + 1; }, 'first');
+      [[0, 15], [0, 30], [16, 30], [31, 45], [46, 60], [61, 75], [76, 94]].forEach(function (w) {
+        if (w[1] <= m0) return;
+        L('t' + w[0], 'Premier but ' + (w[0] === 0 ? 'avant la ' + w[1] + 'e' : w[1] === 94 ? 'après la 75e' : 'entre la ' + w[0] + 'e et la ' + w[1] + 'e'), function (o) { return o[3] >= w[0] && o[3] < w[1]; }, 'time');
+      });
+    }
+    var scorers = [];
+    [0, 1].forEach(function (k) { (SW[k] || []).forEach(function (p, j) {
+      var bit = 1 << (k * 3 + j);
+      L('s' + k + j, p.name + ' buteur', function (o) { return (o[5] & bit) !== 0; }, 'sc' + k);
+      if (!goalAlready) L('fs' + k + j, p.name + ' premier buteur', function (o) { return o[4] === k * 3 + j; }, 'fs');
+      scorers.push(p.name);
+    }); });
+    // marchés seuls (premier buteur, période du premier but)
+    var singles = legs.filter(function (l) { return l.grp === 'fs' || l.grp === 'time'; }).sort(function (a, b) { return b.p - a.p; });
+    // combinaisons de 2 ou 3 éléments : un seul par famille, et chaque élément doit vraiment ajouter quelque chose
+    var pool = legs.filter(function (l) { return l.p >= 0.10 && l.p <= 0.97; }), combos = [], PAIR = {};
+    function joint(ls) { var c = 0; for (var n = 0; n < N; n++) { var o = OUT[n], ok = true; for (var z = 0; z < ls.length; z++) if (!ls[z].f(o)) { ok = false; break; } if (ok) c++; } return c / N; }
+    var fam = function (l) { return l.grp === 'fs' ? 'first' : l.grp.indexOf('sc') === 0 ? 'sc' : l.grp; };
+    for (var i = 0; i < pool.length; i++) for (var j = i + 1; j < pool.length; j++) {
+      if (fam(pool[i]) === fam(pool[j])) continue;
+      var p2 = joint([pool[i], pool[j]]); PAIR[i + '|' + j] = p2;
+      if (p2 >= 0.05 && p2 < Math.min(pool[i].p, pool[j].p) - 0.02) combos.push({ ls: [pool[i], pool[j]], p: p2 });
+    }
+    for (i = 0; i < pool.length; i++) for (j = i + 1; j < pool.length; j++) for (var k = j + 1; k < pool.length; k++) {
+      var f3 = [fam(pool[i]), fam(pool[j]), fam(pool[k])]; if (f3[0] === f3[1] || f3[0] === f3[2] || f3[1] === f3[2]) continue;
+      var pr = [PAIR[i + '|' + j], PAIR[i + '|' + k], PAIR[j + '|' + k]]; if (pr.some(function (v) { return v == null || v < 0.05; })) continue;
+      var p3 = joint([pool[i], pool[j], pool[k]]);
+      if (p3 >= 0.05 && p3 < Math.min.apply(null, pr) - 0.02) combos.push({ ls: [pool[i], pool[j], pool[k]], p: p3 });
+    }
+    combos.forEach(function (c) { c.legs = c.ls.map(function (l) { return l.label; }); c.ids = c.ls.map(function (l) { return l.id; }); c.lift = c.p / c.ls.reduce(function (s, l) { return s * l.p; }, 1); c.focus = c.ls.filter(function (l) { return /^(w|dc|w2|cs|ht|ff|s0|s1|fs)/.test(l.id) && l.label.indexOf(F) >= 0 || /^s|^fs/.test(l.id); }).length; });
+    function band(lo, hi, k) {
+      var L2 = combos.filter(function (c) { return c.p >= lo && c.p < hi; }).sort(function (a, b) { return (b.focus - a.focus) || (a.p - b.p); }), out = [];
+      L2.forEach(function (c) { if (out.length >= k) return; if (out.some(function (o) { return o.ids.filter(function (id) { return c.ids.indexOf(id) >= 0; }).length >= 2; })) return; out.push({ legs: c.legs, ids: c.ids, p: c.p, lift: c.lift }); });
+      return out;
+    }
+    return { sur: band(0.50, 0.90, 3), equilibre: band(0.25, 0.50, 3), grosse: band(0.06, 0.25, 3), singles: singles.slice(0, 8) };
   }
   function simUS(x) {
     if (x.mu == null) return null;
@@ -326,9 +398,16 @@
     store.set(key, { d: ymd, s: res });
     return res;
   }
+  // début de la saison en cours : dernière coupure d'au moins 25 jours sans match dans la compétition
+  function seasonStart(G) {
+    var d = (G || []).map(function (x) { return x[0]; }).sort(function (a, b) { return a - b; }), st = d.length ? d[0] : 0;
+    for (var i = 1; i < d.length; i++) if (d[i] - d[i - 1] >= 25) st = d[i];
+    return st;
+  }
   function teamScorers(G, todayN) {
-    var T = {}, games = {};
-    (G || []).forEach(function (x) {
+    var T = {}, games = {}, s0 = seasonStart(G);
+    // seulement la saison en cours : un joueur transféré l'été n'est pas compté dans son ancien club
+    (G || []).filter(function (x) { return x[0] >= s0; }).forEach(function (x) {
       var w = Math.exp(-0.004 * (todayN - x[0]));
       games[x[1]] = (games[x[1]] || 0) + 1; games[x[2]] = (games[x[2]] || 0) + 1;
       (x[6] || []).forEach(function (s) { if (s[3] != null) return; var t = T[s[0]] || (T[s[0]] = {}); var p = t[s[1]] || (t[s[1]] = { name: s[1], goals: 0, w: 0, pen: 0 }); p.goals++; p.w += w; p.pen += s[2]; });
@@ -382,9 +461,9 @@
 
   // NBA / WNBA : meilleurs marqueurs et paliers de points
   function nbaScorers(G, todayN) {
-    var T = {};
+    var T = {}, s0 = seasonStart(G);
     (G || []).forEach(function (x) {
-      if (todayN - x[0] > 60) return;
+      if (todayN - x[0] > 60 || x[0] < s0) return;
       (x[6] || []).forEach(function (s) { if (s[3] == null) return; var t = T[s[0]] || (T[s[0]] = {}); var p = t[s[1]] || (t[s[1]] = { name: s[1], pts: [] }); p.pts.push(s[3]); });
     });
     return T;
@@ -833,7 +912,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { buildFor: function (x) { var r = x.sport === 'foot' && x.lam ? simFoot(x, true) : null; return r && r.builder; }, teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 

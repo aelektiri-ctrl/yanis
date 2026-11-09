@@ -492,6 +492,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
     tv=oddsRow(x)+tv;
+    if(!done&&x.sport==='foot'&&x.lam)tv='<div class="odds">🧩 Montages de paris (premier but, buteurs, combinés) dans la fiche</div>'+tv;
     if(!done&&x.buteursEq){var bl=x.buteursEq.filter(function(t){return t.list.length}).map(function(t){return '<b>'+esc(t.list[0].name)+'</b> '+E.pct(t.list[0].p)});if(bl.length)tv='<div class="odds">⚽ Buteurs : '+bl.join(' · ')+'</div>'+tv}
     else if(x.buteurs&&x.buteurs.length&&!done){var b0=x.buteurs[0];tv='<div class="odds">⚽ Buteur le plus probable : <b>'+esc(b0.name)+'</b> ('+esc(b0.team)+') '+E.pct(b0.p)+' · cote mini '+fair(b0.p)+'</div>'+tv}
     if(!done&&x.points){var pl=[];x.points.forEach(function(t){var q=t.list.filter(function(p){return p.best})[0];if(q)pl.push('<b>'+esc(q.name)+'</b> '+q.best[0]+'+ pts '+E.pct(q.best[1]))});if(pl.length)tv='<div class="odds">🏀 '+pl.join(' · ')+'</div>'+tv}
@@ -572,6 +573,11 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
         t.list.forEach(function(p){h+='<div class="pts"><div class="row"><span><b>'+esc(p.name)+'</b> <span class="mute">moy. '+p.mean.toFixed(1).replace('.',',')+(p.now!=null?' · déjà '+p.now+' pts':'')+'</span></span><span class="'+(p.best?'ok':'mute')+'">'+(p.best?'🎯 '+p.best[0]+'+ pts · '+E.pct(p.best[1]):'pas de palier sûr')+'</span></div><div class="tiers">'+p.tiers.map(function(q){return '<span class="'+(q[1]>=0.7?'hi':q[1]>=0.5?'mid':'')+'">'+q[0]+'+ <b>'+E.pct(q[1])+'</b></span>'}).join('')+'</div></div>'})});
       h+='</div>';
     }
+    if(x.sport==='foot'&&!x.state.done&&x.lam){var BB=null;try{BB=SportEngine.buildFor(x)}catch(e){}
+      if(BB){var bl=function(t,arr,ico){if(!arr.length)return '';var o='<div class="ttl" style="margin-top:8px">'+ico+' '+t+'</div>';arr.forEach(function(c){o+='<div class="combo"><div>'+c.legs.map(esc).join(' <b>+</b> ')+'</div><div class="row"><span class="ok">'+E.pct(c.p)+'</span><span class="mute">cote mini <b class="cm">'+fair(c.p)+'</b></span></div></div>'});return o};
+        h+='<h2>🧩 Montages de paris'+(x.state.state==='in'?' (à l\'instant T)':'')+'</h2><div class="card"><div class="mute">Chaque montage est vérifié sur 20 000 matchs simulés minute par minute (but, minute, équipe, buteur) : les liens entre les paris sont pris en compte. Ton opérateur doit proposer au moins la cote mini, sinon passe.</div>'+bl('Le plus sûr',BB.sur,'🟢')+bl('Équilibré',BB.equilibre,'🟠')+bl('Grosse cote',BB.grosse,'🔴');
+        if(BB.singles.length){h+='<div class="ttl" style="margin-top:8px">⏱️ Premier but et premier buteur</div>';BB.singles.forEach(function(l){h+='<div class="prow"><span>'+esc(l.label)+'</span><b>'+E.pct(l.p)+'</b><span class="mute">mini '+fair(l.p)+'</span></div>'})}
+        h+='</div>';}}
     if(x.sim){var S2=x.sim,lv=x.state.state==='in';
       h+='<h2>'+(lv?'📡 Simulation en direct':'🎲 Simulation avant-match')+' ('+S2.n.toLocaleString('fr-FR')+' '+(x.sport==='tennis'?'matchs':x.sport==='foot'?'matchs':'matchs')+')</h2><div class="card">';
       if(lv&&S2.r!=null)h+='<div class="mute">Le reste du match ('+Math.round(S2.r*100)+' % du temps de jeu) est rejoué '+S2.n.toLocaleString('fr-FR')+' fois à partir du score actuel.</div>';
