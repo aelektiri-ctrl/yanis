@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 09/11/2026 a 13:16.
+Mis a jour le 09/11/2026 a 13:32.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 09/11/2026 a 13:16.
 | Reunions | 1870 |
 | Courses | 14270 |
 | Partants | 172969 |
-| Rapports | 239998 |
-| Partants avec cote finale | 165838 |
-| Partants avec place a l'arrivee | 139097 |
+| Rapports | 240044 |
+| Partants avec cote finale | 165856 |
+| Partants avec place a l'arrivee | 139132 |
 
 ## Courses par discipline
 
@@ -32,7 +32,7 @@ Mis a jour le 09/11/2026 a 13:16.
 | B. ROCHARD | 1924 | 341 | 17.7 | 42.9 |
 | M. MOTTIER | 1433 | 225 | 15.7 | 35.3 |
 | M. BARZALONA | 830 | 199 | 24.0 | 53.4 |
-| Y. LEBOURGEOIS | 968 | 195 | 20.1 | 37.4 |
+| Y. LEBOURGEOIS | 969 | 195 | 20.1 | 37.4 |
 | A. ABRIVARD | 1302 | 195 | 15.0 | 35.9 |
 | TH. BRIAND | 957 | 192 | 20.1 | 43.8 |
 | C. DEMURO | 1484 | 186 | 12.5 | 37.5 |
@@ -40,6 +40,6 @@ Mis a jour le 09/11/2026 a 13:16.
 | A. COLLETTE | 1535 | 166 | 10.8 | 29.4 |
 | P. PH. PLOQUIN | 1521 | 159 | 10.5 | 30.5 |
 | M. GUYON | 1007 | 159 | 15.8 | 42.2 |
-| D. THOMAIN | 1111 | 148 | 13.3 | 33.8 |
+| D. THOMAIN | 1112 | 148 | 13.3 | 33.8 |
 | M. ABRIVARD | 1271 | 147 | 11.6 | 34.0 |
 | A. ORANI | 828 | 140 | 16.9 | 42.5 |
