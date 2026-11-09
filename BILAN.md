@@ -1,24 +1,24 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 09/11/2026 a 20:00.
+Mis a jour le 09/11/2026 a 20:44.
 
 | | |
 |---|---|
 | Jours collectes | 417 (dont 0 sans course) |
 | Periode | 2025-09-20 au 2026-11-10 |
-| Reunions | 1975 |
-| Courses | 15091 |
-| Partants | 183353 |
-| Rapports | 254168 |
-| Partants avec cote finale | 176276 |
-| Partants avec place a l'arrivee | 148004 |
+| Reunions | 1981 |
+| Courses | 15134 |
+| Partants | 183793 |
+| Rapports | 254492 |
+| Partants avec cote finale | 176457 |
+| Partants avec place a l'arrivee | 148321 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 7353 |
-| PLAT | 4985 |
+| ATTELE | 7368 |
+| PLAT | 5013 |
 | MONTE | 1189 |
 | HAIE | 913 |
 | STEEPLECHASE | 567 |
@@ -42,4 +42,4 @@ Mis a jour le 09/11/2026 a 20:00.
 | P. PH. PLOQUIN | 1599 | 166 | 10.4 | 30.3 |
 | D. THOMAIN | 1195 | 163 | 13.6 | 34.1 |
 | M. ABRIVARD | 1342 | 155 | 11.5 | 34.1 |
-| A. ORANI | 881 | 149 | 16.9 | 42.0 |
+| A. ORANI | 883 | 150 | 17.0 | 42.0 |
