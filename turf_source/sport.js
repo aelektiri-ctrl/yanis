@@ -675,8 +675,28 @@
     var out = [], jobs = [], cal = [], info = { games: 0, leagues: 0 };
     var tN = dayN(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8)));
     store = store || { get: function () { return null; }, set: function () { } };
+    // Les dates ESPN suivent l'heure américaine : après minuit en France, les matchs encore en cours
+    // (NBA, NHL…) sont rangés à la veille. On récupère donc aussi la veille et on garde les matchs en direct
+    // ou terminés depuis moins de 4 heures.
+    var nowD = new Date(), todayYmd = nowD.getFullYear() + ('0' + (nowD.getMonth() + 1)).slice(-2) + ('0' + nowD.getDate()).slice(-2);
+    var withPrev = ymd === todayYmd && nowD.getHours() < 12, prevYmd = ymdOf(tN - 1);
+    async function board(path, q) {
+      var sb = await getJSON(path + '?dates=' + ymd + (q || ''));
+      if (!withPrev) return sb;
+      var pv = null; try { pv = await getJSON(path + '?dates=' + prevYmd + (q || '')); } catch (e) { }
+      var keep = ((pv && pv.events) || []).filter(function (ev) {
+        var st = pick(ev, 'status.type.state') || pick(ev, 'competitions.0.status.type.state');
+        if (st === 'in') return true;
+        if (st === 'post') return Date.now() - new Date(ev.date).getTime() < 7 * 3600e3;
+        return false;
+      });
+      if (!keep.length) return sb;
+      var ids = {}; ((sb && sb.events) || []).forEach(function (e) { ids[e.id] = 1; });
+      var out = Object.assign({}, sb || {}); out.events = keep.filter(function (e) { return !ids[e.id]; }).concat((sb && sb.events) || []);
+      return out;
+    }
     LEAGUES.forEach(function (lg) { jobs.push(async function () {
-      var sb = await getJSON('site/v2/sports/soccer/' + lg.id + '/scoreboard?dates=' + ymd);
+      var sb = await board('site/v2/sports/soccer/' + lg.id + '/scoreboard');
       var evs = (sb && sb.events) || []; diag('foot ' + lg.id, sb);
       if (!evs.length) return;
       var F = null;
@@ -685,14 +705,14 @@
       evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) { r.scorers = SCR; out.push(r); } });
     }); });
     US.forEach(function (lg) { jobs.push(async function () {
-      var sb = await getJSON('site/v2/sports/' + lg.path + '/scoreboard?dates=' + ymd + (lg.q || '')); diag(lg.sport, sb);
+      var sb = await board('site/v2/sports/' + lg.path + '/scoreboard', lg.q); diag(lg.sport, sb);
       var evs = (sb && sb.events) || []; if (!evs.length) return;
       var R = null;
       try { var G = await history(getJSON, lg.path, lg.q, store, tN); R = fitMargin(G, tN, tN, lg); backtest(G, tN, 'us', lg, cal, lg.sport); if (R) { info.games += R.n; info.leagues++; } } catch (e) { }
       evs.forEach(function (ev) { var r = analyseUS(ev, lg, R); if (r) out.push(r); });
     }); });
     [['atp', 'ATP'], ['wta', 'WTA']].forEach(function (t) { jobs.push(async function () {
-      var sb = await getJSON('site/v2/sports/tennis/' + t[0] + '/scoreboard?dates=' + ymd); diag('tennis ' + t[0], sb);
+      var sb = await board('site/v2/sports/tennis/' + t[0] + '/scoreboard'); diag('tennis ' + t[0], sb);
       ((sb && sb.events) || []).forEach(function (ev) {
         var comps = [];
         (ev.groupings || []).forEach(function (g) { if (/single/i.test(pick(g, 'grouping.displayName') || 'single')) comps = comps.concat(g.competitions || []); });

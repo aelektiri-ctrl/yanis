@@ -391,9 +391,10 @@ document.querySelectorAll('.modes button').forEach(function(b){b.onclick=functio
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};
-setInterval(function(){if(document.hidden||S.mode!=='sport'||ddmmyyyy(S.date)!==ddmmyyyy(new Date()))return;var live=(SP.data||[]).some(function(x){return x.state.state==='in'});var age=SP.last?Date.now()-SP.last:1e9;if(live?age>55000:age>5*60000)SP.load(false)},20000);
+function liveDay(){var n=new Date(),y=new Date(n.getFullYear(),n.getMonth(),n.getDate()-1);return ddmmyyyy(S.date)===ddmmyyyy(n)||(ddmmyyyy(S.date)===ddmmyyyy(y)&&n.getHours()<12)}
+setInterval(function(){if(document.hidden||S.mode==='turf'||!liveDay())return;var live=(SP.data||[]).some(function(x){return x.state.state==='in'});var age=SP.last?Date.now()-SP.last:1e9;if(live?age>45000:age>3*60000)SP.load(false)},15000);
 setInterval(function(){if(!document.hidden&&ddmmyyyy(S.date)===ddmmyyyy(new Date()))loadDay(false)},(YANIS?2:3)*60000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.last&&Date.now()-S.last>2*60000)loadDay(false)});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.mode!=='turf'&&SP.data&&!SP.loading&&Date.now()-(SP.last||0)>30000)SP.load(false);if(!document.hidden&&S.last&&Date.now()-S.last>2*60000)loadDay(false)});
 
 /* ===== alertes ===== */
 var SEEN={};
