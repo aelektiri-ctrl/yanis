@@ -105,7 +105,7 @@ a{color:var(--teal)}
 <header>
   <div class="lamps" aria-hidden="true"><i style="left:4%;animation-delay:0.0s,0.0s"></i><i style="left:12%;animation-delay:0.4s,0.5s"></i><i style="left:20%;animation-delay:0.8s,1.0s"></i><i style="left:28%;animation-delay:1.2s,0.0s"></i><i style="left:36%;animation-delay:0.0s,0.5s"></i><i style="left:44%;animation-delay:0.4s,1.0s"></i><i style="left:52%;animation-delay:0.8s,0.0s"></i><i style="left:60%;animation-delay:1.2s,0.5s"></i><i style="left:68%;animation-delay:0.0s,1.0s"></i><i style="left:76%;animation-delay:0.4s,0.0s"></i><i style="left:84%;animation-delay:0.8s,0.5s"></i><i style="left:92%;animation-delay:1.2s,1.0s"></i></div>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v9</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v10</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes">🔔<b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -733,18 +733,48 @@ a{color:var(--teal)}
     if (per > D[0]) return 0.03; // prolongation
     return Math.max(0.01, ((D[0] - per) * D[1] + Math.min(left, D[1])) / (D[0] * D[1]));
   }
+  // Simulation minute par minute (modèle à intensités variables, type Dixon-Robinson) :
+  //  - rythme de buts croissant au fil du match (≈ 45 % des buts en 1re mi-temps, pic en fin de match),
+  //  - effet du score : l'équipe menée accélère, celle qui mène gère ; plus fort pour la grosse équipe menée,
+  //  - cartons rouges, domination réelle (tirs cadrés, possession) pendant le match.
+  function minuteW(t) { return 0.80 + 0.40 * (t / 90) + (t >= 88 ? 0.35 : 0); }
+  var WTOT = (function () { var s = 0; for (var t = 0; t < 94; t++) s += minuteW(t); return s; })();
+  function minuteNow(x) {
+    var st = x.state; if (st.state === 'pre') return 0; if (st.done) return 94;
+    var d = String(st.disp || st.txt || '').match(/(\d+)(?:'|\+)/), m = d ? +d[1] : null;
+    if (m == null && st.clock != null) m = st.clock / 60;
+    if (st.half || /HT|Half/i.test(st.txt)) m = 45;
+    if (m == null) m = st.period >= 2 ? 60 : 20;
+    return Math.min(93, Math.max(0, m));
+  }
   function simFoot(x) {
     if (!x.lam) return null;
-    var R = rng(hash(x.id + '|' + (x.live ? x.live.join('-') : '') + '|' + x.state.txt)), r = remaining(x);
-    var h0 = x.live && x.live[0] != null ? x.live[0] : 0, a0 = x.live && x.live[1] != null ? x.live[1] : 0;
-    var lh = x.lam[0] * r, la = x.lam[1] * r, sc = {}, w1 = 0, wx = 0, w2 = 0, mainOk = 0;
+    var live = x.live && x.live[0] != null && x.state.state === 'in';
+    var R = rng(hash(x.id + '|' + (live ? x.live.join('-') : '') + '|' + x.state.txt)), m0 = live ? Math.floor(minuteNow(x)) : 0;
+    var E = x.enr || {}, rh = 1, ra = 1, notes = [];
+    // cartons rouges
+    if (E.reds) { var r0 = E.reds[0], r1 = E.reds[1]; if (r0 || r1) { rh *= Math.pow(0.72, r0) * Math.pow(1.18, r1); ra *= Math.pow(0.72, r1) * Math.pow(1.18, r0); notes.push('cartons rouges ' + r0 + '-' + r1); } }
+    // domination mesurée pendant le match
+    if (live && E.stats) { var so = E.stats.sot, tot = so[0] + so[1]; if (tot >= 3) { var dom = Math.max(-1, Math.min(1, (so[0] - so[1]) / Math.max(4, tot))); rh *= 1 + 0.18 * dom; ra *= 1 - 0.18 * dom; notes.push('tirs cadrés ' + so[0] + '-' + so[1]); } }
+    var strongH = x.lam[0] > x.lam[1] * 1.3, strongA = x.lam[1] > x.lam[0] * 1.3;
+    var bh = x.lam[0] * rh / WTOT, ba = x.lam[1] * ra / WTOT;
+    var h0 = live ? x.live[0] : 0, a0 = live ? x.live[1] : 0, w1 = 0, wx = 0, w2 = 0, mainOk = 0, sc = {}, comeback = 0, trailing = h0 !== a0;
     for (var i = 0; i < NSIM; i++) {
-      var h = h0 + poisR(lh, R), a = a0 + poisR(la, R), k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
+      var h = h0, a = a0;
+      for (var t = m0; t < 94; t++) {
+        var w = minuteW(t), d = h - a, fh = 1, fa = 1;
+        if (d < 0) { fh = d === -1 ? 1.20 : 1.32; fa = 0.90; if (strongH) fh *= 1.10; }
+        else if (d > 0) { fa = d === 1 ? 1.20 : 1.32; fh = 0.90; if (strongA) fa *= 1.10; }
+        if (R() < bh * w * fh) h++;
+        if (R() < ba * w * fa) a++;
+      }
+      var k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
       if (h > a) w1++; else if (h === a) wx++; else w2++;
       if (x.main && x.main.ok && x.main.ok(h, a)) mainOk++;
+      if (trailing && ((h0 < a0 && h >= a) || (a0 < h0 && a >= h))) comeback++;
     }
     var top = Object.keys(sc).sort(function (u, v) { return sc[v] - sc[u]; }).slice(0, 5).map(function (k) { return [k, sc[k] / NSIM]; });
-    return { n: NSIM, r: r, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top };
+    return { n: NSIM, r: Math.max(0, 94 - m0) / 94, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top, comeback: trailing ? comeback / NSIM : null, minute: m0, notes: notes };
   }
   function simUS(x) {
     if (x.mu == null) return null;
@@ -888,7 +918,10 @@ a{color:var(--teal)}
     why.push('Buts attendus : ' + f2(lh) + ' – ' + f2(la) + ' (avantage du terrain inclus).');
     if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
     else why.push('Pas de cote disponible : estimation sur les statistiques uniquement.');
-    x.lam = [lh, la];
+    // buts attendus recalés pour que la simulation colle à la probabilité finale (modèle + cotes)
+    var tot = lh + la, lo = -2, hi = 2;
+    for (var it = 0; it < 30; it++) { var md = (lo + hi) / 2, f = Math.exp(md), q = soccerProbs(lh * f, la / f).p; if (q[0] - q[2] < fin[0] - fin[2]) lo = md; else hi = md; }
+    var ff = Math.exp((lo + hi) / 2); x.lam = [lh * ff, la / ff];
     x.probs = { '1': fin[0], 'X': fin[1], '2': fin[2] }; x.markets = mk; x.main = main; x.safe = safe; x.value = value; x.level = level; x.why = why; x.conf = main.p;
     x.won = (x.score && x.score[0] != null) ? main.ok(x.score[0], x.score[1]) : undefined;
     return x;
@@ -1006,6 +1039,18 @@ a{color:var(--teal)}
       j.lastFiveGames.forEach(function (t) { var k = side(t); if (k < 0) return; f[k] = (t.events || []).map(function (e) { return (e.gameResult || '').charAt(0).toUpperCase().replace('V', 'W').replace('N', 'D'); }).join(''); });
       if (f[0] || f[1]) E.form5 = f;
     }
+    // cartons rouges (événements clés)
+    if (Array.isArray(j.keyEvents)) {
+      var reds = [0, 0];
+      j.keyEvents.forEach(function (ev) { var ty = (pick(ev, 'type.text') || pick(ev, 'type.type') || '') + ' ' + (ev.text || ''); if (!/red card|carton rouge|second yellow/i.test(ty)) return; var tid = String(pick(ev, 'team.id') || ''); var k = ids.indexOf(tid); if (k >= 0) reds[k]++; });
+      E.reds = reds;
+    }
+    // statistiques en direct (tirs cadrés, possession)
+    if (pick(j, 'boxscore.teams')) {
+      var sot = [0, 0], pos = [null, null], got = false;
+      j.boxscore.teams.forEach(function (t) { var k = side(t); if (k < 0) return; (t.statistics || []).forEach(function (st) { var nm = (st.name || st.label || '').toLowerCase(); var v = num(st.displayValue != null ? String(st.displayValue).replace('%', '') : st.value); if (v == null) return; if (/shotsontarget|on target|ontarget/.test(nm.replace(/\s/g, ''))) { sot[k] = v; got = true; } if (/possession/.test(nm)) pos[k] = v; }); });
+      if (got) E.stats = { sot: sot, pos: pos };
+    }
     E.at = Date.now();
     return E;
   }
@@ -1019,7 +1064,7 @@ a{color:var(--teal)}
       var t = new Date(x.date).getTime(), c = cache[x.id];
       if (!c) return t - now < 36 * 3600e3;
       var soon = t - now < 3 * 3600e3;
-      return soon && now - c.at > 4 * 60e3;
+      return soon && now - c.at > (x.state.state === 'in' ? 50e3 : 4 * 60e3);
     });
     items.forEach(function (x) { if (cache[x.id] && !x.enr) { x.enr = cache[x.id]; refresh(x); } });
     var done = 0, n = todo.length, q = todo.slice();
@@ -1783,6 +1828,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       if(lv&&S2.r!=null)h+='<div class="mute">Le reste du match ('+Math.round(S2.r*100)+' % du temps de jeu) est rejoué '+S2.n.toLocaleString('fr-FR')+' fois à partir du score actuel.</div>';
       if(lv&&x.sport==='tennis')h+='<div class="mute">Les sets restants sont rejoués '+S2.n.toLocaleString('fr-FR')+' fois à partir des sets déjà gagnés.</div>';
       h+='<div class="mk"><span>'+esc(x.main.label)+'</span><span class="conf">'+E.pct(S2.main)+'</span></div>';
+      if(S2.comeback!=null){var trail=x.live[0]<x.live[1]?x.home:x.away;h+='<div class="mk"><span>'+esc(trail)+' revient au moins au nul</span><span class="conf">'+E.pct(S2.comeback)+'</span></div>'}
+      if(x.sport==='foot')h+='<div class="mute" style="margin:4px 0">Simulation minute par minute'+(lv?' depuis la '+S2.minute+'e':'')+' : rythme de buts croissant en fin de match, l\'équipe menée accélère (encore plus si c\'est la favorite), celle qui mène gère'+(S2.notes&&S2.notes.length?', '+esc(S2.notes.join(', ')):'')+'.</div>';
       if(x.sport==='foot')h+='<div class="mk"><span>'+esc(x.home)+' / Nul / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[1])+' · '+E.pct(S2.p[2])+'</span></div>';
       else h+='<div class="mk"><span>Victoire '+esc(x.home)+' / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[2])+'</span></div>';
       if(S2.top&&S2.top.length){h+='<div class="mute" style="margin-top:6px">'+(S2.margin?'Écarts finaux les plus fréquents ('+esc(x.home)+')':'Scores finaux les plus fréquents')+' :</div>';S2.top.forEach(function(t){var lab=S2.margin?((+t[0]>0?'+':'')+t[0]):t[0];h+='<div class="simbar"><span>'+esc(lab)+'</span><i style="width:'+Math.round(t[1]/S2.top[0][1]*100)+'%"></i><b>'+E.pct(t[1])+'</b></div>'})}
