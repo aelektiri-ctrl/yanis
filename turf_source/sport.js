@@ -23,7 +23,16 @@
     { sport: 'wnba', path: 'basketball/wnba', name: 'WNBA', homeAdv: 0.25, cap: 25, sd: 11 },
     { sport: 'nfl', path: 'football/nfl', name: 'NFL', homeAdv: 0.2, cap: 21, sd: 13.5 },
     { sport: 'nhl', path: 'hockey/nhl', name: 'NHL', homeAdv: 0.15, cap: 4, sd: 2.4 },
-    { sport: 'mlb', path: 'baseball/mlb', name: 'MLB', homeAdv: 0.08, cap: 6, sd: 4.2 }
+    { sport: 'mlb', path: 'baseball/mlb', name: 'MLB', homeAdv: 0.08, cap: 6, sd: 4.2 },
+    { sport: 'rugby', path: 'rugby/270559', name: 'Top 14', homeAdv: 0.45, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/267979', name: 'Premiership (Angleterre)', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/270557', name: 'United Rugby Championship', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/271937', name: 'Champions Cup', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/272073', name: 'Challenge Cup', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/180659', name: 'Tournoi des Six Nations', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/242041', name: 'Super Rugby', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/244293', name: 'Rugby Championship', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/289234', name: 'Tests internationaux', homeAdv: 0.25, cap: 30, sd: 14 }
   ];
 
   // ---------- historique de saison et notes de force ----------
@@ -300,7 +309,7 @@
     return finishUS(x);
   }
 
-  var INJ_W = { nba: [0.45, 0.08], wnba: [0.45, 0.08], ncaab: [0.35, 0.06], nfl: [0.3, 0.05], ncaaf: [0.25, 0.04], nhl: [0.25, 0.04], mlb: [0.15, 0.03] };
+  var INJ_W = { rugby: [0.2, 0.03], nba: [0.45, 0.08], wnba: [0.45, 0.08], ncaab: [0.35, 0.06], nfl: [0.3, 0.05], ncaaf: [0.25, 0.04], nhl: [0.25, 0.04], mlb: [0.15, 0.03] };
   function finishUS(x) {
     var E = x.enr || {}, why = x._why0.slice(), z = x._z, hn = x.home, an = x.away, lg = x._lg;
     if (E.form5) why.push('5 derniers matchs : ' + hn + ' ' + (E.form5[0] || '—') + ', ' + an + ' ' + (E.form5[1] || '—') + '.');

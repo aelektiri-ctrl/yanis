@@ -54,7 +54,7 @@ main{padding:12px 16px calc(env(safe-area-inset-bottom) + 40px);max-width:760px;
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ttl{font-weight:800}.mute{color:var(--mute);font-size:13px}
 .badge{font-size:11px;font-weight:900;letter-spacing:.5px;padding:3px 9px;border-radius:20px;color:var(--accent-ink);white-space:nowrap}
-.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
+.LOUP{background:linear-gradient(90deg,#ff4b4b,#ff9f1c);color:#fff}.rmini{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:4px}.rmini b{color:var(--yellow)}.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
 .big{font-size:18px;font-weight:900;margin:6px 0 2px}
 .conf{font-variant-numeric:tabular-nums;font-weight:900;color:var(--yellow)}
 .meter{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--orange),var(--yellow),var(--teal));background-size:200% 100%;animation:flow 4s linear infinite}
@@ -105,7 +105,7 @@ a{color:var(--teal)}
 <header>
   <div class="lamps" aria-hidden="true"><i style="left:4%;animation-delay:0.0s,0.0s"></i><i style="left:12%;animation-delay:0.4s,0.5s"></i><i style="left:20%;animation-delay:0.8s,1.0s"></i><i style="left:28%;animation-delay:1.2s,0.0s"></i><i style="left:36%;animation-delay:0.0s,0.5s"></i><i style="left:44%;animation-delay:0.4s,1.0s"></i><i style="left:52%;animation-delay:0.8s,0.0s"></i><i style="left:60%;animation-delay:1.2s,0.5s"></i><i style="left:68%;animation-delay:0.0s,1.0s"></i><i style="left:76%;animation-delay:0.4s,0.0s"></i><i style="left:84%;animation-delay:0.8s,0.5s"></i><i style="left:92%;animation-delay:1.2s,1.0s"></i></div>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v7</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v8</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes">🔔<b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -414,36 +414,62 @@ a{color:var(--teal)}
     else if (pABtop3 >= 0.38) level = 'FORT';
     else level = 'DOUTE';
 
+    // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
+    var loup = null;
+    H.forEach(function (h, i) {
+      if (i === A || i === B || !h.cote || h.cote < 7) return;
+      var sc = 0, why = [];
+      var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
+      if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
+      if (h.pm && h.p / h.pm >= 1.5) { sc += 1.5; why.push('le modèle le voit ' + Math.round(h.p / h.pm * 10) / 10 + ' fois plus souvent gagnant que le public'); }
+      if (h.pf && h.pm && h.pf / h.pm >= 2) { sc += 1; why.push('analyse détaillée très supérieure à sa cote'); }
+      if (h.valueY) { sc += 0.5; why.push('signalé « value » par Yanis'); }
+      if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
+      if (h.top[2] >= 0.30) sc += 0.5;
+      if (sc >= 2.5 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+    });
+    var L = loup ? loup.i : -1;
+
     var N = function (i) { return H[i].num; };
     var nums = function (arr) { return arr.map(N).join(' - '); };
     var jeux = [];
-    function add(type, label, detail, combos, p, hit, main, list) {
+    function add(type, label, detail, combos, p, hit, main, list, lib) {
       if (!dispo[type] && !dispo['E_' + type]) return;
       var mise = dispo[type] || dispo['E_' + type];
-      jeux.push({ type: type, label: label, detail: detail, combos: combos, cout: combos * mise, mise: mise, p: p, hit: hit, main: !!main, list: list || null });
+      jeux.push({ type: type, label: label, detail: detail, combos: combos, cout: combos * mise, mise: mise, p: p, hit: hit, main: !!main, list: list || null, lib: lib || null });
     }
-    function pairs(base, set) { return set.map(function (x) { return base.concat([N(x)]); }); }
-    function pairs2(base, set) { var o = []; for (var i = 0; i < set.length; i++) for (var j = i + 1; j < set.length; j++) o.push(base.concat([N(set[i]), N(set[j])])); return o; }
-    var kChoice = (trioK[5].p - trioK[4].p) > 0.06 ? 5 : 4;
-    var setK = trioK[kChoice].set;
+    function kOf(arr, k) { var o = []; (function rec(st, cur) { if (cur.length === k) { o.push(cur.slice()); return; } for (var i = st; i < arr.length; i++) { cur.push(arr[i]); rec(i + 1, cur); cur.pop(); } })(0, []); return o; }
+    function champ(bases, others, size) { return kOf(others, size - bases.length).map(function (c) { return bases.map(N).concat(c.map(N)); }); }
+    function inFirst(a, k, n) { return a.slice(0, k).indexOf(n) >= 0; }
+    function hitChamp(bases, others, k, need) { return function (a) { var t = a.slice(0, k); return bases.every(function (b) { return t.indexOf(N(b)) >= 0; }) && others.filter(function (x) { return t.indexOf(N(x)) >= 0; }).length >= need; }; }
+    function pChamp(bases, others, k, need) { return freq(orders, function (o) { return bases.every(function (b) { return inTop(o, b, k); }) && countIn(o, others, k) >= need; }); }
 
+    // chevaux d'accompagnement classés par chance d'être dans les k premiers
+    var B2 = [A, B], B3 = L >= 0 ? [A, B, L] : null;
+    var for3 = byTop(3, B2), for4 = byTop(4, B2), for5 = byTop(5, B2);
+    var k3 = (trioK[5].p - trioK[4].p) > 0.06 || level === 'DOUTE' ? 5 : 4;
+    var o3 = for3.slice(0, Math.min(k3, n - 2)), o4 = for4.slice(0, Math.min(5, n - 2)), o5 = for5.slice(0, Math.min(5, n - 2));
+    var o4L = B3 ? byTop(4, B3).slice(0, Math.min(5, n - 3)) : null, o5L = B3 ? byTop(5, B3).slice(0, Math.min(5, n - 3)) : null;
+
+    // jumelés (couplés) et 2 sur 4 : toujours les 2 bases
     if (level === 'SEC') {
-      add('COUPLE_GAGNANT', 'Couplé gagnant sec', nums([A, B]), 1, pCoupleAB, function (a) { return a.length >= 2 && [a[0], a[1]].sort().join() === [N(A), N(B)].sort().join(); }, true, [[N(A), N(B)]]);
+      add('COUPLE_GAGNANT', 'Couplé (jumelé) gagnant sec', nums(B2), 1, pCoupleAB, function (a) { return a.length >= 2 && [a[0], a[1]].sort().join() === [N(A), N(B)].sort().join(); }, true, [[N(A), N(B)]]);
       if (pA >= 0.3) add('SIMPLE_GAGNANT', 'Simple gagnant', String(N(A)), 1, pA, function (a) { return a[0] === N(A); }, false, [[N(A)]]);
-      add('TRIO', 'Trio sec', nums([A, B, C]), 1, pTrioABC, function (a) { return a.length >= 3 && a.slice(0, 3).sort().join() === [N(A), N(B), N(C)].sort().join(); }, false, [[N(A), N(B), N(C)]]);
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 sec (sécurité)', nums([A, B]), 1, p2sur4AB, function (a) { return a.slice(0, 4).indexOf(N(A)) >= 0 && a.slice(0, 4).indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-    } else if (level === 'FORT') {
-      add('TRIO', 'Trio champ réduit — 2 bases + ' + kChoice, 'Bases ' + nums([A, B]) + ' / avec ' + nums(setK), kChoice, trioK[kChoice].p, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0 && setK.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, true, pairs([N(A), N(B)], setK));
-      if (n >= 8) add('COUPLE_PLACE', 'Couplé placé sec', nums([A, B]), 1, pABtop3, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 sec', nums([A, B]), 1, p2sur4AB, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-    } else {
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + s4.length, 'Base ' + N(A) + ' / avec ' + nums(s4), s4.length, p2sur4base, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && s4.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, true, pairs([N(A)], s4));
-      add('TRIO', 'Trio champ réduit — 1 base + ' + s5.length, 'Base ' + N(A) + ' / avec ' + nums(s5), comb(s5.length, 2), pTrio1b5, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && s5.filter(function (i) { return t.indexOf(N(i)) >= 0; }).length === 2; }, jeux.length === 0, pairs2([N(A)], s5));
     }
+    if (n >= 8) add('COUPLE_PLACE', 'Couplé (jumelé) placé', nums(B2), 1, pABtop3, function (a) { return inFirst(a, 3, N(A)) && inFirst(a, 3, N(B)); }, level === 'FORT' && !B3, [[N(A), N(B)]]);
+    if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4', nums(B2), 1, p2sur4AB, function (a) { return inFirst(a, 4, N(A)) && inFirst(a, 4, N(B)); }, false, [[N(A), N(B)]]);
+    if (level === 'DOUTE' && n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + s4.length, 'Base ' + N(A) + ' / avec ' + nums(s4), s4.length, p2sur4base, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && s4.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, !B3, s4.map(function (x) { return [N(A), N(x)]; }));
+    // trio : 2 bases + 4 ou 5
+    add('TRIO', 'Trio champ réduit — 2 bases + ' + o3.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o3), o3.length, pChamp(B2, o3, 3, 1), hitChamp(B2, o3, 3, 1), level !== 'SEC' && level !== 'DOUTE' && !B3 && !dispo.MULTI, champ(B2, o3, 3));
+    // multi (en 4) : 2 bases + 5, ou 3 bases + 5 s'il y a un loup
+    if (n >= 8) {
+      if (B3) add('MULTI', 'Multi champ réduit — 3 bases + ' + o4L.length + ' 🐺', 'Bases ' + nums(B3) + ' / avec ' + nums(o4L), o4L.length, pChamp(B3, o4L, 4, 1), hitChamp(B3, o4L, 4, 1), true, champ(B3, o4L, 4), /en 4/i);
+      add('MULTI', 'Multi champ réduit — 2 bases + ' + o4.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o4), comb(o4.length, 2), pChamp(B2, o4, 4, 2), hitChamp(B2, o4, 4, 2), !B3 && level !== 'SEC', champ(B2, o4, 4), /en 4/i);
+    }
+    // quinté+ (désordre) : 2 bases + 5, ou 3 bases + 5
     if (dispo.QUINTE_PLUS && n >= 8) {
-      var s6 = byTop(5, [A, B]).slice(0, 6);
-      var pQ = freq(orders, function (o) { return inTop(o, A, 5) && inTop(o, B, 5) && countIn(o, s6, 5) === 3; });
-      add('QUINTE_PLUS', 'Quinté+ champ réduit — 2 bases + 6 (désordre)', 'Bases ' + nums([A, B]) + ' / avec ' + nums(s6), comb(6, 3), pQ, function (a) { var t = a.slice(0, 5); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0 && s6.filter(function (i) { return t.indexOf(N(i)) >= 0; }).length === 3; });
+      var qb = B3 || B2, qo = B3 ? o5L : o5, need = 5 - qb.length;
+      add('QUINTE_PLUS', 'Quinté+ champ réduit — ' + qb.length + ' bases + ' + qo.length + (B3 ? ' 🐺' : '') + ' (désordre)', 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), /sordre/i);
     }
     if (!jeux.some(function (j) { return j.main; }) && jeux.length) jeux[0].main = true;
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
@@ -454,6 +480,7 @@ a{color:var(--teal)}
     if (level === 'SEC') why.push('Course nette : le n°' + hA.num + ' (' + pct(pA) + ') et le n°' + hB.num + ' (' + pct(pB) + ') dominent. Le couplé ' + hA.num + '-' + hB.num + ' sort dans ' + pct(pCoupleAB) + ' des 20 000 simulations d\'arrivée.');
     else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + kChoice + ' chevaux.');
     else why.push('Course ouverte : le premier choix n°' + hA.num + ' n\'a que ' + pct(pA) + ' de chances de gagner. On joue la sécurité avec un 2 sur 4 et un trio en champ réduit.');
+    if (loup) why.push('🐺 Anguille sous roche : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') — ' + loup.why.join(', ') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
     if (hA.ev != null && hA.ev >= 1.15) why.push('Le n°' + hA.num + ' est sous-coté par le public : espérance ' + hA.ev.toFixed(2).replace('.', ',') + ' € par euro joué au gagnant.');
     if (H.yanis) why.push('Probabilités du modèle Yanis, entraîné sur plus de 15 000 courses réelles, affinées par l\'analyse détaillée (forme, ferrure, recul, poids, corde, cote).');
     else why.push(H.learned ? 'Poids des facteurs appris sur l\'historique réel des courses (' + (family(course) === 'trot' ? 'trot' : 'galop') + ').' : 'Poids des facteurs par défaut : lance l\'apprentissage dans l\'onglet Bilan pour les caler sur les vrais résultats.');
@@ -473,12 +500,26 @@ a{color:var(--teal)}
       var R = course.rapports;
       if (Array.isArray(R) && R.length) jeux.forEach(function (j) {
         if (!j.list) return; var ret = 0;
-        j.list.forEach(function (cmb) { var key = cmb.slice().sort(function (a, b) { return a - b; }).join('-');
-          R.forEach(function (r) { if (r.pari !== j.type) return; var k = String(r.combinaison).split(/[-\s]+/).map(Number).sort(function (a, b) { return a - b; }).join('-'); if (k === key) ret += num(r.rapport) || 0; }); });
+        j.list.forEach(function (cmb) {
+          var key = cmb.slice().sort(function (a, b) { return a - b; }).join('-'), best = 0;
+          R.forEach(function (r) {
+            if (r.pari !== j.type) return;
+            var rn = String(r.combinaison).split(/[-\s]+/).map(Number), k = rn.slice().sort(function (a, b) { return a - b; }).join('-');
+            if (j.type === 'QUINTE_PLUS') {
+              if (/sordre/i.test(r.libelle || '') && k === key) best = Math.max(best, num(r.rapport) || 0);
+              else if (/bonus/i.test(r.libelle || '') && rn.every(function (x) { return cmb.indexOf(x) >= 0; })) best = Math.max(best, num(r.rapport) || 0);
+              return;
+            }
+            if (j.lib && !j.lib.test(r.libelle || '')) return;
+            if (k === key) best += num(r.rapport) || 0;
+          });
+          ret += best;
+        });
         j.retour = ret * (j.mise || 1); j.rapportOk = true;
       });
     }
 
+    res.loup = loup ? H[L] : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });
@@ -524,7 +565,16 @@ a{color:var(--teal)}
     { sport: 'wnba', path: 'basketball/wnba', name: 'WNBA', homeAdv: 0.25, cap: 25, sd: 11 },
     { sport: 'nfl', path: 'football/nfl', name: 'NFL', homeAdv: 0.2, cap: 21, sd: 13.5 },
     { sport: 'nhl', path: 'hockey/nhl', name: 'NHL', homeAdv: 0.15, cap: 4, sd: 2.4 },
-    { sport: 'mlb', path: 'baseball/mlb', name: 'MLB', homeAdv: 0.08, cap: 6, sd: 4.2 }
+    { sport: 'mlb', path: 'baseball/mlb', name: 'MLB', homeAdv: 0.08, cap: 6, sd: 4.2 },
+    { sport: 'rugby', path: 'rugby/270559', name: 'Top 14', homeAdv: 0.45, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/267979', name: 'Premiership (Angleterre)', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/270557', name: 'United Rugby Championship', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/271937', name: 'Champions Cup', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/272073', name: 'Challenge Cup', homeAdv: 0.35, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/180659', name: 'Tournoi des Six Nations', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/242041', name: 'Super Rugby', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/244293', name: 'Rugby Championship', homeAdv: 0.3, cap: 30, sd: 13 },
+    { sport: 'rugby', path: 'rugby/289234', name: 'Tests internationaux', homeAdv: 0.25, cap: 30, sd: 14 }
   ];
 
   // ---------- historique de saison et notes de force ----------
@@ -801,7 +851,7 @@ a{color:var(--teal)}
     return finishUS(x);
   }
 
-  var INJ_W = { nba: [0.45, 0.08], wnba: [0.45, 0.08], ncaab: [0.35, 0.06], nfl: [0.3, 0.05], ncaaf: [0.25, 0.04], nhl: [0.25, 0.04], mlb: [0.15, 0.03] };
+  var INJ_W = { rugby: [0.2, 0.03], nba: [0.45, 0.08], wnba: [0.45, 0.08], ncaab: [0.35, 0.06], nfl: [0.3, 0.05], ncaaf: [0.25, 0.04], nhl: [0.25, 0.04], mlb: [0.15, 0.03] };
   function finishUS(x) {
     var E = x.enr || {}, why = x._why0.slice(), z = x._z, hn = x.home, an = x.away, lg = x._lg;
     if (E.form5) why.push('5 derniers matchs : ' + hn + ' ' + (E.form5[0] || '—') + ', ' + an + ' ' + (E.form5[1] || '—') + '.');
@@ -1378,7 +1428,7 @@ function allCourses(){
   S.prog.reunions.forEach(function(r){r.courses.forEach(function(c){out.push({r:r,c:c,a:S.an[key(r.numOfficiel,c.numOrdre)]})})});
   return out;
 }
-function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return '<span class="badge '+a.level+'">'+LVL[a.level]+'</span>'}
+function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return (a.loup?'<span class="badge LOUP">🐺 LOUP</span> ':'')+'<span class="badge '+a.level+'">'+LVL[a.level]+'</span>'}
 function resultTag(a){if(!a||!a.arrivee||!a.main)return '';return a.main.gagne?' <span class="ok">✓ gagnant</span>':' <span class="ko">✗ perdu</span>'}
 
 function tState(c,a){
@@ -1391,6 +1441,19 @@ function tState(c,a){
 }
 function liveStrip(c,a){var t=tState(c,a);return '<div class="strip '+t.cls+'">'+(t.cls==='live'?'<i class="dot"></i>':'')+esc(t.txt)+'</div>'}
 function equidiaUrl(c,r){var d=c.dateStr||ymdDash(S.date);return 'https://www.equidia.fr/courses/'+d+'/R'+r.numOfficiel+'/C'+c.numOrdre}
+var RORDER=['SIMPLE_GAGNANT','SIMPLE_PLACE','COUPLE_GAGNANT','COUPLE_PLACE','COUPLE_ORDRE','DEUX_SUR_QUATRE','TRIO','TRIO_ORDRE','TIERCE','QUARTE_PLUS','QUINTE_PLUS','MULTI','MINI_MULTI','SUPER_QUATRE','SUPER_PICK5'];
+var RNAME={SIMPLE_GAGNANT:'Simple gagnant',SIMPLE_PLACE:'Simple placé',COUPLE_GAGNANT:'Jumelé (couplé) gagnant',COUPLE_PLACE:'Jumelé (couplé) placé',COUPLE_ORDRE:'Couplé ordre',DEUX_SUR_QUATRE:'2 sur 4',TRIO:'Trio',TRIO_ORDRE:'Trio ordre',TIERCE:'Tiercé',QUARTE_PLUS:'Quarté+',QUINTE_PLUS:'Quinté+',MULTI:'Multi',MINI_MULTI:'Mini multi',SUPER_QUATRE:'Super 4',SUPER_PICK5:'Pick 5'};
+function rapportsTable(c){
+  var R=c.rapports||[];if(!R.length)return '';
+  var rs=R.slice().sort(function(a,b){return RORDER.indexOf(a.pari)-RORDER.indexOf(b.pari)});
+  var h='<h2>Rapports officiels PMU (pour 1 €)</h2><div class="card">';
+  rs.forEach(function(r){var nm=RNAME[r.pari]||r.libelle||r.pari,lb=r.libelle&&!new RegExp('^'+nm.split(' ')[0],'i').test(r.libelle)?' · '+r.libelle:(r.pari==='MULTI'||r.pari==='QUINTE_PLUS'?' · '+r.libelle:'');
+    h+='<div class="mk"><span>'+esc(nm+lb)+' <span class="mute">'+esc(String(r.combinaison))+'</span></span><span class="conf">'+String(r.rapport).replace('.',',')+' €</span></div>'});
+  return h+'</div>';
+}
+function rapportsMini(c){var R=c.rapports||[];if(!R.length)return '';var pick=function(t,re){var x=R.filter(function(r){return r.pari===t&&(!re||re.test(r.libelle||''))})[0];return x?x.rapport:null};
+  var o=[['SG',pick('SIMPLE_GAGNANT')],['Jum.G',pick('COUPLE_GAGNANT')],['Trio',pick('TRIO')],['Multi4',pick('MULTI',/en 4/i)],['2/4',pick('DEUX_SUR_QUATRE')]].filter(function(x){return x[1]!=null});
+  return o.length?'<div class="rmini">'+o.map(function(x){return '<span>'+x[0]+' <b>'+String(x[1]).replace('.',',')+' €</b></span>'}).join('')+'</div>':''}
 function money(a){var m=a.main;if(!m||!a.arrivee)return '';if(m.rapportOk)return m.gagne?' <span class="ok">✓ retour '+euros(m.retour)+' pour '+euros(m.cout)+'</span>':' <span class="ko">✗ −'+euros(m.cout)+'</span>';return resultTag(a)}
 function viewSel(){
   var now=Date.now();
@@ -1400,7 +1463,7 @@ function viewSel(){
   if(!S.prog)return intro();
   var lc=(!MODELS||LEARN.running)?learnCard(false):'';
   if(!top.length)return lc+'<div class="card">'+(S.loading?'Analyse en cours…':'Aucune course à venir avec des partants publiés pour cette date. Consulte l\'onglet Programme ou le Bilan.')+'</div>';
-  var h=lc+'<h2>Toutes les courses à venir ('+top.length+'), classées par potentiel</h2><p class="mute" style="margin-top:-4px">SEC = course nette · CHAMP RÉDUIT = 2 bases solides · PRUDENT = course ouverte (2 sur 4 / trio).</p>';
+  var h=lc+'<h2>Toutes les courses à venir ('+top.length+'), classées par potentiel</h2><p class="mute" style="margin-top:-4px">SEC = course nette · CHAMP RÉDUIT = 2 bases solides · PRUDENT = course ouverte · 🐺 LOUP = anguille sous roche, on passe à 3 bases + 5.</p>';
   top.forEach(function(x,i){
     var a=x.a,m=a.main,base=a.ranking[0];
     h+='<div class="card tap sp-'+(/TROT/.test(x.c.specialite)?'trot':'galop')+'" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'">'+liveStrip(x.c,a)+
@@ -1420,7 +1483,7 @@ function viewProg(){
     r.courses.forEach(function(c){
       var a=S.an[key(r.numOfficiel,c.numOrdre)];
       var sub=a&&a.ok&&a.main?esc(a.main.label)+' · '+esc(a.main.detail):(a&&a.message?esc(a.message):'Analyse en attente');
-      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+liveStrip(c,a)+'</span>'+badge(a)+'</div>';
+      h+='<div class="crow tap" data-k="'+key(r.numOfficiel,c.numOrdre)+'"><span class="h">'+hhmm(c.heureDepart)+'</span><span class="m"><div class="ttl">C'+c.numOrdre+' · '+esc(c.libelleCourt||c.libelle)+'</div><div class="mute">'+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(a&&a.ok?a.n:c.nombreDeclaresPartants)+' partants</div><div class="mute">'+sub+money(a||{})+'</div>'+liveStrip(c,a)+rapportsMini(c)+'</span>'+badge(a)+'</div>';
     });
     h+='</div></div>';
   });
@@ -1462,6 +1525,7 @@ function sheet(k){
   a.jeux.forEach(function(j){
     h+='<div class="jeu'+(j.main?' main':'')+'"><div class="row"><span class="ttl">'+(j.main?'★ ':'')+esc(j.label)+'</span><span class="conf">'+E.pct(j.p)+'</span></div><div>'+esc(j.detail)+'</div><div class="mute">'+j.combos+' combinaison'+(j.combos>1?'s':'')+' · '+euros(j.cout)+(YANIS?' (1 € par combinaison)':' en mise de base')+(j.gagne===true?' · <span class="ok">✓ gagnant'+(j.rapportOk?' : retour '+euros(j.retour):'')+'</span>':j.gagne===false?' · <span class="ko">✗ perdu</span>':'')+'</div></div>';
   });
+  h+=rapportsTable(c);
   h+='<h2>Pourquoi ce choix</h2><div class="card">'+a.why.map(function(w){return '<p style="margin:4px 0">'+esc(w)+'</p>'}).join('')+'</div>';
   h+='<h2>Classement du modèle</h2><div class="card">';
   a.ranking.forEach(function(hh,i){
@@ -1531,8 +1595,8 @@ async function getESPN(path){
   }
   throw last;
 }
-var ICON={foot:'⚽',nba:'🏀',wnba:'🏀',nfl:'🏈',nhl:'🏒',mlb:'⚾',tennis:'🎾',mma:'🥊'};
-var SNAME={all:'Tous',foot:'Football',nba:'NBA',wnba:'WNBA',nfl:'NFL',nhl:'NHL',mlb:'MLB',tennis:'Tennis',mma:'MMA'};
+var ICON={rugby:'🏉',foot:'⚽',nba:'🏀',wnba:'🏀',nfl:'🏈',nhl:'🏒',mlb:'⚾',tennis:'🎾',mma:'🥊'};
+var SNAME={all:'Tous',rugby:'Rugby',foot:'Football',nba:'NBA',wnba:'WNBA',nfl:'NFL',nhl:'NHL',mlb:'MLB',tennis:'Tennis',mma:'MMA'};
 var SLVL={SEC:'SEC',FORT:'SOLIDE',DOUTE:'PRUDENT'};
 var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
   setSt:function(t){SP.st=t;if(S.mode==='sport')$('st').textContent=t},
@@ -1564,7 +1628,7 @@ var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
   items:function(){return (SP.data||[]).filter(function(x){return SP.filter==='all'||x.sport===SP.filter})},
   chips:function(){
     var have={};(SP.data||[]).forEach(function(x){have[x.sport]=(have[x.sport]||0)+1});
-    return '<div class="chips">'+['all','foot','nba','wnba','nfl','nhl','mlb','tennis','mma'].filter(function(k){return k==='all'||have[k]}).map(function(k){return '<button data-f="'+k+'" class="'+(SP.filter===k?'on':'')+'">'+(ICON[k]||'')+' '+SNAME[k]+(k!=='all'?' '+have[k]:'')+'</button>'}).join('')+'</div>';
+    return '<div class="chips">'+['all','foot','rugby','nba','wnba','nfl','nhl','mlb','tennis','mma'].filter(function(k){return k==='all'||have[k]}).map(function(k){return '<button data-f="'+k+'" class="'+(SP.filter===k?'on':'')+'">'+(ICON[k]||'')+' '+SNAME[k]+(k!=='all'?' '+have[k]:'')+'</button>'}).join('')+'</div>';
   },
   card:function(x,i){
     var t=new Date(x.date),hh=isNaN(t)?'':t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});

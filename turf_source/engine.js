@@ -295,36 +295,62 @@
     else if (pABtop3 >= 0.38) level = 'FORT';
     else level = 'DOUTE';
 
+    // ---- détection du « loup » : outsider sur lequel l'argent ou les données disent autre chose que la cote ----
+    var loup = null;
+    H.forEach(function (h, i) {
+      if (i === A || i === B || !h.cote || h.cote < 7) return;
+      var sc = 0, why = [];
+      var first = h.suivi && h.suivi.length >= 2 ? h.suivi[0][1] : h.coteRef;
+      if (first && h.cote && first / h.cote >= 1.6) { sc += 2; why.push('cote écrasée de ' + fmtCote(first) + ' à ' + fmtCote(h.cote)); }
+      if (h.pm && h.p / h.pm >= 1.5) { sc += 1.5; why.push('le modèle le voit ' + Math.round(h.p / h.pm * 10) / 10 + ' fois plus souvent gagnant que le public'); }
+      if (h.pf && h.pm && h.pf / h.pm >= 2) { sc += 1; why.push('analyse détaillée très supérieure à sa cote'); }
+      if (h.valueY) { sc += 0.5; why.push('signalé « value » par Yanis'); }
+      if (/ANTERIEURS_POSTERIEURS/.test(h.deferre) && isTrot(course)) { sc += 0.5; why.push('déferré des 4 pieds'); }
+      if (h.top[2] >= 0.30) sc += 0.5;
+      if (sc >= 2.5 && (!loup || sc > loup.sc)) loup = { i: i, sc: sc, why: why };
+    });
+    var L = loup ? loup.i : -1;
+
     var N = function (i) { return H[i].num; };
     var nums = function (arr) { return arr.map(N).join(' - '); };
     var jeux = [];
-    function add(type, label, detail, combos, p, hit, main, list) {
+    function add(type, label, detail, combos, p, hit, main, list, lib) {
       if (!dispo[type] && !dispo['E_' + type]) return;
       var mise = dispo[type] || dispo['E_' + type];
-      jeux.push({ type: type, label: label, detail: detail, combos: combos, cout: combos * mise, mise: mise, p: p, hit: hit, main: !!main, list: list || null });
+      jeux.push({ type: type, label: label, detail: detail, combos: combos, cout: combos * mise, mise: mise, p: p, hit: hit, main: !!main, list: list || null, lib: lib || null });
     }
-    function pairs(base, set) { return set.map(function (x) { return base.concat([N(x)]); }); }
-    function pairs2(base, set) { var o = []; for (var i = 0; i < set.length; i++) for (var j = i + 1; j < set.length; j++) o.push(base.concat([N(set[i]), N(set[j])])); return o; }
-    var kChoice = (trioK[5].p - trioK[4].p) > 0.06 ? 5 : 4;
-    var setK = trioK[kChoice].set;
+    function kOf(arr, k) { var o = []; (function rec(st, cur) { if (cur.length === k) { o.push(cur.slice()); return; } for (var i = st; i < arr.length; i++) { cur.push(arr[i]); rec(i + 1, cur); cur.pop(); } })(0, []); return o; }
+    function champ(bases, others, size) { return kOf(others, size - bases.length).map(function (c) { return bases.map(N).concat(c.map(N)); }); }
+    function inFirst(a, k, n) { return a.slice(0, k).indexOf(n) >= 0; }
+    function hitChamp(bases, others, k, need) { return function (a) { var t = a.slice(0, k); return bases.every(function (b) { return t.indexOf(N(b)) >= 0; }) && others.filter(function (x) { return t.indexOf(N(x)) >= 0; }).length >= need; }; }
+    function pChamp(bases, others, k, need) { return freq(orders, function (o) { return bases.every(function (b) { return inTop(o, b, k); }) && countIn(o, others, k) >= need; }); }
 
+    // chevaux d'accompagnement classés par chance d'être dans les k premiers
+    var B2 = [A, B], B3 = L >= 0 ? [A, B, L] : null;
+    var for3 = byTop(3, B2), for4 = byTop(4, B2), for5 = byTop(5, B2);
+    var k3 = (trioK[5].p - trioK[4].p) > 0.06 || level === 'DOUTE' ? 5 : 4;
+    var o3 = for3.slice(0, Math.min(k3, n - 2)), o4 = for4.slice(0, Math.min(5, n - 2)), o5 = for5.slice(0, Math.min(5, n - 2));
+    var o4L = B3 ? byTop(4, B3).slice(0, Math.min(5, n - 3)) : null, o5L = B3 ? byTop(5, B3).slice(0, Math.min(5, n - 3)) : null;
+
+    // jumelés (couplés) et 2 sur 4 : toujours les 2 bases
     if (level === 'SEC') {
-      add('COUPLE_GAGNANT', 'Couplé gagnant sec', nums([A, B]), 1, pCoupleAB, function (a) { return a.length >= 2 && [a[0], a[1]].sort().join() === [N(A), N(B)].sort().join(); }, true, [[N(A), N(B)]]);
+      add('COUPLE_GAGNANT', 'Couplé (jumelé) gagnant sec', nums(B2), 1, pCoupleAB, function (a) { return a.length >= 2 && [a[0], a[1]].sort().join() === [N(A), N(B)].sort().join(); }, true, [[N(A), N(B)]]);
       if (pA >= 0.3) add('SIMPLE_GAGNANT', 'Simple gagnant', String(N(A)), 1, pA, function (a) { return a[0] === N(A); }, false, [[N(A)]]);
-      add('TRIO', 'Trio sec', nums([A, B, C]), 1, pTrioABC, function (a) { return a.length >= 3 && a.slice(0, 3).sort().join() === [N(A), N(B), N(C)].sort().join(); }, false, [[N(A), N(B), N(C)]]);
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 sec (sécurité)', nums([A, B]), 1, p2sur4AB, function (a) { return a.slice(0, 4).indexOf(N(A)) >= 0 && a.slice(0, 4).indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-    } else if (level === 'FORT') {
-      add('TRIO', 'Trio champ réduit — 2 bases + ' + kChoice, 'Bases ' + nums([A, B]) + ' / avec ' + nums(setK), kChoice, trioK[kChoice].p, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0 && setK.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, true, pairs([N(A), N(B)], setK));
-      if (n >= 8) add('COUPLE_PLACE', 'Couplé placé sec', nums([A, B]), 1, pABtop3, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 sec', nums([A, B]), 1, p2sur4AB, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0; }, false, [[N(A), N(B)]]);
-    } else {
-      if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + s4.length, 'Base ' + N(A) + ' / avec ' + nums(s4), s4.length, p2sur4base, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && s4.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, true, pairs([N(A)], s4));
-      add('TRIO', 'Trio champ réduit — 1 base + ' + s5.length, 'Base ' + N(A) + ' / avec ' + nums(s5), comb(s5.length, 2), pTrio1b5, function (a) { var t = a.slice(0, 3); return t.indexOf(N(A)) >= 0 && s5.filter(function (i) { return t.indexOf(N(i)) >= 0; }).length === 2; }, jeux.length === 0, pairs2([N(A)], s5));
     }
+    if (n >= 8) add('COUPLE_PLACE', 'Couplé (jumelé) placé', nums(B2), 1, pABtop3, function (a) { return inFirst(a, 3, N(A)) && inFirst(a, 3, N(B)); }, level === 'FORT' && !B3, [[N(A), N(B)]]);
+    if (n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4', nums(B2), 1, p2sur4AB, function (a) { return inFirst(a, 4, N(A)) && inFirst(a, 4, N(B)); }, false, [[N(A), N(B)]]);
+    if (level === 'DOUTE' && n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + s4.length, 'Base ' + N(A) + ' / avec ' + nums(s4), s4.length, p2sur4base, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && s4.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, !B3, s4.map(function (x) { return [N(A), N(x)]; }));
+    // trio : 2 bases + 4 ou 5
+    add('TRIO', 'Trio champ réduit — 2 bases + ' + o3.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o3), o3.length, pChamp(B2, o3, 3, 1), hitChamp(B2, o3, 3, 1), level !== 'SEC' && level !== 'DOUTE' && !B3 && !dispo.MULTI, champ(B2, o3, 3));
+    // multi (en 4) : 2 bases + 5, ou 3 bases + 5 s'il y a un loup
+    if (n >= 8) {
+      if (B3) add('MULTI', 'Multi champ réduit — 3 bases + ' + o4L.length + ' 🐺', 'Bases ' + nums(B3) + ' / avec ' + nums(o4L), o4L.length, pChamp(B3, o4L, 4, 1), hitChamp(B3, o4L, 4, 1), true, champ(B3, o4L, 4), /en 4/i);
+      add('MULTI', 'Multi champ réduit — 2 bases + ' + o4.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o4), comb(o4.length, 2), pChamp(B2, o4, 4, 2), hitChamp(B2, o4, 4, 2), !B3 && level !== 'SEC', champ(B2, o4, 4), /en 4/i);
+    }
+    // quinté+ (désordre) : 2 bases + 5, ou 3 bases + 5
     if (dispo.QUINTE_PLUS && n >= 8) {
-      var s6 = byTop(5, [A, B]).slice(0, 6);
-      var pQ = freq(orders, function (o) { return inTop(o, A, 5) && inTop(o, B, 5) && countIn(o, s6, 5) === 3; });
-      add('QUINTE_PLUS', 'Quinté+ champ réduit — 2 bases + 6 (désordre)', 'Bases ' + nums([A, B]) + ' / avec ' + nums(s6), comb(6, 3), pQ, function (a) { var t = a.slice(0, 5); return t.indexOf(N(A)) >= 0 && t.indexOf(N(B)) >= 0 && s6.filter(function (i) { return t.indexOf(N(i)) >= 0; }).length === 3; });
+      var qb = B3 || B2, qo = B3 ? o5L : o5, need = 5 - qb.length;
+      add('QUINTE_PLUS', 'Quinté+ champ réduit — ' + qb.length + ' bases + ' + qo.length + (B3 ? ' 🐺' : '') + ' (désordre)', 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), /sordre/i);
     }
     if (!jeux.some(function (j) { return j.main; }) && jeux.length) jeux[0].main = true;
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
@@ -335,6 +361,7 @@
     if (level === 'SEC') why.push('Course nette : le n°' + hA.num + ' (' + pct(pA) + ') et le n°' + hB.num + ' (' + pct(pB) + ') dominent. Le couplé ' + hA.num + '-' + hB.num + ' sort dans ' + pct(pCoupleAB) + ' des 20 000 simulations d\'arrivée.');
     else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + kChoice + ' chevaux.');
     else why.push('Course ouverte : le premier choix n°' + hA.num + ' n\'a que ' + pct(pA) + ' de chances de gagner. On joue la sécurité avec un 2 sur 4 et un trio en champ réduit.');
+    if (loup) why.push('🐺 Anguille sous roche : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') — ' + loup.why.join(', ') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
     if (hA.ev != null && hA.ev >= 1.15) why.push('Le n°' + hA.num + ' est sous-coté par le public : espérance ' + hA.ev.toFixed(2).replace('.', ',') + ' € par euro joué au gagnant.');
     if (H.yanis) why.push('Probabilités du modèle Yanis, entraîné sur plus de 15 000 courses réelles, affinées par l\'analyse détaillée (forme, ferrure, recul, poids, corde, cote).');
     else why.push(H.learned ? 'Poids des facteurs appris sur l\'historique réel des courses (' + (family(course) === 'trot' ? 'trot' : 'galop') + ').' : 'Poids des facteurs par défaut : lance l\'apprentissage dans l\'onglet Bilan pour les caler sur les vrais résultats.');
@@ -354,12 +381,26 @@
       var R = course.rapports;
       if (Array.isArray(R) && R.length) jeux.forEach(function (j) {
         if (!j.list) return; var ret = 0;
-        j.list.forEach(function (cmb) { var key = cmb.slice().sort(function (a, b) { return a - b; }).join('-');
-          R.forEach(function (r) { if (r.pari !== j.type) return; var k = String(r.combinaison).split(/[-\s]+/).map(Number).sort(function (a, b) { return a - b; }).join('-'); if (k === key) ret += num(r.rapport) || 0; }); });
+        j.list.forEach(function (cmb) {
+          var key = cmb.slice().sort(function (a, b) { return a - b; }).join('-'), best = 0;
+          R.forEach(function (r) {
+            if (r.pari !== j.type) return;
+            var rn = String(r.combinaison).split(/[-\s]+/).map(Number), k = rn.slice().sort(function (a, b) { return a - b; }).join('-');
+            if (j.type === 'QUINTE_PLUS') {
+              if (/sordre/i.test(r.libelle || '') && k === key) best = Math.max(best, num(r.rapport) || 0);
+              else if (/bonus/i.test(r.libelle || '') && rn.every(function (x) { return cmb.indexOf(x) >= 0; })) best = Math.max(best, num(r.rapport) || 0);
+              return;
+            }
+            if (j.lib && !j.lib.test(r.libelle || '')) return;
+            if (k === key) best += num(r.rapport) || 0;
+          });
+          ret += best;
+        });
         j.retour = ret * (j.mise || 1); j.rapportOk = true;
       });
     }
 
+    res.loup = loup ? H[L] : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });
