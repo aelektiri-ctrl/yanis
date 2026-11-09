@@ -261,6 +261,23 @@
     return x;
   }
 
+  // ---------- paris « value » : la cote paie plus que le risque réel ----------
+  function valueBets(x) {
+    var out = [];
+    if (x.state.done) return out;
+    function push(label, p, dec) { if (p && dec && dec > 1.01) out.push({ label: label, p: p, dec: dec, ev: p * dec }); }
+    if (x.sport === 'foot' && x.probs) {
+      var od = (x.enr && x.enr.odds) || x._od;
+      if (od) { push('Victoire ' + x.home, x.probs['1'], mlToDec(od.home)); push('Match nul', x.probs.X, mlToDec(od.draw)); push('Victoire ' + x.away, x.probs['2'], mlToDec(od.away)); }
+    } else if (x.pHome != null && x.odNow) {
+      push('Victoire ' + x.home, x.pHome, mlToDec(x.odNow.home)); push('Victoire ' + x.away, 1 - x.pHome, mlToDec(x.odNow.away));
+    } else if (x.pA != null && x.odNow) {
+      var dA = mlToDec(x.homeFirst ? x.odNow.home : x.odNow.away), dB = mlToDec(x.homeFirst ? x.odNow.away : x.odNow.home);
+      push('Victoire ' + x.home, x.pA, dA); push('Victoire ' + x.away, 1 - x.pA, dB);
+    }
+    return out;
+  }
+
   function tvOf(comp) {
     var n = [];
     (comp.broadcasts || []).forEach(function (b) { (b.names || []).forEach(function (x) { if (n.indexOf(x) < 0) n.push(x); }); });
@@ -443,6 +460,7 @@
     // écart attendu cohérent avec la probabilité finale (inverse de la loi normale)
     var lo = -60, hi = 60; for (var it = 0; it < 50; it++) { var md = (lo + hi) / 2; if (Phi(md / x.sdm) < pc) lo = md; else hi = md; } x.mu = (lo + hi) / 2;
     x.level = level; x.why = why; x.conf = pf; x.value = dec && pf * dec >= 1.06 ? x.main : null; x.ou = od ? od.ou : null;
+    x.pHome = p; x.odNow = od;
     x.won = (x.score && x.score[0] != null) ? (fav ? x.score[0] > x.score[1] : x.score[1] > x.score[0]) : undefined;
     return x;
   }
@@ -552,7 +570,7 @@
     var res = { sport: 'tennis', league: tour + (ev.name ? ' · ' + ev.name : ''), id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : s.state, done: done, txt: s.txt }, setTxt: setTxt, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
-    res.pA = p; res.favA = fa; res.bo = tour === 'ATP' && /open|wimbledon|roland|garros|slam/i.test(ev.name || '') ? 5 : 3;
+    res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /open|wimbledon|roland|garros|slam/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
     for (var k = 0; k < nS; k++) { var va = sets[0][k] || 0, vb = sets[1][k] || 0; if (va > vb) sw[0]++; else if (vb > va) sw[1]++; }
     res.setsWon = sw;
@@ -573,7 +591,8 @@
     var why = ['Palmarès : ' + na + ' ' + (ra ? ra.s : '—') + ', ' + nb + ' ' + (rb ? rb.s : '—') + ' (V-D-N).'];
     if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès seul. Styles, allonge et cut de poids absents de ce flux, prudence.');
     var st = state(ev, comp), done = st.done || a.winner === true || b.winner === true;
-    var res = { sport: 'mma', league: ev.name || 'UFC', id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
+    var res0 = { od: od, p: p, homeFirst: a.homeAway !== 'away' };
+    var res = { pA: res0.p, odNow: res0.od, homeFirst: res0.homeFirst, sport: 'mma', league: ev.name || 'UFC', id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
     return res;
@@ -628,7 +647,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 

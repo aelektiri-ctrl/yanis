@@ -37,7 +37,7 @@ button.primary{background:linear-gradient(90deg,var(--orange),var(--pink));color
 .bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:8px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--yellow),var(--pink));width:0;transition:width .3s}
 .modes{display:flex;gap:8px;margin:6px 0 4px}.modes button{flex:1;font-weight:800;padding:10px;border-radius:14px}
 .modes button.on{border:0;color:#fff;background:linear-gradient(120deg,var(--pink),var(--orange));box-shadow:0 6px 18px rgba(255,61,129,.35)}
-.modes button[data-m=sport].on{background:linear-gradient(120deg,var(--teal),var(--violet));box-shadow:0 6px 18px rgba(46,230,197,.3)}
+.modes button[data-m=value].on{background:linear-gradient(120deg,var(--yellow),var(--orange));color:var(--accent-ink);box-shadow:0 6px 18px rgba(255,217,61,.3)}.modes button[data-m=sport].on{background:linear-gradient(120deg,var(--teal),var(--violet));box-shadow:0 6px 18px rgba(46,230,197,.3)}
 nav{display:flex;gap:4px}nav[hidden]{display:none}
 nav button{flex:1;background:none;border:0;border-radius:0;border-bottom:3px solid transparent;color:var(--mute);padding:9px 4px;font-weight:700}
 nav button.on{color:var(--yellow);border-color:var(--yellow)}
@@ -54,7 +54,7 @@ main{padding:12px 16px calc(env(safe-area-inset-bottom) + 40px);max-width:760px;
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ttl{font-weight:800}.mute{color:var(--mute);font-size:13px}
 .badge{font-size:11px;font-weight:900;letter-spacing:.5px;padding:3px 9px;border-radius:20px;color:var(--accent-ink);white-space:nowrap}
-.LOUP{background:linear-gradient(90deg,#ff4b4b,#ff9f1c);color:#fff}.livesim{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px 10px;border-radius:10px;background:rgba(255,75,75,.14);font-size:13px}.livesim b{color:#fff;font-size:16px}.simbar{display:grid;grid-template-columns:48px 1fr 44px;align-items:center;gap:8px;font-size:13px;margin:3px 0}.simbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--yellow))}.simbar b{text-align:right;color:var(--yellow)}.rmini{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:4px}.rmini b{color:var(--yellow)}.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
+.LOUP{background:linear-gradient(90deg,#ff4b4b,#ff9f1c);color:#fff}.livesim{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px 10px;border-radius:10px;background:rgba(255,75,75,.14);font-size:13px}.livesim b{color:#fff;font-size:16px}.simbar{display:grid;grid-template-columns:48px 1fr 44px;align-items:center;gap:8px;font-size:13px;margin:3px 0}.simbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--yellow))}.simbar b{text-align:right;color:var(--yellow)}.risk{font-size:12px;color:var(--mute);margin-top:5px}.risk b{color:var(--bad)}.vgrid{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:6px;margin:10px 0 6px}.vgrid div{background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center}.vgrid span{display:block;font-size:11px;color:var(--mute)}.vgrid b{font-size:20px}.vgrid .cote{color:var(--yellow)}.vgrid .lose{background:rgba(255,94,122,.16);border:1px solid rgba(255,94,122,.5)}.vgrid .lose b{color:var(--bad);font-size:24px}.ev{font-size:13px;margin:4px 0}.ev b{color:var(--teal)}.card.vcard{border-left-color:var(--yellow)}.rmini{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mute);margin-top:4px}.rmini b{color:var(--yellow)}.SEC{background:var(--sec)}.FORT{background:var(--fort)}.DOUTE{background:var(--doute);color:#fff}.NA{background:var(--mute)}
 .big{font-size:18px;font-weight:900;margin:6px 0 2px}
 .conf{font-variant-numeric:tabular-nums;font-weight:900;color:var(--yellow)}
 .meter{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-top:6px}.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--orange),var(--yellow),var(--teal));background-size:200% 100%;animation:flow 4s linear infinite}
@@ -105,13 +105,14 @@ a{color:var(--teal)}
 <header>
   <div class="lamps" aria-hidden="true"><i style="left:4%;animation-delay:0.0s,0.0s"></i><i style="left:12%;animation-delay:0.4s,0.5s"></i><i style="left:20%;animation-delay:0.8s,1.0s"></i><i style="left:28%;animation-delay:1.2s,0.0s"></i><i style="left:36%;animation-delay:0.0s,0.5s"></i><i style="left:44%;animation-delay:0.4s,1.0s"></i><i style="left:52%;animation-delay:0.8s,0.0s"></i><i style="left:60%;animation-delay:1.2s,0.5s"></i><i style="left:68%;animation-delay:0.0s,1.0s"></i><i style="left:76%;animation-delay:0.4s,0.0s"></i><i style="left:84%;animation-delay:0.8s,0.5s"></i><i style="left:92%;animation-delay:1.2s,1.0s"></i></div>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v10</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v11</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes">🔔<b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
   <div class="bar"><i id="prog"></i></div>
-  <div class="modes"><button data-m="turf" class="on">🏇 Turf</button><button data-m="sport">⚽ Sport</button></div>
+  <div class="modes"><button data-m="turf" class="on">🏇 Turf</button><button data-m="sport">⚽ Sport</button><button data-m="value">💎 Value</button></div>
   <nav id="navTurf"><button data-t="sel" class="on">Sélections</button><button data-t="prog">Programme</button><button data-t="bilan">Bilan</button></nav>
+  <nav id="navValue" hidden><button class="on">Paris à forte valeur · risque affiché</button></nav>
   <nav id="navSport" hidden><button data-t="top" class="on">Top 70 %</button><button data-t="list">Matchs</button><button data-t="sbilan">Bilan</button></nav>
 </header>
 <main id="view"></main>

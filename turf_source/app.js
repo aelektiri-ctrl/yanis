@@ -227,6 +227,38 @@ function rapportsMini(c){var R=c.rapports||[];if(!R.length)return '';var pick=fu
   var o=[['SG',pick('SIMPLE_GAGNANT')],['Jum.G',pick('COUPLE_GAGNANT')],['Trio',pick('TRIO')],['Multi4',pick('MULTI',/en 4/i)],['2/4',pick('DEUX_SUR_QUATRE')]].filter(function(x){return x[1]!=null});
   return o.length?'<div class="rmini">'+o.map(function(x){return '<span>'+x[0]+' <b>'+String(x[1]).replace('.',',')+' €</b></span>'}).join('')+'</div>':''}
 function money(a){var m=a.main;if(!m||!a.arrivee)return '';if(m.rapportOk)return m.gagne?' <span class="ok">✓ retour '+euros(m.retour)+' pour '+euros(m.cout)+'</span>':' <span class="ko">✗ −'+euros(m.cout)+'</span>';return resultTag(a)}
+/* ===== onglet Value : la cote paie plus que le risque ===== */
+var VF={f:'all'};
+function valueList(){
+  var out=[],now=Date.now();
+  allCourses().forEach(function(x){var a=x.a,c=x.c;if(!a||!a.ok||a.arrivee||!c.heureDepart||c.heureDepart<now)return;
+    a.ranking.forEach(function(h){if(!h.cote||h.cote<4||h.p<0.05||!h.ev||h.ev<1.10)return;
+      out.push({kind:'turf',k:key(x.r.numOfficiel,x.c.numOrdre),when:c.heureDepart,ctx:'🏇 R'+x.r.numOfficiel+'C'+x.c.numOrdre+' · '+x.r.hippodrome.libelleCourt+' · '+hhmm(c.heureDepart),title:'n°'+h.num+' '+h.nom,pari:'Simple gagnant',p:h.p,dec:h.cote,ev:h.ev,place:h.top[2],extra:h.loupFlag})});
+  });
+  (SP.data||[]).forEach(function(x,i){SportEngine.valueBets(x).forEach(function(v){if(v.dec<1.8||v.ev<1.05||v.p<0.12)return;
+    var t=new Date(x.date);out.push({kind:'sport',s:i,when:t.getTime(),ctx:(ICON[x.sport]||'')+' '+x.league+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':''),title:x.title,pari:v.label,p:v.p,dec:v.dec,ev:v.ev})})});
+  return out.filter(function(v){return VF.f==='all'||v.kind===VF.f}).sort(function(a,b){return b.ev-a.ev});
+}
+function viewValue(){
+  var L=valueList(),h='';
+  h+='<div class="chips"><button data-vf="all" class="'+(VF.f==='all'?'on':'')+'">💎 Tout</button><button data-vf="turf" class="'+(VF.f==='turf'?'on':'')+'">🏇 Courses</button><button data-vf="sport" class="'+(VF.f==='sport'?'on':'')+'">⚽ Matchs</button></div>';
+  h+='<div class="card hl"><div class="ttl">Ce que montre cet onglet</div><p class="mute" style="margin:6px 0 0">Pas les favoris : les paris où <b>la cote paie plus que le risque réel</b>. Exemple : un cheval à 6 contre 1 qui gagne en réalité 1 fois sur 4. En face de chaque pari, le chiffre en rouge est le <b>risque de perdre</b>. Une belle cote veut dire qu\'on perd souvent : la valeur ne se voit que sur des dizaines de paris, jamais sur un seul.</p>';
+  var b=YD.banc&&YD.banc.strategies&&YD.banc.strategies.sg_value;
+  if(b)h+='<p class="mute" style="margin:6px 0 0">Test réel Yanis sur '+b.paris.toLocaleString('fr-FR')+' paris value au simple gagnant : '+E.pct(b.reussite)+' gagnants, rentabilité <span class="'+(b.roi>=0?'ok':'ko')+'">'+(b.roi>=0?'+':'')+Math.round(b.roi*1000)/10+' %</span>.</p>';
+  h+='</div>';
+  if(!SP.data&&!SP.loading&&VF.f!=='turf')h+='<div class="mute">Chargement des matchs…</div>';
+  if(!L.length)return h+'<div class="card">Aucun pari value pour l\'instant'+(SP.loading?' (matchs en cours de chargement)':'')+'. Les cotes bougent : reviens plus tard.</div>';
+  h+='<h2>'+L.length+' paris où la cote vaut plus que le risque</h2>';
+  L.forEach(function(v){
+    var lose=1-v.p,gain=Math.round((v.ev-1)*100);
+    h+='<div class="card tap vcard" '+(v.kind==='turf'?'data-k="'+v.k+'"':'data-s="'+v.s+'"')+'><div class="mute">'+esc(v.ctx)+'</div>'+
+      '<div class="ttl" style="font-size:16px;margin:4px 0">'+esc(v.title)+'</div><div>🎯 '+esc(v.pari)+'</div>'+
+      '<div class="vgrid"><div><span>Cote</span><b class="cote">'+String(Math.round(v.dec*100)/100).replace('.',',')+'</b></div><div><span>Gagne</span><b class="ok">'+E.pct(v.p)+'</b></div><div class="lose"><span>Risque de perdre</span><b>'+E.pct(lose)+'</b></div></div>'+
+      '<div class="ev">💎 Valeur : <b>+'+gain+' %</b> · 1 € joué rapporte en moyenne '+String((Math.round(v.ev*100)/100).toFixed(2)).replace('.',',')+' € sur la durée</div>'+
+      '<div class="mute">Sur 10 paris comme celui-ci, environ '+Math.round(v.p*10)+' gagnent et '+Math.round(lose*10)+' perdent.'+(v.place!=null?' Finit dans les 3 premiers : '+E.pct(v.place)+'.':'')+'</div></div>';
+  });
+  return h+'<p class="mute">Turf : la cote PMU peut encore baisser jusqu\'au départ, ce qui réduit la valeur. Sport : valeur calculée sur la cote du marché affichée par la source, vérifie celle de ton opérateur.</p>';
+}
 function viewSel(){
   var now=Date.now();
   var list=allCourses().filter(function(x){return x.a&&x.a.ok&&x.a.main&&!x.a.arrivee&&x.c.heureDepart>now-25*60000});
@@ -242,7 +274,7 @@ function viewSel(){
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
       '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
-      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div></div>';
+      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre ce jeu : <b>'+E.pct(1-a.conf)+'</b></div></div>';
   });
   return h+'<p class="mute">Le pourcentage est la probabilité estimée, sur 20 000 simulations d\'arrivée, que le jeu principal soit gagnant.</p>';
 }
@@ -315,16 +347,17 @@ function closeSheet(){if(!S.open)return;S.open=null;$('sheet').classList.remove(
 window.addEventListener('popstate',closeSheet);
 
 function render(){
-  var v=S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
+  var v=S.mode==='value'?viewValue():S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
   var dl=S.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   $('view').innerHTML='<div class="mute" style="margin-bottom:8px;text-transform:capitalize">'+dl+'</div>'+v+'<p class="foot">Jeu responsable : fixe ton budget à l\'avance. Joueurs Info Service 09 74 75 13 13.</p>';
+  document.querySelectorAll('[data-vf]').forEach(function(b){b.onclick=function(){VF.f=b.dataset.vf;render()}});
   var lb=$('learnBtn');if(lb)lb.onclick=function(){runLearn(false)};
   var rb=$('retry');if(rb)rb.onclick=function(){S.mode==='sport'?SP.load(true):loadDay(true)};SP.bind();
 }
 $('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'))});
 document.querySelectorAll('#navTurf button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navTurf button').forEach(function(x){x.classList.toggle('on',x===b)});S.tab=b.dataset.t;render();window.scrollTo(0,0)}});
 document.querySelectorAll('#navSport button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navSport button').forEach(function(x){x.classList.toggle('on',x===b)});SP.tab=b.dataset.t;render();window.scrollTo(0,0)}});
-document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode==='sport';$('navSport').hidden=S.mode!=='sport';try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):(S.stTurf||'Prêt');if(S.mode==='sport'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
+document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):(S.stTurf||'Prêt');if(S.mode!=='turf'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};
@@ -397,7 +430,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       });
       SP.setSt(res.items.length+' matchs analysés · '+res.info.games+' matchs d\'historique');
     }catch(e){SP.err=e.message;SP.setSt('Erreur : '+e.message)}
-    setProg(0);SP.loading=false;if(S.mode==='sport'){render();$('upd').textContent=SP.last?'MAJ '+SP.last.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}
+    setProg(0);SP.loading=false;if(S.mode==='value')render();if(S.mode==='sport'){render();$('upd').textContent=SP.last?'MAJ '+SP.last.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}
   },
   items:function(){return (SP.data||[]).filter(function(x){return SP.filter==='all'||x.sport===SP.filter})},
   chips:function(){
@@ -421,7 +454,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
-      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div>'+tv+'</div>';
+      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre : <b>'+E.pct(1-(x.liveP!=null?x.liveP:x.conf))+'</b>'+(x.liveP!=null?' (en direct)':'')+'</div>'+tv+'</div>';
   },
   view:function(){
     if(SP.err&&!SP.data)return '<div class="card err"><div class="ttl">Connexion aux données sport impossible</div><p>'+esc(SP.err)+'</p><button class="primary" id="retry">Réessayer</button></div>';
