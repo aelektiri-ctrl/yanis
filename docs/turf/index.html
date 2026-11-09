@@ -105,7 +105,7 @@ a{color:var(--teal)}
 <header>
   <div class="lamps" aria-hidden="true"><i style="left:4%;animation-delay:0.0s,0.0s"></i><i style="left:12%;animation-delay:0.4s,0.5s"></i><i style="left:20%;animation-delay:0.8s,1.0s"></i><i style="left:28%;animation-delay:1.2s,0.0s"></i><i style="left:36%;animation-delay:0.0s,0.5s"></i><i style="left:44%;animation-delay:0.4s,1.0s"></i><i style="left:52%;animation-delay:0.8s,0.0s"></i><i style="left:60%;animation-delay:1.2s,0.5s"></i><i style="left:68%;animation-delay:0.0s,1.0s"></i><i style="left:76%;animation-delay:0.4s,0.0s"></i><i style="left:84%;animation-delay:0.8s,0.5s"></i><i style="left:92%;animation-delay:1.2s,1.0s"></i></div>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v14</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v15</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes">🔔<b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -1552,9 +1552,10 @@ function setProg(x){$('prog').style.width=Math.round(x*100)+'%'}
 /* ===== source Yanis (GitHub Pages) ===== */
 var YANIS=/github\.io$/.test(location.hostname)||/[?&]src=yanis/.test(location.search);
 var YBASE=(new URLSearchParams(location.search).get('ydata'))||'../data/';
-var YD={files:{},banc:null};
+var YD={files:{},banc:null,ent:null};
 async function yFetch(name){var r=await Promise.race([fetch(YBASE+name+'?t='+Date.now(),{cache:'no-store'}),timeout(20000)]);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
 function yTime(s){if(!s)return 0;var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime():0}
+function musN(m,re){if(!m)return 0;var t=String(m).replace(/\(\d+\)/g,'').match(/[0-9DATRN][a-z]/g)||[];return t.filter(function(x){return re.test(x.charAt(0))}).length}
 function yConv(j){
   var reus=(j.reunions||[]).map(function(r){
     var R={numOfficiel:r.r,hippodrome:{libelleCourt:r.hippodrome},pays:{code:r.pays},meteo:r.temperature!=null?{temperature:r.temperature,nebulositeLibelleCourt:r.ciel||''}:null,courses:[]};
@@ -1564,7 +1565,7 @@ function yConv(j){
         paris:(c.paris||[]).map(function(t){return {typePari:t,miseBase:100}}),hippodromeNom:r.hippodrome,terrain:c.terrain,dateStr:j.date};
       C._parts=(c.partants||[]).map(function(p){return {numPmu:p.num,nom:p.nom,statut:p.statut,age:p.age,sexe:p.sexe,driver:p.driver,entraineur:p.entraineur,musique:p.musique,
         deferre:p.deferre,oeilleres:p.oeilleres,handicapDistance:p.recul,handicapPoids:p.poids,placeCorde:p.corde,dernierRapportDirect:{rapport:p.cote},dernierRapportReference:{rapport:p.cote_ref},
-        gainsParticipant:{gainsCarriere:p.gains},ordreArrivee:p.place,proba:p.proba,proba_marche:p.proba_marche,st_driver:p.st_driver,st_entraineur:p.st_entraineur,cotes_suivies:p.cotes_suivies,incident:p.incident,value:p.value,nombreCourses:p.musique?String(p.musique).replace(/\(\d+\)/g,'').length/2:0}});
+        gainsParticipant:{gainsCarriere:p.gains},ordreArrivee:p.place,proba:p.proba,proba_marche:p.proba_marche,st_driver:p.st_driver,st_entraineur:p.st_entraineur,cotes_suivies:p.cotes_suivies,incident:p.incident,value:p.value,nombreCourses:musN(p.musique,/./),nombreVictoires:musN(p.musique,/^1$/),nombrePlaces:musN(p.musique,/^[123]$/)}});
       return C;
     });
     return R;
@@ -1578,6 +1579,7 @@ async function loadDayY(full){
     setStatus('Chargement des courses (données Yanis)…');setProg(.1);
     var names=['aujourdhui','demain','hier'];
     for(var i=0;i<names.length;i++){var n=names[i];if(!full&&n!=='aujourdhui'&&YD.files[n])continue;try{var j=await yFetch(n+'.json');YD.files[n]=j}catch(e){if(n==='aujourdhui')throw e}setProg(.1+.25*(i+1))}
+    if(!YD.ent)try{var re=await fetch('entourage.json',{cache:'no-store'});if(re.ok)YD.ent=await re.json()}catch(e){}
     if(!YD.banc)try{var hv=await yFetch('hippique_v2.json');YD.banc=hv.banc_essai;YD.bancMaj=hv.banc_fait_le}catch(e){}
     var want=ymdDash(S.date),src=null;
     Object.keys(YD.files).forEach(function(n){if(YD.files[n]&&YD.files[n].date===want)src=YD.files[n]});
@@ -1775,6 +1777,12 @@ function intro(){
   return '<div class="card">Chargement du programme…</div>';
 }
 
+function entLine(role,name){
+  var T=YD.ent&&YD.ent[role],s=T&&T[(name||'').toUpperCase()];if(!s)return '';
+  var ae=s[1]/Math.max(0.1,s[2]),lab=role==='driver'?'Driver/jockey':'Entraîneur',txt=lab+' '+name+' : '+s[1]+' victoires pour '+String(s[2]).replace('.',',')+' attendues par les cotes sur '+s[0]+' courses';
+  if(s[3]>=10)txt+=' · favori '+s[3]+' fois, '+s[4]+' gagnées pour '+String(s[5]).replace('.',',')+' attendues';
+  var cls=ae>=1.25?'p':ae<=0.75?'n':'';return '<li class="'+cls+'">'+(cls==='p'?'▲ ':cls==='n'?'▼ ':'• ')+esc(txt)+'</li>';
+}
 function sheet(k){
   var x=allCourses().filter(function(y){return key(y.r.numOfficiel,y.c.numOrdre)===k})[0];if(!x)return;
   var a=x.a,c=x.c,r=x.r;
@@ -1798,9 +1806,9 @@ function sheet(k){
     var ev=hh.ev!=null?(hh.ev>=1.15?' · <span class="ok">value '+hh.ev.toFixed(2).replace('.',',')+'</span>':''):'';
     h+='<div class="horse"><div class="row"><span style="display:flex;align-items:center;min-width:0"><span class="hn'+(i<2?' b':'')+'">'+hh.num+'</span><span style="min-width:0"><div class="ttl">'+esc(hh.nom)+(hh.arrivee?' <span class="mute">('+hh.arrivee+'e)</span>':'')+'</div><div class="mute">'+esc(hh.driver)+(hh.driverChange?' (nouveau)':'')+' · '+esc(hh.musique||'pas de musique')+'</div></span></span><span style="text-align:right"><div class="conf">'+E.pct(hh.p)+'</div><div class="mute">cote '+E.fmtCote(hh.cote)+(hh.suivi&&hh.suivi.length>1?' <span style="opacity:.8">(début '+E.fmtCote(hh.suivi[0][1])+')</span>':hh.coteRef&&hh.coteRef!==hh.cote?' <span style="opacity:.8">(réf. '+E.fmtCote(hh.coteRef)+')</span>':'')+ev+'</div></span></div>'+
       '<div class="mute" style="margin-left:36px">Gagne '+E.pct(hh.top[0])+' · Top 3 '+E.pct(hh.top[2])+' · Top 4 '+E.pct(hh.top[3])+'</div>'+
-      (rs.length?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+'</ul>':'')+'</div>';
+      (rs.length||YD.ent?'<ul class="why">'+rs.map(function(x){return '<li class="'+(x.sign>0?'p':x.sign<0?'n':'')+'">'+(x.sign>0?'▲ ':x.sign<0?'▼ ':'• ')+esc(x.txt)+'</li>'}).join('')+entLine('driver',hh.driver)+entLine('entraineur',hh.entraineur)+'</ul>':'')+'</div>';
   });
-  h+='</div><p class="mute">Probabilités = forme (musique pondérée), régularité, classe (gains), spécificités (ferrure, recul, poids, corde, avis entraîneur) combinées avec la cote du public. Les arrangements de course et incidents ne sont pas calculables.</p>';
+  h+='</div><p class="mute">Entourage (driver, entraîneur) : victoires réelles comparées à ce que leurs cotes annonçaient, sur 14 mois. Information seulement : testé sur 5 818 courses, cet historique n\'améliore pas les prédictions (le public l\'intègre déjà dans les cotes), il n\'entre donc pas dans le calcul. Un écart sur quelques dizaines de courses peut être dû au hasard et ne prouve aucune intention.</p><p class="mute">Probabilités = forme (musique pondérée), régularité, classe (gains), spécificités (ferrure, recul, poids, corde, avis entraîneur) combinées avec la cote du public. Les arrangements de course et incidents ne sont pas calculables.</p>';
   sheetOpen(h);
 }
 function sheetOpen(h){S.open=true;$('sheetIn').innerHTML=h;$('sheet').classList.add('open');$('sheet').scrollTop=0;$('close')&&($('close').onclick=function(){if(history.state&&history.state.s)history.back();else closeSheet()});try{history.pushState({s:1},'')}catch(e){}}

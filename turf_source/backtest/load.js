@@ -10,7 +10,7 @@ function loadDay(f){
   return tab(j.courses).map(c=>{const k=c.r+'-'+c.c,re=reus[c.r]||{};
     const course={date:j.date,numReunion:c.r,numOrdre:c.c,heureDepart:0,libelle:c.libelle,distance:c.distance,specialite:c.specialite,discipline:c.discipline,montantPrix:c.allocation,
       paris:(c.paris||'').split(',').filter(Boolean).map(t=>({typePari:t,miseBase:100})),arriveeTxt:c.arrivee||'',rapports:RP[k]||[],hippodromeNom:re.hippodrome,pays:re.pays,statut:c.statut};
-    const parts=(P[k]||[]).map(p=>({numPmu:p.num,nom:p.nom,statut:p.statut,age:p.age,sexe:p.sexe,driver:p.driver,entraineur:p.entraineur,musique:p.musique,
+    const parts=(P[k]||[]).map(p=>({numPmu:p.num,nom:p.nom,statut:p.statut,age:p.age,sexe:p.sexe,driver:p.driver,entraineur:p.entraineur,proprietaire:p.proprietaire,eleveur:p.eleveur,pere:p.pere,incident:p.incident,musique:p.musique,
       nombreCourses:p.nb_courses,nombreVictoires:p.nb_victoires,nombrePlaces:p.nb_places,gainsParticipant:{gainsCarriere:p.gains_carriere,gainsAnneeEnCours:p.gains_annee},
       deferre:p.deferre,oeilleres:p.oeilleres,handicapDistance:p.recul_m,handicapPoids:p.poids_kg,placeCorde:p.place_corde,
       dernierRapportDirect:{rapport:p.cote_finale},dernierRapportReference:{rapport:p.cote_reference},ordreArrivee:p.place_arrivee,_ref:p.cote_reference,_fin:p.cote_finale}));
