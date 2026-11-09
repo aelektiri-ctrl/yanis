@@ -39,6 +39,9 @@ jobs:
           for i in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && break; sleep 10; done
       - name: Courses PMU, toutes les reunions France et etranger (25 minutes maximum)
         run: python yanis.py collecte --budget 25 --monde
+      - name: Deroule des courses, commentaires Equidia (8 minutes maximum)
+        continue-on-error: true
+        run: python deroule.py collecte --budget 8
       - name: Performances detaillees de l'historique (10 minutes maximum)
         continue-on-error: true
         run: python yanis.py perfs --budget 10
