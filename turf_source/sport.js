@@ -165,8 +165,72 @@
   }
   function state(ev, comp) {
     var st = (comp && comp.status) || ev.status || {}; var t = st.type || {};
-    return { state: t.state || 'pre', done: !!t.completed, txt: t.shortDetail || t.detail || '' };
+    return { state: t.state || 'pre', done: !!t.completed, txt: t.shortDetail || t.detail || '', period: num(st.period) || 0, clock: num(st.clock), disp: st.displayClock || '', half: /half|mi-temps|HT/i.test(t.shortDetail || t.name || '') };
   }
+  // ---------- simulations Monte-Carlo (avant-match et en direct) ----------
+  var NSIM = 20000;
+  function rng(seed) { var a = seed >>> 0 || 1; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function hash(s) { var h = 2166136261; s = String(s); for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function poisR(l, R) { if (l <= 0) return 0; var L = Math.exp(-l), k = 0, p = 1; do { k++; p *= R(); } while (p > L); return k - 1; }
+  function gaussR(R) { var u = 1 - R(), v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  // fraction de match restant
+  var DUR = { nba: [4, 720], wnba: [4, 600], nfl: [4, 900], nhl: [3, 1200], rugby: [2, 2400], mlb: [9, 0] };
+  function remaining(x) {
+    var st = x.state; if (st.state === 'pre') return 1; if (st.done) return 0;
+    if (x.sport === 'foot') {
+      var m = null, d = String(st.disp || st.txt || '').match(/(\d+)(?:'|\+)/); if (d) m = +d[1];
+      if (m == null && st.clock != null) m = st.clock / 60;
+      if (st.half || /HT|Half/i.test(st.txt)) m = 45;
+      if (m == null) m = st.period >= 2 ? 60 : 20;
+      return Math.max(0.01, (93 - Math.min(m, 92)) / 93);
+    }
+    var D = DUR[x.sport]; if (!D) return 0.5;
+    if (x.sport === 'mlb') return Math.max(0.02, (9 - Math.max(0, st.period - 1)) / 9);
+    var per = Math.max(1, st.period || 1), left = st.clock != null ? st.clock : D[1] / 2;
+    if (per > D[0]) return 0.03; // prolongation
+    return Math.max(0.01, ((D[0] - per) * D[1] + Math.min(left, D[1])) / (D[0] * D[1]));
+  }
+  function simFoot(x) {
+    if (!x.lam) return null;
+    var R = rng(hash(x.id + '|' + (x.live ? x.live.join('-') : '') + '|' + x.state.txt)), r = remaining(x);
+    var h0 = x.live && x.live[0] != null ? x.live[0] : 0, a0 = x.live && x.live[1] != null ? x.live[1] : 0;
+    var lh = x.lam[0] * r, la = x.lam[1] * r, sc = {}, w1 = 0, wx = 0, w2 = 0, mainOk = 0;
+    for (var i = 0; i < NSIM; i++) {
+      var h = h0 + poisR(lh, R), a = a0 + poisR(la, R), k = h + '-' + a; sc[k] = (sc[k] || 0) + 1;
+      if (h > a) w1++; else if (h === a) wx++; else w2++;
+      if (x.main && x.main.ok && x.main.ok(h, a)) mainOk++;
+    }
+    var top = Object.keys(sc).sort(function (u, v) { return sc[v] - sc[u]; }).slice(0, 5).map(function (k) { return [k, sc[k] / NSIM]; });
+    return { n: NSIM, r: r, p: [w1 / NSIM, wx / NSIM, w2 / NSIM], main: mainOk / NSIM, top: top };
+  }
+  function simUS(x) {
+    if (x.mu == null) return null;
+    var R = rng(hash(x.id + '|' + (x.live ? x.live.join('-') : '') + '|' + x.state.txt)), r = remaining(x);
+    var m0 = x.live && x.live[0] != null ? x.live[0] - x.live[1] : 0, win = 0, mg = {};
+    for (var i = 0; i < NSIM; i++) {
+      var m = m0 + x.mu * r + x.sdm * Math.sqrt(r) * gaussR(R);
+      if (m > 0 || (m === 0 && R() < 0.5)) win++;
+      var b = Math.round(m / (x.sport === 'nhl' || x.sport === 'mlb' ? 1 : 5)) * (x.sport === 'nhl' || x.sport === 'mlb' ? 1 : 5); mg[b] = (mg[b] || 0) + 1;
+    }
+    var top = Object.keys(mg).sort(function (u, v) { return mg[v] - mg[u]; }).slice(0, 5).map(function (k) { return [k, mg[k] / NSIM]; });
+    var ph = win / NSIM;
+    return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true };
+  }
+  function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
+  function simTennis(x) {
+    if (x.pA == null) return null;
+    var bo = x.bo || 3, need = (bo + 1) / 2, q = setProb(x.pA, bo), sw = x.setsWon || [0, 0], R = rng(hash(x.id + '|' + sw.join('-'))), win = 0;
+    for (var i = 0; i < NSIM; i++) { var a = sw[0], b = sw[1]; while (a < need && b < need) { if (R() < q) a++; else b++; } if (a === need) win++; }
+    var pa = win / NSIM;
+    return { n: NSIM, r: null, p: [pa, 0, 1 - pa], main: x.favA ? pa : 1 - pa };
+  }
+  function simulate(x) {
+    var S = x.sport === 'foot' ? simFoot(x) : x.sport === 'tennis' ? simTennis(x) : x.sport === 'mma' ? null : simUS(x);
+    x.sim = S;
+    if (S && x.state.state === 'in') x.liveP = S.main;
+    return x;
+  }
+
   function tvOf(comp) {
     var n = [];
     (comp.broadcasts || []).forEach(function (b) { (b.names || []).forEach(function (x) { if (n.indexOf(x) < 0) n.push(x); }); });
@@ -281,6 +345,7 @@
     why.push('Buts attendus : ' + f2(lh) + ' – ' + f2(la) + ' (avantage du terrain inclus).');
     if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
     else why.push('Pas de cote disponible : estimation sur les statistiques uniquement.');
+    x.lam = [lh, la];
     x.probs = { '1': fin[0], 'X': fin[1], '2': fin[2] }; x.markets = mk; x.main = main; x.safe = safe; x.value = value; x.level = level; x.why = why; x.conf = main.p;
     x.won = (x.score && x.score[0] != null) ? main.ok(x.score[0], x.score[1]) : undefined;
     return x;
@@ -341,6 +406,9 @@
     var dec = od ? mlToDec(fav ? od.home : od.away) : null;
     x.main = { label: 'Victoire ' + (fav ? hn : an), p: pf, dec: dec };
     x.favHome = fav;
+    var lgd = x._lg || {}; x.sdm = lgd.sd || 12; var pc = Math.min(0.995, Math.max(0.005, p));
+    // écart attendu cohérent avec la probabilité finale (inverse de la loi normale)
+    var lo = -60, hi = 60; for (var it = 0; it < 50; it++) { var md = (lo + hi) / 2; if (Phi(md / x.sdm) < pc) lo = md; else hi = md; } x.mu = (lo + hi) / 2;
     x.level = level; x.why = why; x.conf = pf; x.value = dec && pf * dec >= 1.06 ? x.main : null; x.ou = od ? od.ou : null;
     x.won = (x.score && x.score[0] != null) ? (fav ? x.score[0] > x.score[1] : x.score[1] > x.score[0]) : undefined;
     return x;
@@ -399,7 +467,7 @@
     return E;
   }
   function summaryPath(x) { return x.sport === 'foot' ? 'site/v2/sports/soccer/' + x.lid + '/summary?event=' + x.id : x.path ? 'site/v2/sports/' + x.path + '/summary?event=' + x.id : null; }
-  function refresh(x) { return x.sport === 'foot' ? finishFoot(x) : finishUS(x); }
+  function refresh(x) { return simulate(x.sport === 'foot' ? finishFoot(x) : finishUS(x)); }
 
   async function enrich(getJSON, items, cache, onProgress) {
     var now = Date.now();
@@ -439,6 +507,10 @@
     var res = { sport: 'tennis', league: tour + (ev.name ? ' · ' + ev.name : ''), id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : s.state, done: done, txt: s.txt }, setTxt: setTxt, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
+    res.pA = p; res.favA = fa; res.bo = tour === 'ATP' && /open|wimbledon|roland|garros|slam/i.test(ev.name || '') ? 5 : 3;
+    var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
+    for (var k = 0; k < nS; k++) { var va = sets[0][k] || 0, vb = sets[1][k] || 0; if (va > vb) sw[0]++; else if (vb > va) sw[1]++; }
+    res.setsWon = sw;
     return res;
   }
 
@@ -506,11 +578,12 @@
     var done = 0, errors = [], q = jobs.slice();
     async function worker() { while (q.length) { var j = q.shift(); try { await j(); } catch (e) { errors.push(e.message); } done++; onProgress(done / jobs.length); } }
     await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+    out.forEach(simulate);
     out.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 

@@ -370,7 +370,8 @@ async function getESPN(path){
 var ICON={rugby:'🏉',foot:'⚽',nba:'🏀',wnba:'🏀',nfl:'🏈',nhl:'🏒',mlb:'⚾',tennis:'🎾',mma:'🥊'};
 var SNAME={all:'Tous',rugby:'Rugby',foot:'Football',nba:'NBA',wnba:'WNBA',nfl:'NFL',nhl:'NHL',mlb:'MLB',tennis:'Tennis',mma:'MMA'};
 var SLVL={SEC:'SEC',FORT:'SOLIDE',DOUTE:'PRUDENT'};
-var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
+function hk(x){return (x.lid||x.path||x.sport)+'|'+x.id}
+var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('fr-FR')+' matchs simulés'},tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
   setSt:function(t){SP.st=t;if(S.mode==='sport')$('st').textContent=t},
   load:async function(full){
     if(SP.loading)return;SP.loading=true;SP.err=null;
@@ -384,6 +385,7 @@ var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
       SP.setSt('Blessures, compos et cotes de dernière minute…');
       var nE=await SportEngine.enrich(getESPN,res.items,SP.cache,function(x){if(S.mode==='sport')setProg(x)});
       SP.data=res.items;SP.last=new Date();
+      res.items.forEach(function(x){if(x.liveP!=null){var h=SP.hist[hk(x)]||(SP.hist[hk(x)]=[]);if(!h.length||h[h.length-1]!==x.liveP)h.push(x.liveP);if(h.length>120)h.shift()}});
       res.items.forEach(function(x){
         var o=old[x.id];if(!o||x.state.done||!x.main)return;
         var lbl=x.title+' · ';
@@ -416,6 +418,7 @@ var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
     if(isLive&&sc&&sc[0]!=null){var ok=null;if(x.main.ok)ok=x.main.ok(sc[0],sc[1]);else if(x.favHome!=null)ok=x.favHome?sc[0]>sc[1]:sc[1]>sc[0];if(ok!=null)trend=ok?' <span class="ok">· en bonne voie</span>':' <span class="ko">· menacé</span>'}
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
+    if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
       '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div>'+tv+'</div>';
@@ -471,6 +474,17 @@ var SP={tab:'top',filter:'all',data:null,loading:false,st:null,diag:{},cache:{},
       else if(x.sport==='foot')h+='<div class="mute" style="margin-top:8px">Compositions pas encore publiées (en général 1 h avant le coup d\'envoi).</div>';
       if(en.bpi!=null)h+='<div class="mute" style="margin-top:8px">Prédicteur ESPN : '+esc(x.home)+' '+E.pct(en.bpi)+'</div>';
       if(en.form5)h+='<div class="mute">Forme 5 derniers matchs : '+esc(x.home)+' '+esc(en.form5[0]||'—')+' · '+esc(x.away)+' '+esc(en.form5[1]||'—')+'</div>';
+      h+='</div>';
+    }
+    if(x.sim){var S2=x.sim,lv=x.state.state==='in';
+      h+='<h2>'+(lv?'📡 Simulation en direct':'🎲 Simulation avant-match')+' ('+S2.n.toLocaleString('fr-FR')+' '+(x.sport==='tennis'?'matchs':x.sport==='foot'?'matchs':'matchs')+')</h2><div class="card">';
+      if(lv&&S2.r!=null)h+='<div class="mute">Le reste du match ('+Math.round(S2.r*100)+' % du temps de jeu) est rejoué '+S2.n.toLocaleString('fr-FR')+' fois à partir du score actuel.</div>';
+      if(lv&&x.sport==='tennis')h+='<div class="mute">Les sets restants sont rejoués '+S2.n.toLocaleString('fr-FR')+' fois à partir des sets déjà gagnés.</div>';
+      h+='<div class="mk"><span>'+esc(x.main.label)+'</span><span class="conf">'+E.pct(S2.main)+'</span></div>';
+      if(x.sport==='foot')h+='<div class="mk"><span>'+esc(x.home)+' / Nul / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[1])+' · '+E.pct(S2.p[2])+'</span></div>';
+      else h+='<div class="mk"><span>Victoire '+esc(x.home)+' / '+esc(x.away)+'</span><span>'+E.pct(S2.p[0])+' · '+E.pct(S2.p[2])+'</span></div>';
+      if(S2.top&&S2.top.length){h+='<div class="mute" style="margin-top:6px">'+(S2.margin?'Écarts finaux les plus fréquents ('+esc(x.home)+')':'Scores finaux les plus fréquents')+' :</div>';S2.top.forEach(function(t){var lab=S2.margin?((+t[0]>0?'+':'')+t[0]):t[0];h+='<div class="simbar"><span>'+esc(lab)+'</span><i style="width:'+Math.round(t[1]/S2.top[0][1]*100)+'%"></i><b>'+E.pct(t[1])+'</b></div>'})}
+      var hs=SP.hist[hk(x)];if(lv&&hs&&hs.length>1)h+='<div class="mute" style="margin-top:6px">Évolution en direct : '+hs.slice(-12).map(function(v){return Math.round(v*100)}).join(' → ')+' %</div>';
       h+='</div>';
     }
     h+='<h2>Pourquoi</h2><div class="card">'+x.why.map(function(w){return '<p style="margin:4px 0">'+esc(w)+'</p>'}).join('')+'</div>';
