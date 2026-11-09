@@ -242,26 +242,43 @@ function valueList(){
     var t=new Date(x.date);out.push({kind:'sport',s:i,when:t.getTime(),ctx:(ICON[x.sport]||'')+' '+x.league+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':''),title:x.title,pari:v.label,p:v.p,dec:v.dec,ev:v.ev})})});
   return out.filter(function(v){return VF.f==='all'||v.kind===VF.f}).sort(function(a,b){return b.ev-a.ev});
 }
+function pointsTurf(){
+  var now=Date.now(),faux=[],solides=[],loups=[];
+  allCourses().forEach(function(x){var a=x.a,c=x.c;if(!a||!a.ok||a.arrivee||!c.heureDepart||c.heureDepart<now-5*60000||!a.market)return;
+    var f=a.H.filter(function(h){return h.cote}).sort(function(u,v){return u.cote-v.cote})[0];if(!f||!f.pm)return;
+    var q=f.p/f.pm,it={x:x,a:a,f:f,q:q,k:key(x.r.numOfficiel,x.c.numOrdre)};
+    if(q<0.95)faux.push(it);else if(q>1.05)solides.push(it);
+    if(a.watch&&a.watch.strong)loups.push(it);
+  });
+  faux.sort(function(u,v){return u.q-v.q});solides.sort(function(u,v){return v.q-u.q});
+  return {faux:faux,solides:solides,loups:loups};
+}
+function ctxLine(it){return '🏇 R'+it.x.r.numOfficiel+'C'+it.x.c.numOrdre+' · '+esc(it.x.r.hippodrome.libelleCourt)+' · '+hhmm(it.x.c.heureDepart)}
 function viewValue(){
-  var L=valueList(),h='';
-  h+='<div class="chips"><button data-vf="all" class="'+(VF.f==='all'?'on':'')+'">💎 Tout</button><button data-vf="turf" class="'+(VF.f==='turf'?'on':'')+'">🏇 Courses</button><button data-vf="sport" class="'+(VF.f==='sport'?'on':'')+'">⚽ Matchs</button></div>';
-  h+='<div class="card hl"><div class="ttl">Ce que montre cet onglet</div><p class="mute" style="margin:6px 0 0">Pas les favoris : les paris où <b>la cote paie plus que le risque réel</b>. Exemple : un cheval à 6 contre 1 qui gagne en réalité 1 fois sur 4. En face de chaque pari, le chiffre en rouge est le <b>risque de perdre</b>. Une belle cote veut dire qu\'on perd souvent : la valeur ne se voit que sur des dizaines de paris, jamais sur un seul.</p>';
-  var hv=E.HIST_VALUE;if(hv)h+='<p class="mute" style="margin:6px 0 0">Test du moteur sur juin–novembre ('+hv.n+' paris value au simple gagnant, rapports officiels) : '+E.pct(hv.hit)+' gagnants, rentabilité <span class="'+(hv.roi>=0?'ok':'ko')+'">'+(hv.roi>=0?'+':'')+String(Math.round(hv.roi*1000)/10).replace('.',',')+' %</span>. Trop peu de paris pour conclure : à suivre.</p>';
-  var b=YD.banc&&YD.banc.strategies&&YD.banc.strategies.sg_value;
-  if(b)h+='<p class="mute" style="margin:6px 0 0">Test réel Yanis sur '+b.paris.toLocaleString('fr-FR')+' paris value au simple gagnant : '+E.pct(b.reussite)+' gagnants, rentabilité <span class="'+(b.roi>=0?'ok':'ko')+'">'+(b.roi>=0?'+':'')+String(Math.round(b.roi*1000)/10).replace('.',',')+' %</span>.</p>';
-  h+='</div>';
-  if(!SP.data&&!SP.loading&&VF.f!=='turf')h+='<div class="mute">Chargement des matchs…</div>';
-  if(!L.length)return h+'<div class="card">Aucun pari value pour l\'instant'+(SP.loading?' (matchs en cours de chargement)':'')+'. Les cotes bougent : reviens plus tard.</div>';
-  h+='<h2>'+L.length+' paris où la cote vaut plus que le risque</h2>';
+  var h='<div class="chips"><button data-vf="all" class="'+(VF.f==='all'?'on':'')+'">🎯 Tout</button><button data-vf="turf" class="'+(VF.f==='turf'?'on':'')+'">🏇 Courses</button><button data-vf="sport" class="'+(VF.f==='sport'?'on':'')+'">⚽ Matchs</button></div>';
+  if(VF.f!=='sport'){
+    var P=pointsTurf();
+    h+='<h2>⚠️ Faux favoris ('+P.faux.length+') — le public se trompe</h2>';
+    if(!P.faux.length)h+='<div class="card mute">Aucun faux favori repéré pour les courses à venir.</div>';
+    P.faux.forEach(function(it){h+='<div class="card tap pn bad" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">Favori n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Le public lui donne <b>'+E.pct(it.f.pm)+'</b>, nos calculs seulement <b class="ko">'+E.pct(it.f.p)+'</b>. Ne pas le prendre en base : jouer les autres.</div></div>'});
+    h+='<p class="mute">Vérifié sur juin–novembre : ces favoris gagnent 21,9 % au lieu des 25,1 % annoncés par leur cote, et les plus fragiles 6 % au lieu de 23 %.</p>';
+    h+='<h2>🐺 Loups ('+P.loups.length+') — l\'outsider qui cache son jeu</h2>';
+    if(!P.loups.length)h+='<div class="card mute">Aucun loup fort pour les courses à venir.</div>';
+    P.loups.forEach(function(it){var w=it.a.watch;h+='<div class="card tap pn wolfc" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+'</div><div>Dans les 3 premiers : <b class="ok">'+E.pct(w.pPlace)+'</b> (un outsider à cette cote : '+E.pct(w.pBase)+')'+(w.why.length?' — '+esc(w.why.join(', ')):'')+'</div><div class="mute">À mettre en 3e base : multi / quinté 3 bases + 5.</div></div>'});
+    h+='<h2>✅ Favoris solides ('+P.solides.length+') — bases fiables</h2>';
+    P.solides.slice(0,15).forEach(function(it){h+='<div class="card tap pn good" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Nos calculs : <b class="ok">'+E.pct(it.f.p)+'</b> de chances de gagner, le public : '+E.pct(it.f.pm)+'.</div></div>'});
+    h+='<p class="mute">Vérifié sur juin–novembre : ces favoris gagnent 34,2 % au lieu des 31,9 % annoncés.</p>';
+  }
+  var L=valueList().filter(function(v){return VF.f==='all'||v.kind===VF.f});
+  h+='<h2>💎 Cotes trop belles ('+L.length+') — la cote paie plus que la vraie chance</h2>';
+  if(!L.length)h+='<div class="card mute">Aucune pour l\'instant'+(SP.loading?' (matchs en cours de chargement)':'')+'.</div>';
   L.forEach(function(v){
-    var lose=1-v.p,gain=Math.round((v.ev-1)*100);
     h+='<div class="card tap vcard" '+(v.kind==='turf'?'data-k="'+v.k+'"':'data-s="'+v.s+'"')+'><div class="mute">'+esc(v.ctx)+'</div>'+
       '<div class="ttl" style="font-size:16px;margin:4px 0">'+esc(v.title)+'</div><div>🎯 '+esc(v.pari)+'</div>'+
       '<div class="vgrid"><div><span>Cote</span><b class="cote">'+String(Math.round(v.dec*100)/100).replace('.',',')+'</b></div><div class="win"><span>Chance de gagner</span><b class="ok">'+E.pct(v.p)+'</b></div><div class="lose"><span>Si ça passe</span><b>1 € → '+String((Math.round(v.dec*100)/100).toFixed(2)).replace('.',',')+' €</b></div></div>'+
-      '<div class="ev">💎 Valeur : <b>+'+gain+' %</b> · 1 € joué rapporte en moyenne '+String((Math.round(v.ev*100)/100).toFixed(2)).replace('.',',')+' € sur la durée</div>'+
-      '<div class="mute">Sur 10 paris comme celui-ci, environ '+Math.round(v.p*10)+' gagnent et '+Math.round(lose*10)+' perdent.'+(v.place!=null?' Finit dans les 3 premiers : '+E.pct(v.place)+'.':'')+'</div></div>';
+      '<div class="ev">La cote juste serait '+fair(v.p)+' : elle est payée '+String((Math.round(v.dec*100)/100).toFixed(2)).replace('.',',')+'.'+(v.place!=null?' Dans les 3 premiers : '+E.pct(v.place)+'.':'')+'</div></div>';
   });
-  return h+'<p class="mute">Turf : la cote PMU peut encore baisser jusqu\'au départ, ce qui réduit la valeur. Sport : valeur calculée sur la cote du marché affichée par la source, vérifie celle de ton opérateur.</p>';
+  return h;
 }
 function viewSel(){
   var now=Date.now();
@@ -278,7 +295,7 @@ function viewSel(){
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
       '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+wolf(a)+
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
-      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(a.conf)+'</span> · risque '+E.pct(1-a.conf)+'</div></div>';
+      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(a.conf)+'</span></div></div>';
   });
   return h+'<p class="mute">Le pourcentage est la probabilité estimée sur 20 000 arrivées simulées. Vérifié sur 5 902 courses réelles : quand l\'appli annonce 60 à 80 %, le jeu passe 71 % du temps.</p>';
 }
@@ -479,7 +496,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
-      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(x.liveP!=null?x.liveP:x.conf)+'</span> · risque '+E.pct(1-(x.liveP!=null?x.liveP:x.conf))+(x.liveP!=null?' (en direct)':'')+'</div>'+tv+'</div>';
+      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(x.liveP!=null?x.liveP:x.conf)+'</span>'+(x.liveP!=null?' (en direct)':'')+'</div>'+tv+'</div>';
   },
   view:function(){
     if(SP.err&&!SP.data)return '<div class="card err"><div class="ttl">Connexion aux données sport impossible</div><p>'+esc(SP.err)+'</p><button class="primary" id="retry">Réessayer</button></div>';
