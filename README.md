@@ -2,6 +2,8 @@
 
 **L'appli :** https://aelektiri-ctrl.github.io/yanis/ — à ajouter à l'écran d'accueil du téléphone.
 
+**Turf Analyste :** https://aelektiri-ctrl.github.io/yanis/turf/ — tableau de bord turf + sport (formats sec / champ réduit / 2 sur 4, scores en direct, Equidia), branché sur les données de Yanis. Sources dans `turf_source/` (`python build.py` puis copier `index.html` dans `docs/turf/`).
+
 Yanis collecte tout seul, chaque heure, le programme, les partants, les cotes, les arrivées et les rapports du PMU (réunions françaises). Il remonte aussi 10 ans d'historique, puis prépare l'appli.
 
 - **Les données** : dossier `donnees/`, un fichier par journée (`AAAA/MM/AAAA-MM-JJ.json.gz`), jamais effacé.

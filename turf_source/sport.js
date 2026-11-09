@@ -1,0 +1,507 @@
+/* Turf Analyste — module Sport : uniquement les compétitions ouvertes aux paris en France (liste ANJ)
+   Source : flux publics ESPN (scoreboard + classements), relayés par Netlify. */
+(function (root) {
+  'use strict';
+  var LEAGUES = [
+    ['fra.1', 'Ligue 1'], ['fra.2', 'Ligue 2'], ['fra.coupe_de_france', 'Coupe de France'],
+    ['eng.1', 'Premier League'], ['eng.2', 'Championship'], ['eng.fa', 'FA Cup'], ['eng.league_cup', 'League Cup'],
+    ['esp.1', 'Liga'], ['esp.2', 'Liga 2'], ['esp.copa_del_rey', 'Coupe du Roi'],
+    ['ita.1', 'Serie A'], ['ita.2', 'Serie B'], ['ita.coppa_italia', 'Coupe d\'Italie'],
+    ['ger.1', 'Bundesliga'], ['ger.2', '2. Bundesliga'], ['ger.dfb_pokal', 'Coupe d\'Allemagne'],
+    ['ned.1', 'Eredivisie'], ['por.1', 'Liga Portugal'], ['por.taca.portugal', 'Coupe du Portugal'], ['pol.1', 'Ekstraklasa'], ['bel.1', 'Pro League'], ['sco.1', 'Premiership (Écosse)'],
+    ['tur.1', 'Süper Lig'], ['gre.1', 'Super League (Grèce)'], ['aut.1', 'Bundesliga (Autriche)'], ['sui.1', 'Super League (Suisse)'],
+    ['den.1', 'Superliga (Danemark)'], ['nor.1', 'Eliteserien'], ['swe.1', 'Allsvenskan'], ['irl.1', 'Premier Division (Irlande)'],
+    ['uefa.champions', 'Ligue des champions'], ['uefa.europa', 'Ligue Europa'], ['uefa.europa.conf', 'Conference League'], ['uefa.nations', 'Ligue des nations'],
+    ['fifa.worldq.uefa', 'Qualif. Coupe du monde (Europe)'], ['fifa.friendly', 'Matchs amicaux'], ['uefa.euroq', 'Qualif. Euro'],
+    ['usa.1', 'MLS'], ['mex.1', 'Liga MX'], ['bra.1', 'Brasileirão'], ['arg.1', 'Liga Argentina'], ['col.1', 'Liga Colombia'], ['chi.1', 'Primera (Chili)'],
+    ['conmebol.libertadores', 'Copa Libertadores'], ['conmebol.sudamericana', 'Copa Sudamericana'],
+    ['ecu.1', 'Serie A (Équateur)'], ['par.1', 'Primera (Paraguay)'], ['jpn.1', 'J1 League'], ['kor.1', 'K League 1'], ['ksa.1', 'Saudi Pro League'], ['aus.1', 'A-League'], ['chn.1', 'Super League (Chine)'],
+    ['concacaf.champions', 'Ligue des champions CONCACAF'], ['afc.champions', 'Ligue des champions AFC'], ['caf.champions', 'Ligue des champions CAF']
+  ].map(function (x) { return { id: x[0], name: x[1] }; });
+  var US = [
+    { sport: 'nba', path: 'basketball/nba', name: 'NBA', homeAdv: 0.3, cap: 25, sd: 12 },
+    { sport: 'wnba', path: 'basketball/wnba', name: 'WNBA', homeAdv: 0.25, cap: 25, sd: 11 },
+    { sport: 'nfl', path: 'football/nfl', name: 'NFL', homeAdv: 0.2, cap: 21, sd: 13.5 },
+    { sport: 'nhl', path: 'hockey/nhl', name: 'NHL', homeAdv: 0.15, cap: 4, sd: 2.4 },
+    { sport: 'mlb', path: 'baseball/mlb', name: 'MLB', homeAdv: 0.08, cap: 6, sd: 4.2 }
+  ];
+
+  // ---------- historique de saison et notes de force ----------
+  function dayN(d) { return Math.floor(d / 864e5); }
+  function ymdOf(dn) { var d = new Date(dn * 864e5); return d.getUTCFullYear() + ('0' + (d.getUTCMonth() + 1)).slice(-2) + ('0' + d.getUTCDate()).slice(-2); }
+  function parseGames(j) {
+    var g = [];
+    ((j && j.events) || []).forEach(function (ev) {
+      var c = (ev.competitions || [])[0]; if (!c) return;
+      if (!pick(c, 'status.type.completed') && !pick(ev, 'status.type.completed')) return;
+      var ha = compsHA(c), H = ha[0], A = ha[1]; if (!H || !A) return;
+      var hs = num(H.score && H.score.value != null ? H.score.value : H.score), as = num(A.score && A.score.value != null ? A.score.value : A.score);
+      if (hs == null || as == null) return;
+      g.push([dayN(new Date(ev.date).getTime()), String(pick(H, 'team.id')), String(pick(A, 'team.id')), hs, as, c.neutralSite ? 1 : 0]);
+    });
+    return g;
+  }
+  async function history(getJSON, path, q, store, todayN) {
+    var key = 'sh.' + path, st = store.get(key) || { to: 0, g: [] };
+    var from = Math.max(st.to + 1, todayN - 160), to = todayN - 1;
+    var step = q ? 7 : 30;
+    for (var a = from; a <= to; a += step) {
+      var b = Math.min(to, a + step - 1);
+      var j = await getJSON('site/v2/sports/' + path + '/scoreboard?dates=' + ymdOf(a) + '-' + ymdOf(b) + '&limit=1000' + (q || ''));
+      var seen = {}; st.g.forEach(function (x) { seen[x.slice(0, 3).join('|')] = 1; });
+      parseGames(j).forEach(function (x) { if (!seen[x.slice(0, 3).join('|')]) st.g.push(x); });
+      st.to = b;
+    }
+    st.g = st.g.filter(function (x) { return x[0] >= todayN - 200; });
+    store.set(key, st);
+    return st.g;
+  }
+  function fitSoccer(G, todayN, before) {
+    var g = G.filter(function (x) { return x[0] < before; }); if (g.length < 30) return null;
+    var w = g.map(function (x) { return Math.exp(-0.006 * (todayN - x[0])); });
+    var T = {}; g.forEach(function (x) { [x[1], x[2]].forEach(function (t) { T[t] = T[t] || { A: 1, D: 1, n: 0 }; }); T[x[1]].n++; T[x[2]].n++; });
+    var tg = 0, tw = 0; g.forEach(function (x, i) { tg += w[i] * (x[3] + x[4]); tw += 2 * w[i]; });
+    var c = tg / tw, H = 1.2, k = 2;
+    for (var it = 0; it < 30; it++) {
+      var nA = {}, dA = {}, nD = {}, dD = {};
+      Object.keys(T).forEach(function (t) { nA[t] = dA[t] = nD[t] = dD[t] = 0; });
+      g.forEach(function (x, i) {
+        var h = T[x[1]], a = T[x[2]], hh = x[5] ? 1 : H, wi = w[i];
+        nA[x[1]] += wi * x[3]; dA[x[1]] += wi * a.D * c * hh; nA[x[2]] += wi * x[4]; dA[x[2]] += wi * h.D * c;
+        nD[x[1]] += wi * x[4]; dD[x[1]] += wi * a.A * c; nD[x[2]] += wi * x[3]; dD[x[2]] += wi * h.A * c * hh;
+      });
+      Object.keys(T).forEach(function (t) { T[t].A = (nA[t] + k * c) / (dA[t] + k * c * T[t].A ** 0) ; T[t].D = (nD[t] + k * c) / (dD[t] + k * c); });
+      var mA = 0, mD = 0, n = 0; Object.keys(T).forEach(function (t) { mA += T[t].A; mD += T[t].D; n++; }); mA /= n; mD /= n;
+      Object.keys(T).forEach(function (t) { T[t].A /= mA; T[t].D /= mD; });
+      var gN = 0, gD = 0, hN = 0, hD = 0;
+      g.forEach(function (x, i) { var h = T[x[1]], a = T[x[2]], hh = x[5] ? 1 : H; gN += w[i] * (x[3] + x[4]); gD += w[i] * (hh * h.A * a.D + a.A * h.D); if (!x[5]) { hN += w[i] * x[3]; hD += w[i] * h.A * a.D; } });
+      c = gN / gD; if (hD) H = Math.max(0.9, Math.min(1.6, hN / (hD * c)));
+    }
+    return { T: T, c: c, H: H, n: g.length };
+  }
+  function fitMargin(G, todayN, before, lg) {
+    var g = G.filter(function (x) { return x[0] < before; }); if (g.length < 40) return null;
+    var w = g.map(function (x) { return Math.exp(-0.008 * (todayN - x[0])); }), R = {}, N = {}, h = 0;
+    g.forEach(function (x) { R[x[1]] = 0; R[x[2]] = 0; N[x[1]] = (N[x[1]] || 0) + 1; N[x[2]] = (N[x[2]] || 0) + 1; });
+    var m = g.map(function (x) { return Math.max(-lg.cap, Math.min(lg.cap, x[3] - x[4])); });
+    for (var it = 0; it < 40; it++) {
+      var hn = 0, hw = 0; g.forEach(function (x, i) { if (x[5]) return; hn += w[i] * (m[i] - (R[x[1]] - R[x[2]])); hw += w[i]; }); h = hw ? hn / hw : 0;
+      var S = {}, W = {}; Object.keys(R).forEach(function (t) { S[t] = 0; W[t] = 3; });
+      g.forEach(function (x, i) { var hh = x[5] ? 0 : h; S[x[1]] += w[i] * (m[i] - hh + R[x[2]]); W[x[1]] += w[i]; S[x[2]] += w[i] * (-(m[i] - hh) + R[x[1]]); W[x[2]] += w[i]; });
+      var mean = 0, n = 0; Object.keys(R).forEach(function (t) { R[t] = S[t] / W[t]; mean += R[t]; n++; }); Object.keys(R).forEach(function (t) { R[t] -= mean / n; });
+    }
+    var ss = 0, sw = 0; g.forEach(function (x, i) { var e = m[i] - ((x[5] ? 0 : h) + R[x[1]] - R[x[2]]); ss += w[i] * e * e; sw += w[i]; });
+    var sd = Math.max(lg.sd * 0.85, Math.sqrt(ss / sw));
+    return { R: R, N: N, h: h, sd: sd, n: g.length };
+  }
+  function Phi(x) { var t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
+  function soccerProbs(lh, la) {
+    var p1 = 0, px = 0, p2 = 0, Z = 0, M = [], rho = -0.08;
+    for (var i = 0; i <= 10; i++) for (var j = 0; j <= 10; j++) {
+      var t = i === 0 && j === 0 ? 1 - lh * la * rho : i === 0 && j === 1 ? 1 + lh * rho : i === 1 && j === 0 ? 1 + la * rho : i === 1 && j === 1 ? 1 - rho : 1;
+      var p = pois(lh, i) * pois(la, j) * t; M.push([i, j, p]); Z += p;
+    }
+    M.forEach(function (m) { m[2] /= Z; if (m[0] > m[1]) p1 += m[2]; else if (m[0] === m[1]) px += m[2]; else p2 += m[2]; });
+    return { M: M, p: [p1, px, p2] };
+  }
+  // backtest : on refait le modèle sans les 21 derniers jours et on le confronte aux résultats réels
+  function backtest(G, todayN, kind, lg, cal, sport) {
+    var cut = todayN - 21, recent = G.filter(function (x) { return x[0] >= cut; }); if (!recent.length) return;
+    if (kind === 'foot') {
+      var F = fitSoccer(G, todayN, cut); if (!F) return;
+      recent.forEach(function (x) {
+        var h = F.T[x[1]], a = F.T[x[2]]; if (!h || !a || h.n < 4 || a.n < 4) return;
+        var P = soccerProbs(F.c * (x[5] ? 1 : F.H) * h.A * a.D, F.c * a.A * h.D).p;
+        var fav = P[0] >= P[2] ? 0 : 2, res = x[3] > x[4] ? 0 : x[3] === x[4] ? 1 : 2;
+        cal.push([P[fav], res === fav ? 1 : 0, sport, 'win']); cal.push([P[fav] + P[1], res !== 2 - fav ? 1 : 0, sport, 'dc']);
+      });
+    } else {
+      var R = fitMargin(G, todayN, cut, lg); if (!R) return;
+      recent.forEach(function (x) {
+        if (R.R[x[1]] == null || R.R[x[2]] == null || R.N[x[1]] < 4 || R.N[x[2]] < 4 || x[3] === x[4]) return;
+        var p = Phi(((x[5] ? 0 : R.h) + R.R[x[1]] - R.R[x[2]]) / R.sd), fav = p >= 0.5;
+        cal.push([fav ? p : 1 - p, (fav ? x[3] > x[4] : x[4] > x[3]) ? 1 : 0, sport, 'win']);
+      });
+    }
+  }
+
+  function num(v) { var n = parseFloat(v); return isFinite(n) ? n : null; }
+  function sig(x) { return 1 / (1 + Math.exp(-x)); }
+  function logit(p) { p = Math.min(0.995, Math.max(0.005, p)); return Math.log(p / (1 - p)); }
+  function pct(x) { return Math.round(x * 100) + ' %'; }
+  function mlToP(ml) {
+    if (ml == null) return null; if (typeof ml === 'string') { if (/even/i.test(ml)) return 0.5; ml = parseFloat(ml.replace('+', '')); }
+    if (!isFinite(ml) || ml === 0) return null; return ml < 0 ? -ml / (-ml + 100) : 100 / (ml + 100);
+  }
+  function mlToDec(ml) { var p = mlToP(ml); if (p == null) return null; if (typeof ml === 'string') ml = parseFloat(ml.replace('+', '')); return ml < 0 ? 1 + 100 / -ml : 1 + ml / 100; }
+  function pick(o, path) { return path.split('.').reduce(function (a, k) { return a == null ? a : a[k]; }, o); }
+  function oddsOf(comp) {
+    var o = (comp.odds || [])[0]; if (!o) return null;
+    var g = function (side) {
+      return o[side + 'TeamOdds'] && o[side + 'TeamOdds'].moneyLine != null ? o[side + 'TeamOdds'].moneyLine
+        : pick(o, 'moneyline.' + side + '.close.odds') != null ? pick(o, 'moneyline.' + side + '.close.odds') : pick(o, 'moneyline.' + side + '.open.odds');
+    };
+    var draw = o.drawOdds && o.drawOdds.moneyLine != null ? o.drawOdds.moneyLine : pick(o, 'moneyline.draw.close.odds');
+    return { home: g('home'), away: g('away'), draw: draw, spread: num(o.spread), ou: num(o.overUnder), details: o.details || '', provider: pick(o, 'provider.name') || '' };
+  }
+  function rec(c, kind) {
+    var r = (c.records || []).filter(function (x) {
+      var t = (x.type || '') + ' ' + (x.name || '');
+      return kind === 'total' ? /total|overall|all splits|ytd/i.test(t) : new RegExp(kind === 'home' ? 'home' : 'road|away', 'i').test(t);
+    })[0];
+    if (!r && kind === 'total') r = (c.records || [])[0];
+    if (!r || !r.summary) return null;
+    var p = r.summary.split('-').map(function (x) { return parseInt(x, 10) || 0; });
+    return { s: r.summary, w: p[0] || 0, l: p[1] || 0, t: p[2] || 0 };
+  }
+  function state(ev, comp) {
+    var st = (comp && comp.status) || ev.status || {}; var t = st.type || {};
+    return { state: t.state || 'pre', done: !!t.completed, txt: t.shortDetail || t.detail || '' };
+  }
+  function tvOf(comp) {
+    var n = [];
+    (comp.broadcasts || []).forEach(function (b) { (b.names || []).forEach(function (x) { if (n.indexOf(x) < 0) n.push(x); }); });
+    (comp.geoBroadcasts || []).forEach(function (b) { var x = pick(b, 'media.shortName'); if (x && n.indexOf(x) < 0) n.push(x); });
+    return n.slice(0, 4);
+  }
+  function liveOf(s, H, A) { return s.state !== 'pre' ? [num(H.score && H.score.value != null ? H.score.value : H.score), num(A.score && A.score.value != null ? A.score.value : A.score)] : null; }
+  function teamName(c) { return pick(c, 'team.shortDisplayName') || pick(c, 'team.displayName') || pick(c, 'athlete.displayName') || pick(c, 'athlete.fullName') || '?'; }
+
+  // ---------- football ----------
+  function parseStandings(j) {
+    var map = {}, tot = { gf: 0, gp: 0 };
+    var groups = [];
+    (function walk(n) { if (!n) return; if (n.standings && n.standings.entries) groups.push(n.standings.entries); (n.children || []).forEach(walk); })(j);
+    groups.forEach(function (entries) {
+      entries.forEach(function (e) {
+        var s = {}; (e.stats || []).forEach(function (x) { s[x.name || x.type] = num(x.value); });
+        var gp = s.gamesPlayed, gf = s.pointsFor != null ? s.pointsFor : s.goalsFor, ga = s.pointsAgainst != null ? s.pointsAgainst : s.goalsAgainst;
+        if (gp && gf != null && ga != null && e.team) {
+          map[e.team.id] = { gp: gp, gf: gf, ga: ga, pts: s.points, rank: s.rank };
+          tot.gf += gf; tot.gp += gp;
+        }
+      });
+    });
+    return { map: map, avg: tot.gp ? tot.gf / tot.gp : 1.35 };
+  }
+  function pois(l, k) { var p = Math.exp(-l); for (var i = 1; i <= k; i++) p *= l / i; return p; }
+  function formPts(f) { if (!f) return null; var s = 0, n = 0; f.replace(/[^WDL]/gi, '').slice(-5).split('').forEach(function (c) { n++; s += c.toUpperCase() === 'W' ? 3 : c.toUpperCase() === 'D' ? 1 : 0; }); return n ? s / n : null; }
+
+  function f2(x) { return x.toFixed(2).replace('.', ','); }
+  function compsHA(comp) {
+    var cs = comp.competitors || [];
+    return [cs.filter(function (c) { return c.homeAway === 'home'; })[0], cs.filter(function (c) { return c.homeAway === 'away'; })[0]];
+  }
+
+  function analyseFoot(ev, league, st, F) {
+    var comp = (ev.competitions || [])[0]; if (!comp) return null;
+    var ha = compsHA(comp), H = ha[0], A = ha[1];
+    if (!H || !A) return null;
+    var why = [], avg = st ? st.avg : 1.35;
+    var sh = st && st.map[pick(H, 'team.id')], sa = st && st.map[pick(A, 'team.id')];
+    function strength(s, r) {
+      if (s) { var w = s.gp / (s.gp + 8); return { att: 1 + w * ((s.gf / s.gp) / avg - 1), def: 1 + w * ((s.ga / s.gp) / avg - 1) }; }
+      if (r) { var g = r.w + r.l + r.t, ppg = g ? (3 * r.w + r.t) / g : 1.35; var k = 1 + 0.25 * (ppg - 1.35) * (g / (g + 5)); return { att: k, def: 1 / k }; }
+      return { att: 1, def: 1 };
+    }
+    var rh = rec(H, 'total'), ra = rec(A, 'total');
+    var a = strength(sh, rh), b = strength(sa, ra);
+    var lh = avg * 1.12 * a.att * b.def, la = avg * 0.89 * b.att * a.def;
+    var hn = teamName(H), an = teamName(A);
+    var th = F && F.T[String(pick(H, 'team.id'))], ta = F && F.T[String(pick(A, 'team.id'))], rated = false;
+    if (th && ta && th.n >= 4 && ta.n >= 4) {
+      var neutral = comp.neutralSite;
+      lh = F.c * (neutral ? 1 : F.H) * th.A * ta.D; la = F.c * ta.A * th.D; rated = true;
+      why.push('Notes de force calculées sur ' + F.n + ' matchs récents de la compétition (les plus récents comptent plus) : attaque ' + hn + ' ' + th.A.toFixed(2).replace('.', ',') + ', défense ' + (1 / th.D).toFixed(2).replace('.', ',') + ' ; attaque ' + an + ' ' + ta.A.toFixed(2).replace('.', ',') + ', défense ' + (1 / ta.D).toFixed(2).replace('.', ',') + ' (1 = moyenne).');
+    }
+    if (sh && sa) why.push('Attaque/défense (buts marqués / encaissés par match) : ' + hn + ' ' + (sh.gf / sh.gp).toFixed(1).replace('.', ',') + ' / ' + (sh.ga / sh.gp).toFixed(1).replace('.', ',') + ', ' + an + ' ' + (sa.gf / sa.gp).toFixed(1).replace('.', ',') + ' / ' + (sa.ga / sa.gp).toFixed(1).replace('.', ',') + '.');
+    else if (rh && ra) why.push('Bilans : ' + hn + ' ' + rh.s + ', ' + an + ' ' + ra.s + ' (V-N-D).');
+    if (sh && sh.rank && sa && sa.rank) why.push('Classement : ' + hn + ' ' + sh.rank + 'e, ' + an + ' ' + sa.rank + 'e.');
+    var s = state(ev, comp);
+    var x = { sport: 'foot', lid: league.id, league: league.name, id: ev.id, date: ev.date, home: hn, away: an, hid: pick(H, 'team.id'), aid: pick(A, 'team.id'),
+      title: hn + ' – ' + an, state: s, score: s.done ? [num(H.score), num(A.score)] : null, live: liveOf(s, H, A), tv: tvOf(comp),
+      _lh: lh, _la: la, _rated: rated, _form: [H.form || '', A.form || ''], _od: oddsOf(comp), _why0: why };
+    return finishFoot(x);
+  }
+
+  function finishFoot(x) {
+    var lh = x._lh, la = x._la, why = x._why0.slice(), E = x.enr || {}, hn = x.home, an = x.away;
+    var fh = formPts(E.form5 ? E.form5[0] : x._form[0]), fa = formPts(E.form5 ? E.form5[1] : x._form[1]);
+    var fH = E.form5 ? E.form5[0] : x._form[0], fA = E.form5 ? E.form5[1] : x._form[1];
+    if (fh != null && fa != null) { var d = (fh - fa) * (x._rated ? 0.02 : 0.06); lh *= Math.exp(d); la *= Math.exp(-d); if (Math.abs(fh - fa) >= 0.8) why.push('Forme sur 5 matchs : ' + fH + ' contre ' + fA + '.'); }
+    // absences
+    if (E.abs) {
+      var pen = function (t) { return Math.min(0.25, t.out * 0.04 + t.keyOut * 0.08); };
+      var ph = pen(E.abs[0]), pa = pen(E.abs[1]);
+      if (ph || pa) {
+        lh *= (1 - ph) * (1 + pa * 0.6); la *= (1 - pa) * (1 + ph * 0.6);
+        why.push('Absences prises en compte : ' + hn + ' ' + E.abs[0].out + ' absent(s)' + (E.abs[0].keyOut ? ' dont ' + E.abs[0].keyOut + ' cadre(s)' : '') + ', ' + an + ' ' + E.abs[1].out + (E.abs[1].keyOut ? ' dont ' + E.abs[1].keyOut + ' cadre(s)' : '') + '.');
+      }
+    }
+    if (E.lineups) why.push('Compositions officielles publiées' + (E.lineups[0].formation ? ' (' + E.lineups[0].formation + ' contre ' + (E.lineups[1].formation || '?') + ')' : '') + '.');
+    lh = Math.max(0.2, Math.min(4, lh)); la = Math.max(0.2, Math.min(4, la));
+    var SP = soccerProbs(lh, la), p1 = SP.p[0], px = SP.p[1], p2 = SP.p[2], o15 = 0, o25 = 0, u35 = 0, btts = 0;
+    SP.M.forEach(function (m) { var p = m[2], i = m[0], j = m[1]; if (i + j >= 2) o15 += p; if (i + j >= 3) o25 += p; if (i + j <= 3) u35 += p; if (i > 0 && j > 0) btts += p; });
+    var top = SP.M.slice().sort(function (u, v) { return v[2] - u[2]; }).slice(0, 3);
+    x.scores = top.map(function (m) { return [m[0] + '-' + m[1], m[2]]; });
+    var model = [p1, px, p2];
+    var od = E.odds || x._od, market = null;
+    if (od && od.home != null && od.away != null && od.draw != null) {
+      var q = [mlToP(od.home), mlToP(od.draw), mlToP(od.away)];
+      if (q.every(function (v) { return v; })) { var s = q[0] + q[1] + q[2]; market = q.map(function (v) { return v / s; }); }
+    }
+    var fin = market ? model.map(function (v, k) { return 0.6 * market[k] + 0.4 * v; }) : model;
+    var mk = [
+      { k: '1', label: 'Victoire ' + hn, p: fin[0], dec: od ? mlToDec(od.home) : null, ok: function (h, a) { return h > a; } },
+      { k: '2', label: 'Victoire ' + an, p: fin[2], dec: od ? mlToDec(od.away) : null, ok: function (h, a) { return a > h; } },
+      { k: '1X', label: hn + ' ou nul', p: fin[0] + fin[1], ok: function (h, a) { return h >= a; } },
+      { k: 'X2', label: an + ' ou nul', p: fin[2] + fin[1], ok: function (h, a) { return a >= h; } },
+      { k: 'O15', label: 'Plus de 1,5 but', p: o15, ok: function (h, a) { return h + a >= 2; } },
+      { k: 'O25', label: 'Plus de 2,5 buts', p: o25, ok: function (h, a) { return h + a >= 3; } },
+      { k: 'U35', label: 'Moins de 3,5 buts', p: u35, ok: function (h, a) { return h + a <= 3; } },
+      { k: 'BTTS', label: 'Les deux équipes marquent', p: btts, ok: function (h, a) { return h > 0 && a > 0; } },
+      { k: 'NBTTS', label: 'Au moins une équipe ne marque pas', p: 1 - btts, ok: function (h, a) { return h === 0 || a === 0; } }
+    ];
+    mk.slice(4).forEach(function (m) { m.p = 0.5 + 0.9 * (m.p - 0.5); });
+    var win = fin[0] >= fin[2] ? mk[0] : mk[1], dc = fin[0] >= fin[2] ? mk[2] : mk[3], main;
+    if (win.p >= 0.62) main = win; else if (dc.p >= 0.74) main = dc; else main = mk.slice(4).sort(function (u, v) { return v.p - u.p; })[0];
+    var level = main.p >= 0.75 ? 'SEC' : main.p >= 0.62 ? 'FORT' : 'DOUTE';
+    var safe = mk.filter(function (m) { return m !== main; }).sort(function (u, v) { return v.p - u.p; })[0];
+    var value = null;
+    if (market) [0, 1].forEach(function (k) { var m = mk[k]; if (m.dec && m.p * m.dec >= 1.08 && m.p >= 0.3 && (!value || m.p * m.dec > value.p * value.dec)) value = m; });
+    why.push('Buts attendus : ' + f2(lh) + ' – ' + f2(la) + ' (avantage du terrain inclus).');
+    if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
+    else why.push('Pas de cote disponible : estimation sur les statistiques uniquement.');
+    x.probs = { '1': fin[0], 'X': fin[1], '2': fin[2] }; x.markets = mk; x.main = main; x.safe = safe; x.value = value; x.level = level; x.why = why; x.conf = main.p;
+    x.won = (x.score && x.score[0] != null) ? main.ok(x.score[0], x.score[1]) : undefined;
+    return x;
+  }
+
+  // ---------- NBA / NFL / NHL ----------
+  function analyseUS(ev, lg, R) {
+    var comp = (ev.competitions || [])[0]; if (!comp) return null;
+    var ha = compsHA(comp), H = ha[0], A = ha[1];
+    if (!H || !A) return null;
+    var hn = teamName(H), an = teamName(A), why = [];
+    var rh = rec(H, 'total'), ra = rec(A, 'total'), hh = rec(H, 'home'), aa = rec(A, 'road');
+    function wp(r, n) { if (!r) return 0.5; var g = r.w + r.l + r.t; return (r.w + 0.5 * r.t + n * 0.5) / (g + n); }
+    var z = logit(wp(rh, 6)) - logit(wp(ra, 6)) + lg.homeAdv;
+    if (hh && aa && hh.w + hh.l >= 3 && aa.w + aa.l >= 3) z = 0.7 * z + 0.3 * (logit(wp(hh, 4)) - logit(wp(aa, 4)));
+    if (rh && ra) why.push('Bilans : ' + hn + ' ' + rh.s + ' (dom. ' + (hh ? hh.s : '—') + '), ' + an + ' ' + ra.s + ' (ext. ' + (aa ? aa.s : '—') + ').');
+    var idH = String(pick(H, 'team.id')), idA = String(pick(A, 'team.id'));
+    if (R && R.R[idH] != null && R.R[idA] != null && R.N[idH] >= 4 && R.N[idA] >= 4) {
+      var mg = (comp.neutralSite ? 0 : R.h) + R.R[idH] - R.R[idA], pr = Phi(mg / R.sd);
+      z = logit(pr);
+      why.push('Notes de force sur ' + R.n + ' matchs récents (écarts de score, adversaires, terrain) : écart attendu ' + (mg >= 0 ? hn + ' +' : an + ' +') + Math.abs(mg).toFixed(1).replace('.', ',') + ' pts.');
+    }
+    var s = state(ev, comp);
+    var x = { sport: lg.sport, path: lg.path, league: lg.name, id: ev.id, date: ev.date, home: hn, away: an, hid: pick(H, 'team.id'), aid: pick(A, 'team.id'),
+      title: an + ' @ ' + hn, state: s, score: s.done ? [num(H.score), num(A.score)] : null, live: liveOf(s, H, A), tv: tvOf(comp), _z: z, _od: oddsOf(comp), _why0: why, _lg: lg };
+    return finishUS(x);
+  }
+
+  var INJ_W = { nba: [0.45, 0.08], wnba: [0.45, 0.08], ncaab: [0.35, 0.06], nfl: [0.3, 0.05], ncaaf: [0.25, 0.04], nhl: [0.25, 0.04], mlb: [0.15, 0.03] };
+  function finishUS(x) {
+    var E = x.enr || {}, why = x._why0.slice(), z = x._z, hn = x.home, an = x.away, lg = x._lg;
+    if (E.form5) why.push('5 derniers matchs : ' + hn + ' ' + (E.form5[0] || '—') + ', ' + an + ' ' + (E.form5[1] || '—') + '.');
+    if (E.abs) {
+      var w = INJ_W[x.sport] || [0.3, 0.05];
+      var imp = function (t) { return Math.min(1.2, t.keyOutW * w[0] + (t.outW - t.keyOutW) * w[1]); };
+      var ih = imp(E.abs[0]), ia = imp(E.abs[1]);
+      z += ia - ih;
+      if (ih || ia) why.push('Blessures prises en compte : ' + hn + ' ' + E.abs[0].out + ' absent(s)' + (E.abs[0].keyOut ? ' dont ' + E.abs[0].keyNames.join(', ') : '') + ' ; ' + an + ' ' + E.abs[1].out + (E.abs[1].keyOut ? ' dont ' + E.abs[1].keyNames.join(', ') : '') + '.');
+    }
+    var pModel = sig(z);
+    why.push('Modèle statistique : ' + hn + ' ' + pct(pModel) + ' (terrain et blessures inclus).');
+    var od = E.odds || x._od, pMarket = null;
+    if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) pMarket = q1 / (q1 + q2); }
+    else if (od && od.spread != null && x.sport === 'nba') pMarket = sig(-od.spread * 0.135);
+    if (pMarket != null) why.push('Marché' + (od.provider ? ' (' + od.provider + ')' : '') + (E.odds ? ', cote mise à jour' : '') + ' : ' + hn + ' ' + pct(pMarket) + (od.details ? ', ligne ' + od.details : '') + '.');
+    var pB = E.bpi != null ? E.bpi : null;
+    if (pB != null) why.push('Prédicteur ESPN : ' + hn + ' ' + pct(pB) + '.');
+    var parts = [];
+    if (pMarket != null) parts.push([0.6, pMarket]);
+    if (pB != null) parts.push([0.25, pB]);
+    parts.push([pMarket != null ? 0.15 : 0.5, pModel]);
+    var tw = parts.reduce(function (s, p) { return s + p[0]; }, 0);
+    var p = sig(parts.reduce(function (s, q) { return s + q[0] * logit(q[1]); }, 0) / tw);
+    if (pMarket == null && pB == null) why.push('Pas de cote disponible : estimation sur les bilans uniquement.');
+    var fav = p >= 0.5, pf = fav ? p : 1 - p;
+    var level = pf >= 0.70 ? 'SEC' : pf >= 0.60 ? 'FORT' : 'DOUTE';
+    if (level === 'DOUTE') why.push('Match serré : à éviter ou à jouer petit.');
+    var dec = od ? mlToDec(fav ? od.home : od.away) : null;
+    x.main = { label: 'Victoire ' + (fav ? hn : an), p: pf, dec: dec };
+    x.favHome = fav;
+    x.level = level; x.why = why; x.conf = pf; x.value = dec && pf * dec >= 1.06 ? x.main : null; x.ou = od ? od.ou : null;
+    x.won = (x.score && x.score[0] != null) ? (fav ? x.score[0] > x.score[1] : x.score[1] > x.score[0]) : undefined;
+    return x;
+  }
+
+  // ---------- fiche détaillée (dernière minute) ----------
+  var OUT_RE = /out|absent|injured reserve|suspen/i, DOUBT_RE = /doubt/i, Q_RE = /question|day-to-day|game-time|probable/i;
+  function parseSummary(j, x) {
+    var E = {}, ids = [String(x.hid), String(x.aid)];
+    var side = function (t) { var id = String(pick(t, 'team.id') || pick(t, 'id') || ''); var k = ids.indexOf(id); if (k >= 0) return k; var ha = t.homeAway; return ha === 'home' ? 0 : ha === 'away' ? 1 : -1; };
+    // joueurs clés
+    var key = [{}, {}];
+    (j.leaders || []).forEach(function (t) { var k = side(t); if (k < 0) return; (t.leaders || []).forEach(function (c) { (c.leaders || []).slice(0, 1).forEach(function (l) { var n = pick(l, 'athlete.displayName'); if (n) key[k][n] = 1; }); }); });
+    // blessures
+    if (Array.isArray(j.injuries) && j.injuries.length) {
+      var abs = [{ out: 0, outW: 0, keyOut: 0, keyOutW: 0, keyNames: [], list: [] }, { out: 0, outW: 0, keyOut: 0, keyOutW: 0, keyNames: [], list: [] }];
+      j.injuries.forEach(function (t) {
+        var k = side(t); if (k < 0) return;
+        (t.injuries || []).forEach(function (inj) {
+          var name = pick(inj, 'athlete.displayName') || pick(inj, 'athlete.fullName') || '?';
+          var st = inj.status || pick(inj, 'type.description') || pick(inj, 'type.name') || '';
+          var det = pick(inj, 'details.type') || pick(inj, 'details.detail') || pick(inj, 'shortComment') || '';
+          var wgt = OUT_RE.test(st) ? 1 : DOUBT_RE.test(st) ? 0.7 : Q_RE.test(st) ? 0.3 : 0.5;
+          var isKey = !!key[k][name];
+          abs[k].list.push({ name: name, status: st, detail: det, key: isKey, pos: pick(inj, 'athlete.position.abbreviation') || '' });
+          if (wgt >= 0.5) abs[k].out++;
+          abs[k].outW += wgt;
+          if (isKey) { abs[k].keyOutW += wgt; if (wgt >= 0.5) { abs[k].keyOut++; abs[k].keyNames.push(name); } }
+        });
+      });
+      E.abs = abs;
+    }
+    // compositions
+    if (Array.isArray(j.rosters) && j.rosters.length) {
+      var lu = [null, null];
+      j.rosters.forEach(function (t) {
+        var k = side(t); if (k < 0) return;
+        var st = (t.roster || []).filter(function (p) { return p.starter; }).map(function (p) { return pick(p, 'athlete.displayName') || pick(p, 'athlete.shortName') || '?'; });
+        if (st.length >= 9) lu[k] = { formation: t.formation || '', starters: st };
+      });
+      if (lu[0] && lu[1]) E.lineups = lu;
+    }
+    // prédicteur
+    var gp = num(pick(j, 'predictor.homeTeam.gameProjection')), ga = num(pick(j, 'predictor.awayTeam.gameProjection'));
+    if (gp != null) { var hid = String(pick(j, 'predictor.homeTeam.id') || ''); var ph = gp / 100; if (hid && hid === String(x.aid)) ph = 1 - ph; if (ga != null && Math.abs(gp + ga - 100) > 5) ph = gp / (gp + ga); if (ph > 0.01 && ph < 0.99) E.bpi = ph; }
+    // cotes fraîches
+    var pc = (j.pickcenter || []).filter(function (o) { return o && (pick(o, 'homeTeamOdds.moneyLine') != null || o.spread != null); })[0];
+    if (pc) E.odds = { home: pick(pc, 'homeTeamOdds.moneyLine'), away: pick(pc, 'awayTeamOdds.moneyLine'), draw: pick(pc, 'drawOdds.moneyLine'), spread: num(pc.spread), ou: num(pc.overUnder), details: pc.details || '', provider: pick(pc, 'provider.name') || '' };
+    // forme 5 derniers
+    if (Array.isArray(j.lastFiveGames) && j.lastFiveGames.length) {
+      var f = ['', ''];
+      j.lastFiveGames.forEach(function (t) { var k = side(t); if (k < 0) return; f[k] = (t.events || []).map(function (e) { return (e.gameResult || '').charAt(0).toUpperCase().replace('V', 'W').replace('N', 'D'); }).join(''); });
+      if (f[0] || f[1]) E.form5 = f;
+    }
+    E.at = Date.now();
+    return E;
+  }
+  function summaryPath(x) { return x.sport === 'foot' ? 'site/v2/sports/soccer/' + x.lid + '/summary?event=' + x.id : x.path ? 'site/v2/sports/' + x.path + '/summary?event=' + x.id : null; }
+  function refresh(x) { return x.sport === 'foot' ? finishFoot(x) : finishUS(x); }
+
+  async function enrich(getJSON, items, cache, onProgress) {
+    var now = Date.now();
+    var todo = items.filter(function (x) {
+      if (!summaryPath(x) || x.state.done) return false;
+      var t = new Date(x.date).getTime(), c = cache[x.id];
+      if (!c) return t - now < 36 * 3600e3;
+      var soon = t - now < 3 * 3600e3;
+      return soon && now - c.at > 4 * 60e3;
+    });
+    items.forEach(function (x) { if (cache[x.id] && !x.enr) { x.enr = cache[x.id]; refresh(x); } });
+    var done = 0, n = todo.length, q = todo.slice();
+    async function w() { while (q.length) { var x = q.shift(); try { var j = await getJSON(summaryPath(x)); if (j) { x.enr = cache[x.id] = parseSummary(j, x); refresh(x); } } catch (e) { } done++; onProgress && onProgress(done / Math.max(1, n)); } }
+    await Promise.all([w(), w(), w(), w(), w()]);
+    return n;
+  }
+
+  // ---------- tennis ----------
+  function rankOf(c) { return num(pick(c, 'curatedRank.current')) || num(c.rank) || num(pick(c, 'athlete.rank')) || null; }
+  function analyseTennis(comp, ev, tour) {
+    var cs = comp.competitors || []; if (cs.length !== 2) return null;
+    var a = cs[0], b = cs[1], ra = rankOf(a), rb = rankOf(b), na = teamName(a), nb = teamName(b);
+    if (/TBD|^\?$/i.test(na + nb)) return null;
+    var why = [];
+    var ea = 2000 - 100 * Math.log(ra || 300), eb = 2000 - 100 * Math.log(rb || 300);
+    var pModel = 1 / (1 + Math.pow(10, (eb - ea) / 400));
+    var od = oddsOf(comp), pM = null;
+    if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
+    var p = pM != null ? sig(0.7 * logit(pM) + 0.3 * logit(pModel)) : pModel;
+    var fa = p >= 0.5, pf = fa ? p : 1 - p;
+    var level = pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
+    why.push('Classements : ' + na + ' ' + (ra ? ra + 'e' : 'non classé') + ', ' + nb + ' ' + (rb ? rb + 'e' : 'non classé') + '.');
+    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur l\'écart de classement (surface et fatigue non disponibles dans ce flux).');
+    var s = state(ev, comp), done = s.done || a.winner === true || b.winner === true;
+    var sets = [a, b].map(function (c) { return (c.linescores || []).map(function (l) { return num(l.value); }); });
+    var setTxt = sets[0].length ? sets[0].map(function (v, i) { return v + '-' + (sets[1][i] != null ? sets[1][i] : 0); }).join(' ') : '';
+    var res = { sport: 'tennis', league: tour + (ev.name ? ' · ' + ev.name : ''), id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
+      state: { state: done ? 'post' : s.state, done: done, txt: s.txt }, setTxt: setTxt, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
+    if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
+    return res;
+  }
+
+  // ---------- MMA ----------
+  function analyseMMA(comp, ev) {
+    var cs = comp.competitors || []; if (cs.length !== 2) return null;
+    var a = cs[0], b = cs[1], na = teamName(a), nb = teamName(b), ra = rec(a, 'total'), rb = rec(b, 'total');
+    function s(r) { if (!r) return 0; return logit((r.w + 2) / (r.w + r.l + 4)) + 0.12 * Math.log(1 + r.w + r.l); }
+    var pModel = sig(0.7 * (s(ra) - s(rb)));
+    var od = oddsOf(comp), pM = null;
+    if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
+    var p = pM != null ? sig(0.75 * logit(pM) + 0.25 * logit(pModel)) : pModel;
+    var fa = p >= 0.5, pf = fa ? p : 1 - p;
+    var level = pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
+    var why = ['Palmarès : ' + na + ' ' + (ra ? ra.s : '—') + ', ' + nb + ' ' + (rb ? rb.s : '—') + ' (V-D-N).'];
+    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès seul. Styles, allonge et cut de poids absents de ce flux, prudence.');
+    var st = state(ev, comp), done = st.done || a.winner === true || b.winner === true;
+    var res = { sport: 'mma', league: ev.name || 'UFC', id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
+      state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
+    if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
+    return res;
+  }
+
+  // ---------- chargement ----------
+  async function loadAll(getJSON, ymd, onProgress, diag, store) {
+    var out = [], jobs = [], cal = [], info = { games: 0, leagues: 0 };
+    var tN = dayN(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8)));
+    store = store || { get: function () { return null; }, set: function () { } };
+    LEAGUES.forEach(function (lg) { jobs.push(async function () {
+      var sb = await getJSON('site/v2/sports/soccer/' + lg.id + '/scoreboard?dates=' + ymd);
+      var evs = (sb && sb.events) || []; diag('foot ' + lg.id, sb);
+      if (!evs.length) return;
+      var F = null;
+      try { var G = await history(getJSON, 'soccer/' + lg.id, '', store, tN); F = fitSoccer(G, tN, tN); backtest(G, tN, 'foot', null, cal, 'foot'); if (F) { info.games += F.n; info.leagues++; } } catch (e) { }
+      evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) out.push(r); });
+    }); });
+    US.forEach(function (lg) { jobs.push(async function () {
+      var sb = await getJSON('site/v2/sports/' + lg.path + '/scoreboard?dates=' + ymd + (lg.q || '')); diag(lg.sport, sb);
+      var evs = (sb && sb.events) || []; if (!evs.length) return;
+      var R = null;
+      try { var G = await history(getJSON, lg.path, lg.q, store, tN); R = fitMargin(G, tN, tN, lg); backtest(G, tN, 'us', lg, cal, lg.sport); if (R) { info.games += R.n; info.leagues++; } } catch (e) { }
+      evs.forEach(function (ev) { var r = analyseUS(ev, lg, R); if (r) out.push(r); });
+    }); });
+    [['atp', 'ATP'], ['wta', 'WTA']].forEach(function (t) { jobs.push(async function () {
+      var sb = await getJSON('site/v2/sports/tennis/' + t[0] + '/scoreboard?dates=' + ymd); diag('tennis ' + t[0], sb);
+      ((sb && sb.events) || []).forEach(function (ev) {
+        var comps = [];
+        (ev.groupings || []).forEach(function (g) { if (/single/i.test(pick(g, 'grouping.displayName') || 'single')) comps = comps.concat(g.competitions || []); });
+        if (!comps.length) comps = ev.competitions || [];
+        comps.forEach(function (c) {
+          var d = (c.date || ev.date || '').slice(0, 10).replace(/-/g, '');
+          if (d && d !== ymd && !(c.status && pick(c, 'status.type.state') === 'in')) return;
+          var r = analyseTennis(c, ev, t[1]); if (r) out.push(r);
+        });
+      });
+    }); });
+    jobs.push(async function () {
+      var sb = await getJSON('site/v2/sports/mma/ufc/scoreboard?dates=' + ymd + '-' + ymdOf(tN + 14)); diag('mma', sb);
+      ((sb && sb.events) || []).forEach(function (ev) {
+        var cs = (ev.competitions || []).slice(), seg = cs.filter(function (c) { return /main/i.test(pick(c, 'cardSegment.name') || pick(c, 'cardSegment.description') || ''); });
+        if (!seg.length) seg = cs.sort(function (a, b) { return new Date(a.date) - new Date(b.date); }).slice(-5);
+        seg.forEach(function (c) { var r = analyseMMA(c, ev); if (r) { r.league = (ev.name || 'UFC') + ' · carte principale'; out.push(r); } });
+      });
+    });
+    var done = 0, errors = [], q = jobs.slice();
+    async function worker() { while (q.length) { var j = q.shift(); try { await j(); } catch (e) { errors.push(e.message); } done++; onProgress(done / jobs.length); } }
+    await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+    out.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+    return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
+  }
+
+  var api = { fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
+})(this);
+
