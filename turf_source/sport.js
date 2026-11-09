@@ -47,11 +47,22 @@
       var hs = num(H.score && H.score.value != null ? H.score.value : H.score), as = num(A.score && A.score.value != null ? A.score.value : A.score);
       if (hs == null || as == null) return;
       g.push([dayN(new Date(ev.date).getTime()), String(pick(H, 'team.id')), String(pick(A, 'team.id')), hs, as, c.neutralSite ? 1 : 0]);
+      // buteurs du match (événements « but » du flux), sans les buts contre son camp
+      var sc = [];
+      (c.details || []).forEach(function (d) {
+        if (!d.scoringPlay || d.ownGoal) return;
+        var ath = (d.athletesInvolved || d.participants || [])[0]; ath = ath && (ath.athlete || ath);
+        var tid = String(pick(d, 'team.id') || pick(ath, 'team.id') || '');
+        if (ath && ath.displayName && tid) sc.push([tid, ath.displayName, d.penaltyKick ? 1 : 0]);
+      });
+      // meilleur marqueur de chaque équipe (basket) : points du match
+      [H, A].forEach(function (T) { (T.leaders || []).forEach(function (L) { if (!/^points$/i.test(L.name || '')) return; (L.leaders || []).slice(0, 1).forEach(function (l) { var nm = pick(l, 'athlete.displayName'), v = num(l.value); if (nm && v != null) sc.push([String(pick(T, 'team.id')), nm, 0, v]); }); }); });
+      g[g.length - 1].push(sc);
     });
     return g;
   }
   async function history(getJSON, path, q, store, todayN) {
-    var key = 'sh.' + path, st = store.get(key) || { to: 0, g: [] };
+    var key = 'sh2.' + path, st = store.get(key) || { to: 0, g: [] };
     var from = Math.max(st.to + 1, todayN - 160), to = todayN - 1;
     var step = q ? 7 : 30;
     for (var a = from; a <= to; a += step) {
@@ -275,6 +286,7 @@
     x.sim = S;
     if (S && x.state.state === 'in') x.liveP = S.main;
     if (x.sport === 'foot') x.buteurs = scorerProbs(x);
+    if (x.sport === 'nba' || x.sport === 'wnba') x.points = pointsProps(x);
     return x;
   }
 
@@ -314,7 +326,23 @@
     store.set(key, { d: ymd, s: res });
     return res;
   }
+  function teamScorers(G, todayN) {
+    var T = {}, games = {};
+    (G || []).forEach(function (x) {
+      var w = Math.exp(-0.004 * (todayN - x[0]));
+      games[x[1]] = (games[x[1]] || 0) + 1; games[x[2]] = (games[x[2]] || 0) + 1;
+      (x[6] || []).forEach(function (s) { if (s[3] != null) return; var t = T[s[0]] || (T[s[0]] = {}); var p = t[s[1]] || (t[s[1]] = { name: s[1], goals: 0, w: 0, pen: 0 }); p.goals++; p.w += w; p.pen += s[2]; });
+    });
+    var out = {};
+    Object.keys(T).forEach(function (tid) {
+      var L = Object.keys(T[tid]).map(function (k) { return T[tid][k]; }), tot = L.reduce(function (s, p) { return s + p.w; }, 0);
+      L.forEach(function (p) { p.share = p.w / Math.max(tot, 1); p.games = games[tid] || 0; });
+      out[tid] = L.sort(function (a, b) { return b.w - a.w; }).slice(0, 8);
+    });
+    return Object.keys(out).length ? out : null;
+  }
   function scorerProbs(x) {
+    if (x.hsc && x.lam) return scorerProbsH(x);
     if (!x.scorers || !x.lam) return null;
     var E = x.enr || {}, out = [], live = x.state.state === 'in', rem = live && x.sim ? x.sim.r : 1;
     [0, 1].forEach(function (k) {
@@ -331,6 +359,60 @@
       });
     });
     return out.sort(function (a, b) { return b.p - a.p; }).slice(0, 10);
+  }
+
+  // buteurs tirés de l'historique des matchs de la compétition (part pondérée des buts de l'équipe)
+  function scorerProbsH(x) {
+    var E = x.enr || {}, live = x.state.state === 'in', rem = live && x.sim ? x.sim.r : 1, teams = [];
+    [0, 1].forEach(function (k) {
+      var tid = String(k ? x.aid : x.hid), L = x.hsc[tid] || [], out = [];
+      var injured = E.abs ? E.abs[k].list.filter(function (p) { return /out|absent|suspen|doubt/i.test(p.status); }).map(function (p) { return p.name; }) : [];
+      var starters = E.lineups && E.lineups[k] ? E.lineups[k].starters : null;
+      L.forEach(function (p) {
+        if (injured.indexOf(p.name) >= 0) return;
+        var play = starters ? (starters.indexOf(p.name) >= 0 ? 0.92 : 0.25) : 0.80;
+        var share = (p.goals + 0.3) / (p.goals / Math.max(p.share, 0.01) + 3); // part des buts, lissée
+        out.push({ name: p.name, team: k ? x.away : x.home, goals: p.goals, pen: p.pen, p: 1 - Math.exp(-x.lam[k] * rem * share * play), starter: starters ? starters.indexOf(p.name) >= 0 : null });
+      });
+      teams.push({ team: k ? x.away : x.home, list: out.sort(function (a, b) { return b.p - a.p; }).slice(0, 5) });
+    });
+    x.buteursEq = teams;
+    return teams[0].list.concat(teams[1].list).sort(function (a, b) { return b.p - a.p; });
+  }
+
+  // NBA / WNBA : meilleurs marqueurs et paliers de points
+  function nbaScorers(G, todayN) {
+    var T = {};
+    (G || []).forEach(function (x) {
+      if (todayN - x[0] > 60) return;
+      (x[6] || []).forEach(function (s) { if (s[3] == null) return; var t = T[s[0]] || (T[s[0]] = {}); var p = t[s[1]] || (t[s[1]] = { name: s[1], pts: [] }); p.pts.push(s[3]); });
+    });
+    return T;
+  }
+  var TIERS = [10, 15, 20, 25, 30, 35];
+  function pointsProps(x) {
+    if (!x.nbaLead && !(x.enr && x.enr.ppg)) return null;
+    var E = x.enr || {}, teams = [], live = x.state.state === 'in' && !!E.box, rem = live && x.sim && x.sim.r != null ? x.sim.r : 1; // sans feuille de match en direct : estimation d'avant-match
+    var paceF = x.ou ? Math.max(0.9, Math.min(1.1, x.ou / 228)) : 1;
+    [0, 1].forEach(function (k) {
+      var tid = String(k ? x.aid : x.hid), byName = {};
+      ((E.ppg && E.ppg[k]) || []).forEach(function (p) { byName[p.name] = { name: p.name, mean: p.ppg, n: 10, src: 'moyenne de la saison' }; });
+      var H = x.nbaLead && x.nbaLead[tid];
+      if (H) Object.keys(H).forEach(function (nm) { var a = H[nm].pts; if (a.length < 2) return; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length; if (!byName[nm] || a.length >= 4) byName[nm] = { name: nm, mean: byName[nm] ? (byName[nm].mean + m) / 2 : m * 0.92, n: a.length, src: a.length + ' matchs où il a fini meilleur marqueur' }; });
+      var injured = E.abs ? E.abs[k].list.filter(function (p) { return /out|doubt/i.test(p.status); }).map(function (p) { return p.name; }) : [];
+      var cur = {}; if (live && E.box) (E.box[k] || []).forEach(function (b) { cur[b.name] = b.pts; });
+      var out = [];
+      Object.keys(byName).forEach(function (nm) {
+        if (injured.indexOf(nm) >= 0) return;
+        var p = byName[nm], mu = p.mean * paceF, sd = 3.5 + 0.22 * mu, now = cur[nm] || 0;
+        var muR = now + mu * rem, sdR = sd * Math.sqrt(Math.max(rem, 0.02));
+        var tiers = TIERS.map(function (t) { return [t, now >= t ? 1 : 1 - Phi((t - 0.5 - muR) / sdR)]; });
+        var best = tiers.filter(function (q) { return q[1] >= 0.70 && q[1] < 0.995; }).pop() || null;
+        out.push({ name: nm, team: k ? x.away : x.home, mean: mu, now: live ? now : null, tiers: tiers, best: best, src: p.src });
+      });
+      teams.push({ team: k ? x.away : x.home, list: out.sort(function (a, b) { return b.mean - a.mean; }).slice(0, 5) });
+    });
+    return teams;
   }
 
   // ---------- paris « value » : la cote paie plus que le risque réel ----------
@@ -586,6 +668,15 @@
       j.lastFiveGames.forEach(function (t) { var k = side(t); if (k < 0) return; f[k] = (t.events || []).map(function (e) { return (e.gameResult || '').charAt(0).toUpperCase().replace('V', 'W').replace('N', 'D'); }).join(''); });
       if (f[0] || f[1]) E.form5 = f;
     }
+    // basket : moyennes de points des leaders et points du match en direct
+    var ppg = [[], []], gotP = false;
+    (j.leaders || []).forEach(function (t) { var k = side(t); if (k < 0) return; (t.leaders || []).forEach(function (c) { if (!/points/i.test(c.name || c.displayName || '')) return; (c.leaders || []).forEach(function (l) { var nm = pick(l, 'athlete.displayName'), v = num(l.value != null ? l.value : l.displayValue); if (nm && v != null && v < 60) { ppg[k].push({ name: nm, ppg: v }); gotP = true; } }); }); });
+    if (gotP) E.ppg = ppg;
+    if (pick(j, 'boxscore.players')) {
+      var box = [[], []];
+      j.boxscore.players.forEach(function (t) { var k = side(t); if (k < 0) return; (t.statistics || []).forEach(function (st) { var keys = st.keys || st.names || st.labels || [], pi = keys.indexOf('points'); if (pi < 0) pi = keys.indexOf('PTS'); if (pi < 0) return; (st.athletes || []).forEach(function (a) { var v = num((a.stats || [])[pi]); if (v != null) box[k].push({ name: pick(a, 'athlete.displayName'), pts: v }); }); }); });
+      E.box = box;
+    }
     // cartons rouges (événements clés)
     if (Array.isArray(j.keyEvents)) {
       var reds = [0, 0];
@@ -700,16 +791,18 @@
       var evs = (sb && sb.events) || []; diag('foot ' + lg.id, sb);
       if (!evs.length) return;
       var F = null;
-      try { var G = await history(getJSON, 'soccer/' + lg.id, '', store, tN); F = fitSoccer(G, tN, tN); backtest(G, tN, 'foot', null, cal, 'foot'); if (F) { info.games += F.n; info.leagues++; } } catch (e) { }
+      var HSC = null;
+      try { var G = await history(getJSON, 'soccer/' + lg.id, '', store, tN); F = fitSoccer(G, tN, tN); HSC = teamScorers(G, tN); backtest(G, tN, 'foot', null, cal, 'foot'); if (F) { info.games += F.n; info.leagues++; } } catch (e) { }
       var SCR = null; try { SCR = await scorers(getJSON, lg.id, store, ymd); } catch (e) { }
-      evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) { r.scorers = SCR; out.push(r); } });
+      evs.forEach(function (ev) { var r = analyseFoot(ev, lg, null, F); if (r) { r.scorers = SCR; r.hsc = HSC; out.push(r); } });
     }); });
     US.forEach(function (lg) { jobs.push(async function () {
       var sb = await board('site/v2/sports/' + lg.path + '/scoreboard', lg.q); diag(lg.sport, sb);
       var evs = (sb && sb.events) || []; if (!evs.length) return;
       var R = null;
-      try { var G = await history(getJSON, lg.path, lg.q, store, tN); R = fitMargin(G, tN, tN, lg); backtest(G, tN, 'us', lg, cal, lg.sport); if (R) { info.games += R.n; info.leagues++; } } catch (e) { }
-      evs.forEach(function (ev) { var r = analyseUS(ev, lg, R); if (r) out.push(r); });
+      var NL = null;
+      try { var G = await history(getJSON, lg.path, lg.q, store, tN); R = fitMargin(G, tN, tN, lg); if (/basketball/.test(lg.path)) NL = nbaScorers(G, tN); backtest(G, tN, 'us', lg, cal, lg.sport); if (R) { info.games += R.n; info.leagues++; } } catch (e) { }
+      evs.forEach(function (ev) { var r = analyseUS(ev, lg, R); if (r) { r.nbaLead = NL; out.push(r); } });
     }); });
     [['atp', 'ATP'], ['wta', 'WTA']].forEach(function (t) { jobs.push(async function () {
       var sb = await board('site/v2/sports/tennis/' + t[0] + '/scoreboard'); diag('tennis ' + t[0], sb);
@@ -740,7 +833,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 

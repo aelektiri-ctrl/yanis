@@ -492,7 +492,9 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
     tv=oddsRow(x)+tv;
-    if(x.buteurs&&x.buteurs.length&&!done){var b0=x.buteurs[0];tv='<div class="odds">⚽ Buteur le plus probable : <b>'+esc(b0.name)+'</b> ('+esc(b0.team)+') '+E.pct(b0.p)+' · cote mini '+fair(b0.p)+'</div>'+tv}
+    if(!done&&x.buteursEq){var bl=x.buteursEq.filter(function(t){return t.list.length}).map(function(t){return '<b>'+esc(t.list[0].name)+'</b> '+E.pct(t.list[0].p)});if(bl.length)tv='<div class="odds">⚽ Buteurs : '+bl.join(' · ')+'</div>'+tv}
+    else if(x.buteurs&&x.buteurs.length&&!done){var b0=x.buteurs[0];tv='<div class="odds">⚽ Buteur le plus probable : <b>'+esc(b0.name)+'</b> ('+esc(b0.team)+') '+E.pct(b0.p)+' · cote mini '+fair(b0.p)+'</div>'+tv}
+    if(!done&&x.points){var pl=[];x.points.forEach(function(t){var q=t.list.filter(function(p){return p.best})[0];if(q)pl.push('<b>'+esc(q.name)+'</b> '+q.best[0]+'+ pts '+E.pct(q.best[1]))});if(pl.length)tv='<div class="odds">🏀 '+pl.join(' · ')+'</div>'+tv}
     if(isLive){var bp=bestProp(x);if(bp){var ad=advice(bp.p);tv='<div class="lprop">💡 En direct : <b>'+esc(bp.label)+'</b> · '+E.pct(bp.p)+' · cote mini '+fair(bp.p)+' · <span class="'+ad.c+'">'+ad.t+'</span></div>'+tv}}
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
@@ -555,9 +557,19 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     }
     if(x.sport==='foot'&&!x.state.done){
       h+='<h2>⚽ Buteurs potentiels'+(x.state.state==='in'?' (temps restant)':'')+'</h2><div class="card">';
-      if(x.buteurs&&x.buteurs.length){h+='<div class="mute" style="margin-bottom:6px">Chance de marquer = part des buts de l\'équipe marqués par le joueur cette saison × buts attendus de son équipe dans ce match'+(x.enr&&x.enr.lineups?', composition officielle prise en compte':', composition pas encore connue')+'. Cote mini = cote à exiger chez ton opérateur.</div>';
+      if(x.buteursEq&&x.buteursEq.some(function(t){return t.list.length})){
+        h+='<div class="mute" style="margin-bottom:6px">Chance de marquer = sa part des buts de son équipe cette saison (buts réellement marqués dans la compétition, les plus récents comptent plus) × buts attendus de son équipe dans ce match'+(x.enr&&x.enr.lineups?', composition officielle prise en compte':'')+'. Cote mini = cote à exiger.</div>';
+        x.buteursEq.forEach(function(t){h+='<div class="ttl" style="margin-top:8px">'+esc(t.team)+'</div>';if(!t.list.length)h+='<div class="mute">Pas encore de buteur enregistré.</div>';t.list.forEach(function(b){h+='<div class="prow"><span>'+esc(b.name)+' <span class="mute">'+b.goals+' but'+(b.goals>1?'s':'')+(b.pen?' dont '+b.pen+' pen.':'')+(b.starter===false?' · remplaçant':b.starter?' · titulaire':'')+'</span></span><b>'+E.pct(b.p)+'</b><span class="mute">mini '+fair(b.p)+'</span></div>'})});
+      }
+      else if(x.buteurs&&x.buteurs.length){h+='<div class="mute" style="margin-bottom:6px">Chance de marquer = part des buts de l\'équipe marqués par le joueur cette saison × buts attendus de son équipe dans ce match'+(x.enr&&x.enr.lineups?', composition officielle prise en compte':', composition pas encore connue')+'. Cote mini = cote à exiger chez ton opérateur.</div>';
         x.buteurs.forEach(function(b){var ad=advice(b.p);h+='<div class="prow"><span>'+esc(b.name)+' <span class="mute">'+esc(b.team)+' · '+b.goals+' but'+(b.goals>1?'s':'')+(b.starter===false?' · remplaçant':b.starter?' · titulaire':'')+'</span></span><b>'+E.pct(b.p)+'</b><span class="mute">mini '+fair(b.p)+'</span></div>'})}
       else h+='<div class="mute">Classement des buteurs indisponible pour cette compétition dans la source gratuite.</div>';
+      h+='</div>';
+    }
+    if(x.points&&!x.state.done){
+      h+='<h2>🏀 Points par joueur'+(x.state.state==='in'?' (en direct)':'')+'</h2><div class="card"><div class="mute" style="margin-bottom:6px">Chance de dépasser chaque palier, d\'après sa moyenne'+(x.ou?' et le rythme attendu du match (total '+String(x.ou).replace('.',',')+')':'')+'. Palier conseillé = le plus haut qui passe au moins 70 % du temps.</div>';
+      x.points.forEach(function(t){h+='<div class="ttl" style="margin-top:8px">'+esc(t.team)+'</div>';if(!t.list.length)h+='<div class="mute">Statistiques indisponibles.</div>';
+        t.list.forEach(function(p){h+='<div class="pts"><div class="row"><span><b>'+esc(p.name)+'</b> <span class="mute">moy. '+p.mean.toFixed(1).replace('.',',')+(p.now!=null?' · déjà '+p.now+' pts':'')+'</span></span><span class="'+(p.best?'ok':'mute')+'">'+(p.best?'🎯 '+p.best[0]+'+ pts · '+E.pct(p.best[1]):'pas de palier sûr')+'</span></div><div class="tiers">'+p.tiers.map(function(q){return '<span class="'+(q[1]>=0.7?'hi':q[1]>=0.5?'mid':'')+'">'+q[0]+'+ <b>'+E.pct(q[1])+'</b></span>'}).join('')+'</div></div>'})});
       h+='</div>';
     }
     if(x.sim){var S2=x.sim,lv=x.state.state==='in';
