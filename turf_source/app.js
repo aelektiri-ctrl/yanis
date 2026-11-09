@@ -257,7 +257,7 @@ function viewValue(){
     var lose=1-v.p,gain=Math.round((v.ev-1)*100);
     h+='<div class="card tap vcard" '+(v.kind==='turf'?'data-k="'+v.k+'"':'data-s="'+v.s+'"')+'><div class="mute">'+esc(v.ctx)+'</div>'+
       '<div class="ttl" style="font-size:16px;margin:4px 0">'+esc(v.title)+'</div><div>🎯 '+esc(v.pari)+'</div>'+
-      '<div class="vgrid"><div><span>Cote</span><b class="cote">'+String(Math.round(v.dec*100)/100).replace('.',',')+'</b></div><div><span>Gagne</span><b class="ok">'+E.pct(v.p)+'</b></div><div class="lose"><span>Risque de perdre</span><b>'+E.pct(lose)+'</b></div></div>'+
+      '<div class="vgrid"><div><span>Cote</span><b class="cote">'+String(Math.round(v.dec*100)/100).replace('.',',')+'</b></div><div class="win"><span>Chance de gagner</span><b class="ok">'+E.pct(v.p)+'</b></div><div class="lose"><span>Si ça passe</span><b>1 € → '+String((Math.round(v.dec*100)/100).toFixed(2)).replace('.',',')+' €</b></div></div>'+
       '<div class="ev">💎 Valeur : <b>+'+gain+' %</b> · 1 € joué rapporte en moyenne '+String((Math.round(v.ev*100)/100).toFixed(2)).replace('.',',')+' € sur la durée</div>'+
       '<div class="mute">Sur 10 paris comme celui-ci, environ '+Math.round(v.p*10)+' gagnent et '+Math.round(lose*10)+' perdent.'+(v.place!=null?' Finit dans les 3 premiers : '+E.pct(v.place)+'.':'')+'</div></div>';
   });
@@ -278,7 +278,7 @@ function viewSel(){
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
       '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+wolf(a)+
       '<div class="row mute" style="margin-top:6px"><span>Base n°'+base.num+' '+esc(base.nom)+' · cote '+E.fmtCote(base.cote)+'</span><span class="conf">'+E.pct(a.conf)+'</span></div>'+
-      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre ce jeu : <b>'+E.pct(1-a.conf)+'</b></div></div>';
+      '<div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(a.conf)+'</span> · risque '+E.pct(1-a.conf)+'</div></div>';
   });
   return h+'<p class="mute">Le pourcentage est la probabilité estimée sur 20 000 arrivées simulées. Vérifié sur 5 902 courses réelles : quand l\'appli annonce 60 à 80 %, le jeu passe 71 % du temps.</p>';
 }
@@ -479,7 +479,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(isLive&&x.liveP!=null){var hs=SP.hist[hk(x)]||[],prev=hs.length>1?hs[hs.length-2]:null,arrow=prev==null?'':x.liveP>prev+0.01?' ▲':x.liveP<prev-0.01?' ▼':'';tv='<div class="livesim"><span>📡 Simulation en direct · '+SP.nsim(x)+'</span><b>'+E.pct(x.liveP)+arrow+'</b></div>'+tv}
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
-      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div><div class="risk">❌ Risque de perdre : <b>'+E.pct(1-(x.liveP!=null?x.liveP:x.conf))+'</b>'+(x.liveP!=null?' (en direct)':'')+'</div>'+tv+'</div>';
+      '<div class="prono"><span>🎯 '+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div><div class="risk"><span class="ok">✅ Chance de gagner : '+E.pct(x.liveP!=null?x.liveP:x.conf)+'</span> · risque '+E.pct(1-(x.liveP!=null?x.liveP:x.conf))+(x.liveP!=null?' (en direct)':'')+'</div>'+tv+'</div>';
   },
   view:function(){
     if(SP.err&&!SP.data)return '<div class="card err"><div class="ttl">Connexion aux données sport impossible</div><p>'+esc(SP.err)+'</p><button class="primary" id="retry">Réessayer</button></div>';
