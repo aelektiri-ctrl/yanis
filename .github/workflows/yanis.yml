@@ -36,7 +36,7 @@ jobs:
           git config user.email "yanis@users.noreply.github.com"
           git add -A donnees_sport docs/data
           git diff --cached --quiet || git commit -q -m "Sport du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
-          for i in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && break; sleep 10; done
+          for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
       - name: Courses PMU, toutes les reunions France et etranger (25 minutes maximum)
         run: python yanis.py collecte --budget 25 --monde
       - name: Deroule des courses, commentaires Equidia (8 minutes maximum)
@@ -59,7 +59,7 @@ jobs:
           git add -A
           git diff --cached --quiet && exit 0
           git commit -q -m "Collecte du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
-          for i in 1 2 3 4 5; do git pull --rebase --quiet && git push --quiet && break; sleep 10; done
+          for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
       - name: Relancer le passage suivant (filet de securite si l'horloge GitHub ne se declenche pas)
         if: always()
         env:
