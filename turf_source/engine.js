@@ -343,6 +343,13 @@
     var for3 = byTop(3, B2), for4 = byTop(4, B2), for5 = byTop(5, B2);
     var k3 = (trioK[5].p - trioK[4].p) > 0.06 || level === 'DOUTE' ? 5 : 4;
     var o3 = for3.slice(0, Math.min(k3, n - 2)), o4 = for4.slice(0, Math.min(5, n - 2)), o5 = for5.slice(0, Math.min(5, n - 2));
+    var MM = dispo.MULTI || dispo.E_MULTI ? 'MULTI' : dispo.MINI_MULTI || dispo.E_MINI_MULTI ? 'MINI_MULTI' : null;
+    // multi 3 bases + 5 seulement s'il a une vraie chance de passer ; sinon le loup entre dans les champs réduits
+    var pM3 = B3 && o4L && MM && n >= 8 ? pChamp(B3, o4L, 4, 1) : 0, M3 = pM3 >= 0.12;
+    if (L >= 0 && !M3) {
+      if (o3.indexOf(L) < 0 && L !== A && L !== B && o3.length) o3[o3.length - 1] = L;
+      if (s4.indexOf(L) < 0 && L !== A && s4.length) { s4[s4.length - 1] = L; p2sur4base = freq(orders, function (o) { return inTop(o, A, 4) && countIn(o, s4, 4) >= 1; }); }
+    }
     var o4L = B3 ? byTop(4, B3).slice(0, Math.min(5, n - 3)) : null, o5L = B3 ? byTop(5, B3).slice(0, Math.min(5, n - 3)) : null;
 
     // jumelés (couplés) et 2 sur 4 : toujours les 2 bases
@@ -356,9 +363,10 @@
     // trio : 2 bases + 4 ou 5
     add('TRIO', 'Trio champ réduit — 2 bases + ' + o3.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o3), o3.length, pChamp(B2, o3, 3, 1), hitChamp(B2, o3, 3, 1), level !== 'SEC' && level !== 'DOUTE' && !B3 && !dispo.MULTI, champ(B2, o3, 3));
     // multi (en 4) : 2 bases + 5, ou 3 bases + 5 s'il y a un loup
-    if (n >= 8) {
-      if (B3) add('MULTI', 'Multi champ réduit — 3 bases + ' + o4L.length + ' 🐺', 'Bases ' + nums(B3) + ' / avec ' + nums(o4L), o4L.length, pChamp(B3, o4L, 4, 1), hitChamp(B3, o4L, 4, 1), true, champ(B3, o4L, 4), /en 4/i);
-      add('MULTI', 'Multi champ réduit — 2 bases + ' + o4.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o4), comb(o4.length, 2), pChamp(B2, o4, 4, 2), hitChamp(B2, o4, 4, 2), !B3 && level !== 'SEC', champ(B2, o4, 4), /en 4/i);
+    if (n >= 8 && MM) {
+      var mmN = MM === 'MULTI' ? 'Multi' : 'Mini multi';
+      if (B3) add(MM, mmN + ' en 4 champ réduit — 3 bases + ' + o4L.length + ' 🐺', 'Bases ' + nums(B3) + ' / avec ' + nums(o4L), o4L.length, pChamp(B3, o4L, 4, 1), hitChamp(B3, o4L, 4, 1), M3, champ(B3, o4L, 4), /en 4/i);
+      add(MM, mmN + ' en 4 champ réduit — 2 bases + ' + o4.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o4), comb(o4.length, 2), pChamp(B2, o4, 4, 2), hitChamp(B2, o4, 4, 2), false, champ(B2, o4, 4), /en 4/i);
     }
     // quinté+ (désordre) : 2 bases + 5, ou 3 bases + 5
     if (dispo.QUINTE_PLUS && n >= 8) {
@@ -368,6 +376,7 @@
     // jeu principal choisi d'après la rentabilité mesurée sur 5 902 courses réelles (juin-nov. 2026)
     jeux.forEach(function (j) { j.main = false; });
     var ORDER = level === 'SEC' ? ['COUPLE_GAGNANT', 'DEUX_SUR_QUATRE', 'COUPLE_PLACE', 'SIMPLE_GAGNANT', 'TRIO', 'MULTI'] : ['DEUX_SUR_QUATRE', 'COUPLE_PLACE', 'COUPLE_GAGNANT', 'SIMPLE_GAGNANT', 'TRIO', 'MULTI'];
+    if (M3) ORDER = [MM];   // loup : 3 bases + 5 quand ce jeu a au moins 12 % de chances
     for (var oi = 0; oi < ORDER.length; oi++) { var cand = jeux.filter(function (j) { return j.type === ORDER[oi]; }); if (level === 'DOUTE' && ORDER[oi] === 'DEUX_SUR_QUATRE') cand.sort(function (u, v) { return v.combos - u.combos; }); if (cand.length) { cand[0].main = true; break; } }
     if (!jeux.some(function (j) { return j.main; }) && jeux.length) { var pref = jeux.filter(function (j) { return j.type === 'TRIO'; })[0] || jeux.filter(function (j) { return j.type === 'MULTI'; })[0] || jeux[0]; pref.main = true; }
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
@@ -378,7 +387,7 @@
     if (level === 'SEC') why.push('Course nette : le n°' + hA.num + ' (' + pct(pA) + ') et le n°' + hB.num + ' (' + pct(pB) + ') dominent. Le couplé ' + hA.num + '-' + hB.num + ' sort dans ' + pct(pCoupleAB) + ' des 20 000 arrivées simulées (refaites à chaque mise à jour des cotes).');
     else if (level === 'FORT') why.push('Les deux bases n°' + hA.num + ' et n°' + hB.num + ' finissent ensemble dans les 3 premiers dans ' + pct(pABtop3) + ' des simulations, mais la 3e place reste ouverte : champ réduit sur ' + (trioK[5].p - trioK[4].p > 0.06 ? 5 : 4) + ' chevaux.');
     else why.push('Course ouverte : le premier choix n°' + hA.num + ' n\'a que ' + pct(pA) + ' de chances de gagner. On joue la sécurité (jeu principal choisi parmi les formats les moins risqués, champs réduits proposés en complément).');
-    if (loup) why.push('🐺 Loup : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') finit dans les 3 premiers ' + pct(loup.pPlace) + ' du temps, contre ' + pct(loup.pBase) + ' pour un outsider à cette cote' + (loup.why.length ? ' (' + loup.why.join(', ') + ')' : '') + '. On passe à 3 bases + 5 sur le multi et le quinté.');
+    if (loup) why.push('🐺 Loup : le n°' + H[L].num + ' ' + H[L].nom + ' (cote ' + fmtCote(H[L].cote) + ') finit dans les 3 premiers ' + pct(loup.pPlace) + ' du temps, contre ' + pct(loup.pBase) + ' pour un outsider à cette cote' + (loup.why.length ? ' (' + loup.why.join(', ') + ')' : '') + (M3 ? '. On passe à 3 bases + 5 (' + (MM === 'MULTI' ? 'multi' : 'mini multi') + ' en 4' + (dispo.QUINTE_PLUS ? ', quinté' : '') + ').' : MM && n >= 8 ? '. Course trop ouverte pour un 3 bases + 5 (il ne passerait que ' + pct(pM3) + ' du temps) : le loup est ajouté aux champs réduits (2 sur 4, trio).' : '. Pas de multi sur cette course : il est ajouté aux champs réduits (2 sur 4, trio).'));
     if (hA.ev != null && hA.ev >= 1.15) why.push('Le n°' + hA.num + ' est sous-coté par le public : espérance ' + hA.ev.toFixed(2).replace('.', ',') + ' € par euro joué au gagnant.');
     if (H.yanis) why.push('Probabilités du modèle appris sur 14 914 courses réelles (forme, ferrure, recul, poids, corde, drivers, mouvement de cote, correction du biais du public), croisé avec le modèle Yanis.');
     else why.push(H.learned ? 'Poids des facteurs appris sur l\'historique réel des courses (' + (family(course) === 'trot' ? 'trot' : 'galop') + ').' : 'Poids des facteurs par défaut : lance l\'apprentissage dans l\'onglet Bilan pour les caler sur les vrais résultats.');
@@ -419,7 +428,11 @@
 
     jeux.forEach(function (j) { j.hist = HIST[j.type + (j.main ? '*' : '')] || HIST[j.type] || null; });
     res.loup = loup ? H[L] : null;
-    res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
+    var loupIn = loup && main && main.list && main.list.some(function (c) { return c.indexOf(H[L].num) >= 0; });
+    res.loupMode = loup ? (M3 ? '3 bases + 5' : loupIn ? 'ajouté au ' + main.label.split(' —')[0].toLowerCase() : 'ajouté au trio champ réduit') : null;
+    res.avoid = !!main && conf < 0.25;
+    if (res.avoid) why.unshift('Course très ouverte : aucun jeu proposé ne passe plus de 25 % du temps. À éviter, ou mise minimale.');
+    res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch && watch.sc >= 1.08 && watch.pPlace - watch.pBase >= 0.03 ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });
@@ -427,10 +440,20 @@
   }
 
   // explications par cheval, triées par impact
+  // sens « naturel » de chaque facteur : on n'affiche jamais un libellé qui contredit l'effet calculé
+  var NAT = [[/^Place à la corde défavorable/, -1], [/^Bonne place à la corde/, 1], [/^Avis de l'entraîneur positif/, 1], [/^Avis de l'entraîneur négatif/, -1], [/faute\(s\) ou arrêt/, -1], [/^Recul de/, -1], [/^Déferré/, 1], [/^Rentrée après/, -1], [/^En condition/, 1], [/^Descend de catégorie/, 1], [/^Monte de catégorie/, -1], [/^Déjà placé/, 1], [/réussite récente$/, 1], [/^Changement de/, 0], [/^Inédit ou sans référence$/, -1]];
   function horseReasons(h) {
     return h.contrib.filter(function (c) { return Math.abs(c[0]) >= 0.03 || Math.abs(c[0]) < 0.001; })
       .sort(function (a, b) { return Math.abs(b[0]) - Math.abs(a[0]); })
-      .map(function (c) { return { sign: c[0] > 0.015 ? 1 : c[0] < -0.015 ? -1 : 0, txt: c[1], v: c[0] }; });
+      .map(function (c) {
+        var sg = Math.abs(c[0]) < 0.001 ? 0 : c[0] > 0.015 ? 1 : c[0] < -0.015 ? -1 : 0, t = c[1];
+        if (sg && Math.abs(c[0]) >= 0.001) {
+          for (var i = 0; i < NAT.length; i++) if (NAT[i][0].test(t)) { if (NAT[i][1] && NAT[i][1] !== sg) return null; break; }
+          if (/^(Taux de victoire|Régularité)/.test(t) && h.nc < 4) return null;   // trop peu de courses pour conclure
+          if (/^(Forme récente|Taux de victoire|Régularité|Classe|Gains de l'année|Expérience|Âge|Poids|Meilleure réduction)/.test(t)) t += sg > 0 ? ' : mieux que le reste du lot' : ' : moins bien que le reste du lot';
+        }
+        return { sign: sg, txt: t, v: c[0] };
+      }).filter(Boolean);
   }
 
   var api = { HIST_VALUE: HIST_VALUE, __score: function (H, c) { return score(H, c); }, W0: W0, FEATS: FEATS, setModels: setModels, family: family, extract: extract, featurize: featurize, attachPerf: attachPerf, analyse: analyse, parseMusique: parseMusique, horseReasons: horseReasons, fmtCote: fmtCote, pct: pct, comb: comb };

@@ -1,0 +1,36 @@
+name: Yanis - historique sport pour l'appli (jour par jour)
+
+on:
+  schedule:
+    - cron: "40 */2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [histo_sport.js]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yanis-histo
+  cancel-in-progress: false
+
+jobs:
+  histo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Resultats ESPN jour par jour (200 jours glissants)
+        run: node histo_sport.js 35
+      - name: Enregistrer
+        run: |
+          git config user.name "Yanis"
+          git config user.email "yanis@users.noreply.github.com"
+          git add docs/data/hist
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Historique sport du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
+          for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
