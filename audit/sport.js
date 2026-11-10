@@ -65,12 +65,14 @@
     var key = 'sh2.' + path, st = store.get(key) || { to: 0, g: [] };
     var from = Math.max(st.to + 1, todayN - 160), to = todayN - 1;
     var step = q ? 7 : 30;
+    var failed = 0;
     for (var a = from; a <= to; a += step) {
-      var b = Math.min(to, a + step - 1);
-      var j = await getJSON('site/v2/sports/' + path + '/scoreboard?dates=' + ymdOf(a) + '-' + ymdOf(b) + '&limit=1000' + (q || ''));
+      var b = Math.min(to, a + step - 1), j = null;
+      try { j = await getJSON('site/v2/sports/' + path + '/scoreboard?dates=' + ymdOf(a) + '-' + ymdOf(b) + '&limit=1000' + (q || '')); }
+      catch (e) { failed++; continue; }   // une tranche en échec n'empêche pas les autres ; elle sera redemandée au prochain chargement
       var seen = {}; st.g.forEach(function (x) { seen[x.slice(0, 3).join('|')] = 1; });
       parseGames(j).forEach(function (x) { if (!seen[x.slice(0, 3).join('|')]) st.g.push(x); });
-      st.to = b;
+      if (!failed) st.to = b;
     }
     st.g = st.g.filter(function (x) { return x[0] >= todayN - 200; });
     store.set(key, st);
@@ -176,7 +178,10 @@
   }
   function state(ev, comp) {
     var st = (comp && comp.status) || ev.status || {}; var t = st.type || {};
-    return { state: t.state || 'pre', done: !!t.completed, txt: t.shortDetail || t.detail || '', period: num(st.period) || 0, clock: num(st.clock), disp: st.displayClock || '', half: /half|mi-temps|HT/i.test(t.shortDetail || t.name || '') };
+    var tx = t.shortDetail || t.detail || '';
+    if ((t.state || 'pre') === 'pre') tx = /postpon/i.test(tx) ? 'Reporté' : /cancel/i.test(tx) ? 'Annulé' : '';
+    else tx = tx.replace(/^Final(\/OT|\/SO)?$/i, function (m0, o) { return 'Terminé' + (o ? (o === '/SO' ? ' (tirs au but)' : ' (prolongation)') : ''); }).replace(/^FT$/, 'Terminé').replace(/^HT$|Halftime/i, 'Mi-temps').replace(/^(\d)(st|nd|rd|th)$/, '$1e set').replace(/(\d)(st|nd|rd|th) Quarter/i, '$1e quart-temps').replace(/(\d)(st|nd|rd|th) Period/i, '$1e période').replace(/End of /i, 'Fin du ').replace(/Top /, 'Haut ').replace(/Bot /, 'Bas ').replace(/Delayed/i, 'Retardé').replace(/Rain Delay/i, 'Interrompu (pluie)').replace(/(\d)(st|nd|rd|th)\b/g, '$1e').replace(/\bOT\b/, 'prolongation');
+    return { state: t.state || 'pre', done: !!t.completed, txt: tx, period: num(st.period) || 0, clock: num(st.clock), disp: st.displayClock || '', half: /half|mi-temps|HT/i.test(t.shortDetail || t.name || '') };
   }
   // ---------- simulations Monte-Carlo (avant-match et en direct) ----------
   var NSIM = 20000;
@@ -334,7 +339,9 @@
     for (var i = 0; i < NSIM; i++) {
       var m = m0 + x.mu * r + x.sdm * Math.sqrt(r) * gaussR(R);
       if (m > 0 || (m === 0 && R() < 0.5)) win++;
-      var b = Math.round(m / (x.sport === 'nhl' || x.sport === 'mlb' ? 1 : 5)) * (x.sport === 'nhl' || x.sport === 'mlb' ? 1 : 5); mg[b] = (mg[b] || 0) + 1;
+      var noTie = x.sport === 'nhl' || x.sport === 'mlb', b = noTie ? Math.round(m) : Math.round(m / 5) * 5;
+      if (noTie && b === 0) b = m > 0 ? 1 : m < 0 ? -1 : (R() < 0.5 ? 1 : -1);   // égalité : prolongation / manches supplémentaires, gagnées d'un point
+      mg[b] = (mg[b] || 0) + 1;
     }
     var top = Object.keys(mg).sort(function (u, v) { return mg[v] - mg[u]; }).slice(0, 5).map(function (k) { return [k, mg[k] / NSIM]; });
     var ph = win / NSIM;
@@ -345,15 +352,45 @@
     [-step, step].forEach(function (l) { props.push({ label: x.home + ' ' + (l > 0 ? '+' : '') + l.toString().replace('.', ','), p: cover(l), kind: 'hcp' }); });
     return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true, props: props };
   }
+  var EXT = {};
+  function nrm(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function setExtern(sp) {
+    EXT = {};
+    Object.keys(sp || {}).forEach(function (k) {
+      var S = sp[k], m = {}, b = S.bibliotheque || {}, t = S.banc_essai || {};
+      (S.a_venir || []).forEach(function (r) { if (r.p_dom != null) m[nrm(r.dom) + '|' + nrm(r.ext)] = r; });
+      EXT[k] = { m: m, base: (b.rencontres || 0).toLocaleString('fr-FR') + ' matchs ' + (S.nom || k) + ' depuis ' + (b.debut || '').slice(0, 7), test: t.matchs ? 'Testé sur ' + t.matchs.toLocaleString('fr-FR') + ' matchs : le favori Elo gagne ' + pct(t.reussite_favori) + '.' : '' };
+    });
+  }
+  function extP(k, na, nb) {
+    var T = EXT[k]; if (!T) return null;
+    var r = T.m[nrm(na) + '|' + nrm(nb)], inv = false; if (!r) { r = T.m[nrm(nb) + '|' + nrm(na)]; inv = true; }
+    if (!r || r.fiable === false) return null;
+    return { p: inv ? 1 - r.p_dom : r.p_dom, ea: inv ? r.elo_ext : r.elo_dom, eb: inv ? r.elo_dom : r.elo_ext, base: T.base, test: T.test };
+  }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
+  // probabilité de gagner le set en cours depuis le score en jeux (i, j), jeu gagné avec la probabilité g, tie-break à 6-6
+  function setFrom(g, i, j) {
+    var memo = {};
+    function f(a, b) {
+      if (a >= 6 && a - b >= 2) return 1; if (b >= 6 && b - a >= 2) return 0; if (a === 7) return 1; if (b === 7) return 0;
+      if (a === 6 && b === 6) return g;
+      var k = a + ',' + b; if (memo[k] != null) return memo[k];
+      return (memo[k] = g * f(a + 1, b) + (1 - g) * f(a, b + 1));
+    }
+    return f(Math.min(i, 7), Math.min(j, 7));
+  }
+  function gameProb(q) { var lo = 0.2, hi = 0.8; for (var it = 0; it < 40; it++) { var m = (lo + hi) / 2; if (setFrom(m, 0, 0) < q) lo = m; else hi = m; } return (lo + hi) / 2; }
   function simTennis(x) {
     if (x.pA == null) return null;
-    var bo = x.bo || 3, need = (bo + 1) / 2, q = setProb(x.pA, bo), sw = x.setsWon || [0, 0], R = rng(hash(x.id + '|' + sw.join('-'))), win = 0;
-    for (var i = 0; i < NSIM; i++) { var a = sw[0], b = sw[1]; while (a < need && b < need) { if (R() < q) a++; else b++; } if (a === need) win++; }
+    var bo = x.bo || 3, need = (bo + 1) / 2, q = setProb(x.pA, bo), sw = x.setsWon || [0, 0], R = rng(hash(x.id + '|' + sw.join('-') + '|' + (x.curSet || []).join('-'))), win = 0;
+    var qCur = x.curSet ? setFrom(gameProb(q), x.curSet[0], x.curSet[1]) : null;   // set en cours : on part du score en jeux
+    for (var i = 0; i < NSIM; i++) { var a = sw[0], b = sw[1]; if (qCur != null) { if (R() < qCur) a++; else b++; } while (a < need && b < need) { if (R() < q) a++; else b++; } if (a === need) win++; }
     var pa = win / NSIM;
     return { n: NSIM, r: null, p: [pa, 0, 1 - pa], main: x.favA ? pa : 1 - pa };
   }
   function simulate(x) {
+    if (x.nodata) { x.sim = null; return x; }
     var S = x.sport === 'foot' ? simFoot(x) : x.sport === 'tennis' ? simTennis(x) : x.sport === 'mma' ? null : simUS(x);
     x.sim = S;
     if (S && x.state.state === 'in') x.liveP = S.main;
@@ -578,6 +615,7 @@
   }
 
   function finishFoot(x) {
+    x.nodata = false;
     var lh = x._lh, la = x._la, why = x._why0.slice(), E = x.enr || {}, hn = x.home, an = x.away;
     var fh = formPts(E.form5 ? E.form5[0] : x._form[0]), fa = formPts(E.form5 ? E.form5[1] : x._form[1]);
     var fH = E.form5 ? E.form5[0] : x._form[0], fA = E.form5 ? E.form5[1] : x._form[1];
@@ -588,7 +626,7 @@
       var ph = pen(E.abs[0]), pa = pen(E.abs[1]);
       if (ph || pa) {
         lh *= (1 - ph) * (1 + pa * 0.6); la *= (1 - pa) * (1 + ph * 0.6);
-        why.push('Absences prises en compte : ' + hn + ' ' + E.abs[0].out + ' absent(s)' + (E.abs[0].keyOut ? ' dont ' + E.abs[0].keyOut + ' cadre(s)' : '') + ', ' + an + ' ' + E.abs[1].out + (E.abs[1].keyOut ? ' dont ' + E.abs[1].keyOut + ' cadre(s)' : '') + '.');
+        why.push('Absences prises en compte : ' + hn + ' ' + E.abs[0].out + ' absent(s) probable(s)' + (E.abs[0].unc ? ' + ' + E.abs[0].unc + ' incertain(s)' : '') + (E.abs[0].keyOut ? ' dont ' + E.abs[0].keyOut + ' cadre(s)' : '') + ', ' + an + ' ' + E.abs[1].out + (E.abs[1].keyOut ? ' dont ' + E.abs[1].keyOut + ' cadre(s)' : '') + '.');
       }
     }
     if (E.lineups) why.push('Compositions officielles publiées' + (E.lineups[0].formation ? ' (' + E.lineups[0].formation + ' contre ' + (E.lineups[1].formation || '?') + ')' : '') + '.');
@@ -603,7 +641,13 @@
       var q = [mlToP(od.home), mlToP(od.draw), mlToP(od.away)];
       if (q.every(function (v) { return v; })) { var s = q[0] + q[1] + q[2]; market = q.map(function (v) { return v / s; }); }
     }
-    var fin = market ? model.map(function (v, k) { return 0.6 * market[k] + 0.4 * v; }) : model;
+    if (!x._rated && !market) {
+      x.nodata = true; x.lam = null; x.main = { label: 'Pas de pronostic', p: 0 }; x.conf = 0; x.level = 'NA'; x.markets = []; x.probs = null;
+      x.why = ['Au moins une des deux équipes n\'a pas assez de matchs dans nos données pour cette compétition (souvent une équipe de division inférieure en coupe), et aucune cote n\'est publiée. Pas de pronostic plutôt qu\'un pronostic inventé.'];
+      return x;
+    }
+    var fin = market ? (x._rated ? model.map(function (v, k) { return 0.6 * market[k] + 0.4 * v; }) : market) : model;
+    if (!x._rated) why.push('Pas assez de matchs pour noter au moins une des deux équipes : la probabilité vient des cotes seules.');
     var mk = [
       { k: '1', label: 'Victoire ' + hn, p: fin[0], dec: od ? mlToDec(od.home) : null, ok: function (h, a) { return h > a; } },
       { k: '2', label: 'Victoire ' + an, p: fin[2], dec: od ? mlToDec(od.away) : null, ok: function (h, a) { return a > h; } },
@@ -617,7 +661,7 @@
     ];
     mk.slice(4).forEach(function (m) { m.p = 0.5 + 0.9 * (m.p - 0.5); });
     var win = fin[0] >= fin[2] ? mk[0] : mk[1], dc = fin[0] >= fin[2] ? mk[2] : mk[3], main;
-    if (win.p >= 0.62) main = win; else if (dc.p >= 0.74) main = dc; else main = mk.slice(4).sort(function (u, v) { return v.p - u.p; })[0];
+    if (win.p >= 0.62) main = win; else if (dc.p >= 0.74 || !x._rated) main = dc; else main = mk.slice(4).sort(function (u, v) { return v.p - u.p; })[0];
     var level = main.p >= 0.75 ? 'SEC' : main.p >= 0.62 ? 'FORT' : 'DOUTE';
     var safe = mk.filter(function (m) { return m !== main; }).sort(function (u, v) { return v.p - u.p; })[0];
     var value = null;
@@ -666,7 +710,8 @@
       var imp = function (t) { return Math.min(1.2, t.keyOutW * w[0] + (t.outW - t.keyOutW) * w[1]); };
       var ih = imp(E.abs[0]), ia = imp(E.abs[1]);
       z += ia - ih;
-      if (ih || ia) why.push('Blessures prises en compte : ' + hn + ' ' + E.abs[0].out + ' absent(s)' + (E.abs[0].keyOut ? ' dont ' + E.abs[0].keyNames.join(', ') : '') + ' ; ' + an + ' ' + E.abs[1].out + (E.abs[1].keyOut ? ' dont ' + E.abs[1].keyNames.join(', ') : '') + '.');
+      var absTxt = function (t) { return t.out + ' absent(s) probable(s)' + (t.keyOut ? ' dont ' + t.keyNames.join(', ') : '') + (t.unc ? ', ' + t.unc + ' incertain(s) comptés à 30 %' : ''); };
+      if (ih || ia) why.push('Blessures prises en compte : ' + hn + ' ' + absTxt(E.abs[0]) + ' ; ' + an + ' ' + absTxt(E.abs[1]) + '.');
     }
     var pModel = sig(z);
     why.push('Modèle statistique : ' + hn + ' ' + pct(pModel) + ' (terrain et blessures inclus).');
@@ -718,7 +763,7 @@
           var wgt = OUT_RE.test(st) ? 1 : DOUBT_RE.test(st) ? 0.7 : Q_RE.test(st) ? 0.3 : 0.5;
           var isKey = !!key[k][name];
           abs[k].list.push({ name: name, status: st, detail: det, key: isKey, pos: pick(inj, 'athlete.position.abbreviation') || '' });
-          if (wgt >= 0.5) abs[k].out++;
+          if (wgt >= 0.5) abs[k].out++; else abs[k].unc = (abs[k].unc || 0) + 1;
           abs[k].outW += wgt;
           if (isKey) { abs[k].keyOutW += wgt; if (wgt >= 0.5) { abs[k].keyOut++; abs[k].keyNames.push(name); } }
         });
@@ -797,25 +842,30 @@
     var a = cs[0], b = cs[1], ra = rankOf(a), rb = rankOf(b), na = teamName(a), nb = teamName(b);
     if (/TBD|^\?$/i.test(na + nb)) return null;
     var why = [];
-    var ea = 2000 - 100 * Math.log(ra || 300), eb = 2000 - 100 * Math.log(rb || 300);
-    var pModel = 1 / (1 + Math.pow(10, (eb - ea) / 400));
+    var E = extP(tour === 'ATP' ? 'atp' : 'wta', na, nb), pModel = E ? E.p : null;
     var od = oddsOf(comp), pM = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
-    var p = pM != null ? sig(0.7 * logit(pM) + 0.3 * logit(pModel)) : pModel;
+    var nodata = pM == null && pModel == null;
+    var p = pM != null && pModel != null ? sig(0.7 * logit(pM) + 0.3 * logit(pModel)) : pM != null ? pM : pModel != null ? pModel : 0.5;
     var fa = p >= 0.5, pf = fa ? p : 1 - p;
-    var level = pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
-    why.push('Classements : ' + na + ' ' + (ra ? ra + 'e' : 'non classé') + ', ' + nb + ' ' + (rb ? rb + 'e' : 'non classé') + '.');
-    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur l\'écart de classement (surface et fatigue non disponibles dans ce flux).');
+    var level = nodata ? 'NA' : pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
+    if (E) why.push('Classement Elo calculé sur ' + E.base + ' : ' + na + ' ' + E.ea + ', ' + nb + ' ' + E.eb + ' → ' + na + ' gagne ' + pct(pModel) + '. ' + E.test);
+    if (ra || rb) why.push('Têtes de série du tournoi : ' + na + ' ' + (ra ? 'n°' + ra : 'non tête de série') + ', ' + nb + ' ' + (rb ? 'n°' + rb : 'non tête de série') + ' (information seulement, pas utilisée dans le calcul).');
+    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.');
+    else if (!nodata) why.push('Pas de cote publiée dans ce flux : estimation sur le classement Elo seul (surface et fatigue non prises en compte).');
+    if (nodata) why.push('Pas assez de matchs connus pour au moins un des deux joueurs et pas de cote : aucun pronostic plutôt qu\'un pronostic au hasard.');
     var s = state(ev, comp), done = s.done || a.winner === true || b.winner === true;
     var sets = [a, b].map(function (c) { return (c.linescores || []).map(function (l) { return num(l.value); }); });
     var setTxt = sets[0].length ? sets[0].map(function (v, i) { return v + '-' + (sets[1][i] != null ? sets[1][i] : 0); }).join(' ') : '';
     var res = { sport: 'tennis', league: tour + (ev.name ? ' · ' + ev.name : ''), id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : s.state, done: done, txt: s.txt }, setTxt: setTxt, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
-    res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /open|wimbledon|roland|garros|slam/i.test(ev.name || '') ? 5 : 3;
+    if (nodata) { res.won = undefined; res.nodata = true; res.main = { label: 'Pas de pronostic', p: 0 }; res.conf = 0; return res; }
+    res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
     for (var k = 0; k < nS; k++) { var va = sets[0][k] || 0, vb = sets[1][k] || 0; if (va > vb) sw[0]++; else if (vb > va) sw[1]++; }
     res.setsWon = sw;
+    if (s.state === 'in' && sets[0].length > nS) res.curSet = [sets[0][nS] || 0, sets[1][nS] || 0];
     return res;
   }
 
@@ -827,11 +877,14 @@
     var pModel = sig(0.7 * (s(ra) - s(rb)));
     var od = oddsOf(comp), pM = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
+    var EU = extP('ufc', na, nb);
+    if (EU) pModel = sig(0.5 * logit(pModel) + 0.5 * logit(EU.p));
     var p = pM != null ? sig(0.75 * logit(pM) + 0.25 * logit(pModel)) : pModel;
     var fa = p >= 0.5, pf = fa ? p : 1 - p;
-    var level = pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
+    var level = pf >= 0.72 && pM != null ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
     var why = ['Palmarès : ' + na + ' ' + (ra ? ra.s : '—') + ', ' + nb + ' ' + (rb ? rb.s : '—') + ' (V-D-N).'];
-    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès seul. Styles, allonge et cut de poids absents de ce flux, prudence.');
+    if (EU) why.push('Classement Elo calculé sur ' + EU.base + ' : ' + na + ' ' + EU.ea + ', ' + nb + ' ' + EU.eb + ' (moitié du calcul sans cote). ' + EU.test);
+    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès' + (EU ? ' et le classement Elo' : ' seul') + '. Styles, allonge et cut de poids absents de ce flux : jamais classé SEC sans cote.');
     var st = state(ev, comp), done = st.done || a.winner === true || b.winner === true;
     var res0 = { od: od, p: p, homeFirst: a.homeAway !== 'away' };
     var res = { pA: res0.p, odNow: res0.od, homeFirst: res0.homeFirst, sport: 'mma', league: ev.name || 'UFC', id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
@@ -912,7 +965,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { buildFor: function (x) { var r = x.sport === 'foot' && x.lam ? simFoot(x, true) : null; return r && r.builder; }, teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { setExtern: setExtern, buildFor: function (x) { var r = x.sport === 'foot' && x.lam ? simFoot(x, true) : null; return r && r.builder; }, teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 
