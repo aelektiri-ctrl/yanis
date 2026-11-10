@@ -1,17 +1,17 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 12:53.
+Mis a jour le 10/11/2026 a 13:09.
 
 | | |
 |---|---|
-| Jours collectes | 618 (dont 0 sans course) |
-| Periode | 2025-03-04 au 2026-11-11 |
-| Reunions | 3559 |
-| Courses | 25577 |
-| Partants | 303881 |
-| Rapports | 399666 |
-| Partants avec cote finale | 275583 |
-| Partants avec place a l'arrivee | 247461 |
+| Jours collectes | 634 (dont 0 sans course) |
+| Periode | 2025-02-16 au 2026-11-11 |
+| Reunions | 3690 |
+| Courses | 26474 |
+| Partants | 314159 |
+| Rapports | 411575 |
+| Partants avec cote finale | 283818 |
+| Partants avec place a l'arrivee | 256120 |
 
 ## Courses par discipline
 
@@ -29,18 +29,17 @@ Mis a jour le 10/11/2026 a 12:53.
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
 | E. RAFFIN | 2761 | 547 | 19.8 | 44.6 |
-| B. ROCHARD | 2926 | 502 | 17.2 | 42.2 |
-| M. MOTTIER | 2325 | 377 | 16.2 | 35.9 |
+| B. ROCHARD | 2928 | 503 | 17.2 | 42.2 |
+| M. MOTTIER | 2326 | 377 | 16.2 | 35.9 |
 | C. DEMURO | 2659 | 363 | 13.7 | 38.6 |
 | M. BARZALONA | 1680 | 352 | 21.0 | 50.7 |
-| C. DEMURO | 2599 | 351 | 13.5 | 38.4 |
-| M. GUYON | 2019 | 318 | 15.8 | 41.7 |
-| A. ABRIVARD | 1935 | 314 | 16.2 | 38.4 |
-| TH. BRIAND | 1534 | 280 | 18.3 | 43.0 |
-| Y. LEBOURGEOIS | 1567 | 277 | 17.7 | 36.8 |
-| D. THOMAIN | 1831 | 263 | 14.4 | 35.6 |
-| M. ABRIVARD | 2012 | 257 | 12.8 | 34.7 |
-| M. GRANDIN | 2124 | 242 | 11.4 | 32.2 |
-| P. PH. PLOQUIN | 2245 | 237 | 10.6 | 30.7 |
-| A. COLLETTE | 2246 | 233 | 10.4 | 28.5 |
-| D. BEKAERT | 1436 | 210 | 14.6 | 40.4 |
+| M. GUYON | 2063 | 324 | 15.7 | 41.4 |
+| A. ABRIVARD | 1983 | 323 | 16.3 | 38.4 |
+| TH. BRIAND | 1568 | 289 | 18.4 | 43.2 |
+| Y. LEBOURGEOIS | 1609 | 286 | 17.8 | 36.7 |
+| D. THOMAIN | 1861 | 264 | 14.2 | 35.2 |
+| M. ABRIVARD | 2068 | 261 | 12.6 | 34.7 |
+| M. GRANDIN | 2160 | 247 | 11.4 | 32.5 |
+| P. PH. PLOQUIN | 2303 | 243 | 10.6 | 30.7 |
+| A. COLLETTE | 2290 | 237 | 10.3 | 28.4 |
+| D. BEKAERT | 1485 | 220 | 14.8 | 40.3 |
