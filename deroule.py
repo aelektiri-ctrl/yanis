@@ -26,7 +26,7 @@ PAUSE = 1.5  # secondes entre deux pages : on reste discret
 
 LEXIQUE = {
     "tete": r"en t[êe]te|a men[ée]|prend(?:s)? (?:seul )?le meilleur|pris le meilleur|au commandement|imprim\w+ (?:le|un) train|fait le train|dict\w+ (?:le|un) train|de bout en bout|en avant-garde|au leadership",
-    "contact": r"bon rang|non loin|au contact|dans le sillage|aux avant-postes|jamais loin|en deuxi[èe]me (?:position|ligne)|en seconde (?:position|ligne)|[àa] l'ext[ée]rieur (?:du|des) (?:leader|animateur)|groupe de t[êe]te|bien plac[ée]|[ée]paule",
+    "contact": r"animat\w+|bon rang|non loin|au contact|dans le sillage|aux avant-postes|jamais loin|en deuxi[èe]me (?:position|ligne)|en seconde (?:position|ligne)|[àa] l'ext[ée]rieur (?:du|des) (?:leader|animateur)|groupe de t[êe]te|bien plac[ée]|[ée]paule",
     "arriere": r"queue de peloton|en retrait|[àa] l'arri[èe]re|dernier groupe|seconde moiti[ée]|fin de peloton|en dernier|patient|attentiste|cach[ée]|en dedans",
     "finish": r"effort final|bien termin|fini (?:vite|fort|tr[èe]s vite)|bon finish|bonne fin de course|remont\w+|venu de l'arri[èe]re|progress\w+|est revenu|s'octroy\w+|arrach\w+|en trombe",
     "cede": r"c[ée]d[ée]|faibli|demand[ée] [àa] souffler|s'est [ée]teint|r[ée]trograd\w+|n'a pas suivi|rendu les armes|l[âa]ch[ée]|pli[ée]|sans r[ée]action|s'est arr[êe]t[ée] de",
@@ -64,27 +64,39 @@ def styles(t):
     return [k for k, rx in LEX.items() if rx.search(t)]
 
 
+OBJET = re.compile(r"(?:\bsur|\bdevant|\bderri[èe]re|\bdu|\bde|\bà|\bau|\bque|\bl['’]animateur|\ble leader|\bl['’]|\bpar)\s*$", re.I)
+PRONOM = re.compile(r"^\s*(?:il|elle|lui|celui-ci|ce dernier|cette derni[èe]re|le cheval|la jument)\b", re.I)
+
+
+def zone_analyse(t):
+    """Le déroulé est dans « L'analyse » (après la course) : on ignore les pronostics d'avant-course."""
+    m = re.search(r"L['’]analyse\b", t)
+    return t[m.start(): m.start() + 6000] if m else t
+
+
 def extraire(page, partants=None):
-    """Renvoie {num: {"texte": ..., "styles": [...]}} à partir d'une page de course."""
+    """Renvoie (brut, {num: {"texte": ..., "styles": [...]}}) à partir d'une page de course."""
     t = texte_page(page)
+    z = zone_analyse(t)
     noms = {int(p["num"]): (p.get("nom") or "").upper() for p in (partants or [])}
-    phrases = re.split(r"(?<=[\.!?])\s+|\n", t)
-    out = {}
-    for ph in phrases:
-        nums = []
+    out, dernier = {}, None
+    for ph in re.split(r"(?<=[\.!?])\s+|\n", z):
+        sujet = None
         for m in NOM_NUM.finditer(ph):
-            n = int(m.group(2))
-            nom = m.group(1).strip().upper()
+            n, nom = int(m.group(2)), m.group(1).strip().upper()
             if noms and n in noms and noms[n] and noms[n][:6] not in nom and nom[:6] not in noms[n]:
-                continue  # le numéro ne correspond pas au nom : ce n'est pas un partant
-            nums.append(n)
-        if nums:  # la phrase parle d'abord de son sujet : le premier cheval nommé
-            n = nums[0]
-            out.setdefault(n, []).append(ph.strip())
-    # format « N°10 KONDOR (A. ABRIVARD) : commentaire »
+                continue
+            if OBJET.search(ph[:m.start()][-25:]):   # « revient sur HER CHRISTOPHER (14) » : complément, pas sujet
+                continue
+            sujet = n; break
+        if sujet is None and dernier is not None and PRONOM.search(ph):
+            sujet = dernier                              # « Il termine fort… » : même cheval que la phrase d'avant
+        if sujet is not None:
+            out.setdefault(sujet, []).append(ph.strip()); dernier = sujet
     for m in re.finditer(r"N[°o]\s?(\d{1,2})\s+([A-ZÀ-Ý][^\n(]{1,40})(?:\([^)]*\))?\s*[:\-–]?\s*([^\n]{20,400})", t):
-        n = int(m.group(1)); out.setdefault(n, []).append(m.group(3).strip())
-    return {str(n): {"texte": " ".join(dict.fromkeys(v))[:900], "styles": styles(" ".join(v))} for n, v in out.items()}
+        out.setdefault(int(m.group(1)), []).append(m.group(3).strip())
+    ch = {str(n): {"texte": " ".join(dict.fromkeys(v))[:900], "styles": styles(" ".join(v))} for n, v in out.items()}
+    return z[:6000], ch
 
 
 def lire_jour(jour):
@@ -119,12 +131,12 @@ def collecter_jour(jour, limite=None):
     n = vides = 0
     for c in tab(j["courses"]):
         cle = f"R{c['r']}C{c['c']}"
-        if not c.get("arrivee") or cle in deja: continue
+        if not c.get("arrivee") or (cle in deja and deja[cle].get("v") == 2): continue
         if limite and time.time() > limite: break
         try:
             page = telecharger(URL.format(date=jour.isoformat(), r=c["r"], c=c["c"]))
-            ch = extraire(page, parts.get((c["r"], c["c"])))
-            deja[cle] = {"chevaux": ch}
+            brut, ch = extraire(page, parts.get((c["r"], c["c"])))
+            deja[cle] = {"v": 2, "brut": brut, "chevaux": ch}
             n += 1; vides += 0 if ch else 1
         except Exception as e:
             deja[cle] = {"erreur": str(e)[:120]}
@@ -139,7 +151,7 @@ def complet(jour):
     p = chemin_sortie(jour); j = lire_jour(jour)
     if not os.path.exists(p) or not j: return False
     with gzip.open(p, "rt", encoding="utf-8") as f: d = json.load(f)
-    return all(f"R{c['r']}C{c['c']}" in d for c in tab(j["courses"]) if c.get("arrivee"))
+    return all(d.get(f"R{c['r']}C{c['c']}", {}).get("v") == 2 for c in tab(j["courses"]) if c.get("arrivee"))
 
 
 def main():
@@ -149,7 +161,7 @@ def main():
     t = sp.add_parser("test"); t.add_argument("fichier")
     args = ap.parse_args()
     if args.cmd == "test":
-        print(json.dumps(extraire(open(args.fichier, encoding="utf-8").read()), ensure_ascii=False, indent=1)); return
+        print(json.dumps(extraire(open(args.fichier, encoding="utf-8").read())[1], ensure_ascii=False, indent=1)); return
     if args.cmd == "jour":
         print(collecter_jour(dt.date.fromisoformat(args.date))); return
     limite = time.time() + args.budget * 60
