@@ -5,8 +5,8 @@ async function getJSON(p){const u=/^https?:/.test(p)?p:BASE+p;for(let i=0;i<3;i+
 const store={get:k=>mem[k],set:(k,v)=>{mem[k]=v}};
 (async()=>{
  const d=new Date(Date.now()+3600e3),ymd=d.toISOString().slice(0,10).replace(/-/g,'');
- const res=await SE.loadAll(getJSON,ymd,null,()=>{},store);
- await SE.enrich(getJSON,res.items,{},null);
+ const res=await SE.loadAll(getJSON,ymd,()=>{},()=>{},store);
+ await SE.enrich(getJSON,res.items,{},()=>{});
  fs.mkdirSync('fixtures',{recursive:true});
  fs.writeFileSync('fixtures/espn_'+ymd+'.json.gz',zlib.gzipSync(JSON.stringify({ymd,REC})));
  console.log(ymd,Object.keys(REC).length,'réponses',res.items.length,'matchs');
