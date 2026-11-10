@@ -71,7 +71,7 @@ PRONOM = re.compile(r"^\s*(?:il|elle|lui|celui-ci|ce dernier|cette derni[èe]re|
 def zone_analyse(t):
     """Le déroulé est dans « L'analyse » (après la course) : on ignore les pronostics d'avant-course."""
     m = re.search(r"L['’]analyse\b", t)
-    return t[m.start(): m.start() + 6000] if m else t
+    return t[m.start(): m.start() + 6000] if m else ""   # pas d'analyse publiée : on ne garde rien
 
 
 def extraire(page, partants=None):
@@ -131,12 +131,12 @@ def collecter_jour(jour, limite=None):
     n = vides = 0
     for c in tab(j["courses"]):
         cle = f"R{c['r']}C{c['c']}"
-        if not c.get("arrivee") or (cle in deja and deja[cle].get("v") == 2): continue
+        if not c.get("arrivee") or (cle in deja and deja[cle].get("v") == 3): continue
         if limite and time.time() > limite: break
         try:
             page = telecharger(URL.format(date=jour.isoformat(), r=c["r"], c=c["c"]))
             brut, ch = extraire(page, parts.get((c["r"], c["c"])))
-            deja[cle] = {"v": 2, "brut": brut, "chevaux": ch}
+            deja[cle] = {"v": 3, "brut": brut, "chevaux": ch}
             n += 1; vides += 0 if ch else 1
         except Exception as e:
             deja[cle] = {"erreur": str(e)[:120]}
@@ -151,7 +151,7 @@ def complet(jour):
     p = chemin_sortie(jour); j = lire_jour(jour)
     if not os.path.exists(p) or not j: return False
     with gzip.open(p, "rt", encoding="utf-8") as f: d = json.load(f)
-    return all(d.get(f"R{c['r']}C{c['c']}", {}).get("v") == 2 for c in tab(j["courses"]) if c.get("arrivee"))
+    return all(d.get(f"R{c['r']}C{c['c']}", {}).get("v") == 3 for c in tab(j["courses"]) if c.get("arrivee"))
 
 
 def main():
