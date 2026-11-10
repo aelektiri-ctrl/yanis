@@ -1,14 +1,14 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 09:38.
+Mis a jour le 10/11/2026 a 10:08.
 
 | | |
 |---|---|
 | Jours collectes | 584 (dont 0 sans course) |
 | Periode | 2025-04-07 au 2026-11-11 |
-| Reunions | 3278 |
-| Courses | 23652 |
-| Partants | 281625 |
+| Reunions | 3279 |
+| Courses | 23661 |
+| Partants | 281733 |
 | Rapports | 374340 |
 | Partants avec cote finale | 258226 |
 | Partants avec place a l'arrivee | 228826 |
@@ -18,7 +18,7 @@ Mis a jour le 10/11/2026 a 09:38.
 | Discipline | Courses |
 |---|---|
 | ATTELE | 11079 |
-| PLAT | 8792 |
+| PLAT | 8801 |
 | MONTE | 1669 |
 | HAIE | 1248 |
 | STEEPLECHASE | 751 |
