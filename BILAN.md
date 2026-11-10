@@ -1,45 +1,45 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 10:42.
+Mis a jour le 10/11/2026 a 10:37.
 
 | | |
 |---|---|
-| Jours collectes | 584 (dont 0 sans course) |
-| Periode | 2025-04-07 au 2026-11-11 |
-| Reunions | 3279 |
-| Courses | 23661 |
-| Partants | 281733 |
-| Rapports | 374340 |
-| Partants avec cote finale | 258224 |
-| Partants avec place a l'arrivee | 228826 |
+| Jours collectes | 599 (dont 0 sans course) |
+| Periode | 2025-03-23 au 2026-11-11 |
+| Reunions | 3406 |
+| Courses | 24512 |
+| Partants | 291731 |
+| Rapports | 385978 |
+| Partants avec cote finale | 266311 |
+| Partants avec place a l'arrivee | 237183 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 11079 |
-| PLAT | 8801 |
-| MONTE | 1669 |
-| HAIE | 1248 |
-| STEEPLECHASE | 751 |
-| CROSS | 113 |
+| ATTELE | 11405 |
+| PLAT | 9198 |
+| MONTE | 1713 |
+| HAIE | 1295 |
+| STEEPLECHASE | 782 |
+| CROSS | 119 |
 
 ## Drivers et jockeys qui gagnent le plus (50 courses minimum)
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 2546 | 508 | 20.0 | 44.6 |
-| B. ROCHARD | 2723 | 470 | 17.3 | 42.4 |
-| M. MOTTIER | 2142 | 343 | 16.0 | 35.9 |
-| M. BARZALONA | 1587 | 336 | 21.2 | 51.2 |
-| C. DEMURO | 2449 | 333 | 13.6 | 38.3 |
-| A. ABRIVARD | 1911 | 308 | 16.1 | 38.2 |
-| M. GUYON | 1879 | 299 | 15.9 | 41.8 |
-| TH. BRIAND | 1464 | 271 | 18.5 | 43.0 |
-| Y. LEBOURGEOIS | 1464 | 260 | 17.8 | 36.5 |
-| M. ABRIVARD | 1911 | 246 | 12.9 | 34.8 |
-| D. THOMAIN | 1723 | 244 | 14.2 | 35.3 |
-| M. GRANDIN | 2051 | 233 | 11.4 | 32.5 |
-| A. COLLETTE | 2190 | 230 | 10.5 | 28.8 |
-| P. PH. PLOQUIN | 2159 | 227 | 10.5 | 30.6 |
-| D. BEKAERT | 1353 | 195 | 14.4 | 40.1 |
+| E. RAFFIN | 2597 | 515 | 19.8 | 44.6 |
+| B. ROCHARD | 2790 | 478 | 17.1 | 42.2 |
+| M. MOTTIER | 2190 | 353 | 16.1 | 36.0 |
+| M. BARZALONA | 1628 | 347 | 21.3 | 51.1 |
+| C. DEMURO | 2519 | 343 | 13.6 | 38.5 |
+| A. ABRIVARD | 1924 | 311 | 16.2 | 38.3 |
+| M. GUYON | 1934 | 303 | 15.7 | 41.7 |
+| TH. BRIAND | 1492 | 272 | 18.2 | 42.9 |
+| Y. LEBOURGEOIS | 1500 | 271 | 18.1 | 36.8 |
+| M. ABRIVARD | 1954 | 253 | 12.9 | 34.9 |
+| D. THOMAIN | 1770 | 250 | 14.1 | 35.3 |
+| M. GRANDIN | 2080 | 239 | 11.5 | 32.6 |
+| P. PH. PLOQUIN | 2200 | 231 | 10.5 | 30.7 |
+| A. COLLETTE | 2209 | 231 | 10.5 | 28.7 |
+| D. BEKAERT | 1379 | 201 | 14.6 | 40.3 |
