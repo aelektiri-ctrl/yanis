@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: 20}
-      - run: cd audit && node capture.js
+      - run: cd audit && node probe.js && node capture.js
       - run: |
           git config user.name yanis-bot; git config user.email bot@users.noreply.github.com
           git add audit/fixtures; git commit -qm "Capture ESPN pour audit"; git push origin HEAD:audit
