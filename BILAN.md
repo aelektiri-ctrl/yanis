@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 12:19.
+Mis a jour le 10/11/2026 a 12:36.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 10/11/2026 a 12:19.
 | Reunions | 3559 |
 | Courses | 25577 |
 | Partants | 303881 |
-| Rapports | 399629 |
+| Rapports | 399648 |
 | Partants avec cote finale | 275583 |
-| Partants avec place a l'arrivee | 247437 |
+| Partants avec place a l'arrivee | 247450 |
 
 ## Courses par discipline
 
@@ -29,15 +29,15 @@ Mis a jour le 10/11/2026 a 12:19.
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
 | E. RAFFIN | 2702 | 533 | 19.7 | 44.4 |
-| B. ROCHARD | 2849 | 491 | 17.2 | 42.3 |
+| B. ROCHARD | 2850 | 492 | 17.3 | 42.3 |
 | M. MOTTIER | 2263 | 371 | 16.4 | 36.1 |
 | M. BARZALONA | 1680 | 352 | 21.0 | 50.7 |
 | C. DEMURO | 2599 | 351 | 13.5 | 38.4 |
 | M. GUYON | 2018 | 318 | 15.8 | 41.7 |
-| A. ABRIVARD | 1934 | 314 | 16.2 | 38.4 |
+| A. ABRIVARD | 1935 | 314 | 16.2 | 38.4 |
 | TH. BRIAND | 1534 | 280 | 18.3 | 43.0 |
 | Y. LEBOURGEOIS | 1567 | 277 | 17.7 | 36.8 |
-| D. THOMAIN | 1830 | 263 | 14.4 | 35.6 |
+| D. THOMAIN | 1831 | 263 | 14.4 | 35.6 |
 | M. ABRIVARD | 2012 | 257 | 12.8 | 34.7 |
 | M. GRANDIN | 2123 | 242 | 11.4 | 32.2 |
 | P. PH. PLOQUIN | 2245 | 237 | 10.6 | 30.7 |
