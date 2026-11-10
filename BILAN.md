@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 13:59.
+Mis a jour le 10/11/2026 a 14:16.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 10/11/2026 a 13:59.
 | Reunions | 3828 |
 | Courses | 27421 |
 | Partants | 324887 |
-| Rapports | 424472 |
+| Rapports | 424503 |
 | Partants avec cote finale | 292022 |
-| Partants avec place a l'arrivee | 265060 |
+| Partants avec place a l'arrivee | 265076 |
 
 ## Courses par discipline
 
@@ -34,12 +34,12 @@ Mis a jour le 10/11/2026 a 13:59.
 | C. DEMURO | 2718 | 374 | 13.8 | 38.8 |
 | M. BARZALONA | 1680 | 352 | 21.0 | 50.7 |
 | A. ABRIVARD | 2056 | 337 | 16.4 | 38.5 |
-| M. GUYON | 2126 | 330 | 15.5 | 41.3 |
+| M. GUYON | 2127 | 330 | 15.5 | 41.2 |
 | Y. LEBOURGEOIS | 1673 | 296 | 17.7 | 36.5 |
 | TH. BRIAND | 1586 | 290 | 18.3 | 43.2 |
 | D. THOMAIN | 1921 | 270 | 14.1 | 35.2 |
 | M. ABRIVARD | 2105 | 263 | 12.5 | 34.6 |
 | P. PH. PLOQUIN | 2375 | 250 | 10.5 | 30.4 |
-| M. GRANDIN | 2196 | 250 | 11.4 | 32.6 |
+| M. GRANDIN | 2197 | 250 | 11.4 | 32.5 |
 | A. COLLETTE | 2333 | 243 | 10.4 | 28.5 |
 | D. BEKAERT | 1536 | 228 | 14.8 | 40.5 |
