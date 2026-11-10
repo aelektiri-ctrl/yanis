@@ -1,0 +1,14 @@
+400 0 basketball/nba/scoreboard?dates=20261031-20261109&limit=1000
+400 0 basketball/nba/scoreboard?dates=20261031-20261109&limit=500
+400 0 basketball/nba/scoreboard?dates=20261031-20261109&limit=300
+400 0 basketball/nba/scoreboard?dates=20261031-20261109&limit=100
+400 0 basketball/nba/scoreboard?dates=20261031-20261109
+400 0 basketball/nba/scoreboard?dates=20261103-20261109&limit=200
+200 8 basketball/nba/scoreboard?dates=20261109
+400 0 soccer/fra.1/scoreboard?dates=20261001-20261030&limit=1000
+400 0 soccer/fra.1/scoreboard?dates=20261001-20261030&limit=500
+400 0 soccer/fra.1/scoreboard?dates=20261001-20261030&limit=200
+400 0 soccer/fra.1/scoreboard?dates=20261001-20261030
+400 0 soccer/fra.1/scoreboard?dates=20261001-20261030&limit=100
+400 0 hockey/nhl/scoreboard?dates=20261031-20261109&limit=500
+400 0 hockey/nhl/scoreboard?dates=20261031-20261109&limit=200
