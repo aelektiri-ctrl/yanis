@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 21:34.
+Mis a jour le 10/11/2026 a 21:51.
 
 | | |
 |---|---|
@@ -11,7 +11,7 @@ Mis a jour le 10/11/2026 a 21:34.
 | Partants | 362853 |
 | Rapports | 470203 |
 | Partants avec cote finale | 322343 |
-| Partants avec place a l'arrivee | 296593 |
+| Partants avec place a l'arrivee | 296608 |
 
 ## Courses par discipline
 
@@ -37,7 +37,7 @@ Mis a jour le 10/11/2026 a 21:34.
 | M. BARZALONA | 1703 | 355 | 20.8 | 50.6 |
 | Y. LEBOURGEOIS | 1894 | 327 | 17.3 | 35.6 |
 | TH. BRIAND | 1715 | 309 | 18.0 | 42.6 |
-| M. ABRIVARD | 2357 | 286 | 12.1 | 34.0 |
+| M. ABRIVARD | 2358 | 286 | 12.1 | 34.1 |
 | D. THOMAIN | 2136 | 282 | 13.2 | 33.8 |
 | P. PH. PLOQUIN | 2614 | 277 | 10.6 | 30.4 |
 | M. GRANDIN | 2278 | 258 | 11.3 | 32.5 |
