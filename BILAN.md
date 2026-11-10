@@ -1,17 +1,17 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 10/11/2026 a 20:27.
+Mis a jour le 10/11/2026 a 20:43.
 
 | | |
 |---|---|
-| Jours collectes | 673 (dont 0 sans course) |
-| Periode | 2025-01-08 au 2026-11-11 |
-| Reunions | 3976 |
-| Courses | 28474 |
-| Partants | 337090 |
-| Rapports | 438581 |
-| Partants avec cote finale | 301424 |
-| Partants avec place a l'arrivee | 275262 |
+| Jours collectes | 697 (dont 0 sans course) |
+| Periode | 2024-12-15 au 2026-11-11 |
+| Reunions | 4126 |
+| Courses | 29512 |
+| Partants | 349809 |
+| Rapports | 454784 |
+| Partants avec cote finale | 311758 |
+| Partants avec place a l'arrivee | 285799 |
 
 ## Courses par discipline
 
@@ -37,7 +37,7 @@ Mis a jour le 10/11/2026 a 20:27.
 | M. GUYON | 2196 | 346 | 15.8 | 41.4 |
 | Y. LEBOURGEOIS | 1810 | 319 | 17.6 | 36.1 |
 | TH. BRIAND | 1680 | 302 | 18.0 | 42.6 |
-| M. ABRIVARD | 2277 | 281 | 12.3 | 34.1 |
+| M. ABRIVARD | 2278 | 282 | 12.4 | 34.1 |
 | D. THOMAIN | 2052 | 277 | 13.5 | 34.3 |
 | P. PH. PLOQUIN | 2536 | 268 | 10.6 | 30.4 |
 | M. GRANDIN | 2238 | 254 | 11.3 | 32.4 |
