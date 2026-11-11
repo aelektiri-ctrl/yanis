@@ -137,7 +137,8 @@
       var F = fitSoccer(G, todayN, cut); if (!F) return;
       recent.forEach(function (x) {
         var h = F.T[x[1]], a = F.T[x[2]]; if (!h || !a || h.n < 4 || a.n < 4) return;
-        var P = soccerProbs(F.c * (x[5] ? 1 : F.H) * h.A * a.D, F.c * a.A * h.D).p;
+        var P = soccerProbs(F.c * (x[5] ? 1 : F.H) * h.A * a.D, F.c * a.A * h.D).p.map(function (v) { return Math.pow(v, CALFOOT); });   // même calibration que les pronostics affichés
+        var Ps = P[0] + P[1] + P[2]; P = P.map(function (v) { return v / Ps; });
         var fav = P[0] >= P[2] ? 0 : 2, res = x[3] > x[4] ? 0 : x[3] === x[4] ? 1 : 2;
         cal.push([P[fav], res === fav ? 1 : 0, sport, 'win']); cal.push([P[fav] + P[1], res !== 2 - fav ? 1 : 0, sport, 'dc']);
       });
@@ -145,7 +146,7 @@
       var R = fitMargin(G, todayN, cut, lg); if (!R) return;
       recent.forEach(function (x) {
         if (R.R[x[1]] == null || R.R[x[2]] == null || R.N[x[1]] < 4 || R.N[x[2]] < 4 || x[3] === x[4]) return;
-        var p = Phi(((x[5] ? 0 : R.h) + R.R[x[1]] - R.R[x[2]]) / R.sd), fav = p >= 0.5;
+        var p = sig(logit(Math.min(0.999, Math.max(0.001, Phi(((x[5] ? 0 : R.h) + R.R[x[1]] - R.R[x[2]]) / R.sd)))) * (CALUS[sport] || 1)), fav = p >= 0.5;
         cal.push([fav ? p : 1 - p, (fav ? x[3] > x[4] : x[4] > x[3]) ? 1 : 0, sport, 'win']);
       });
     }
@@ -403,7 +404,8 @@
     });
     if (!best) return null;
     var p = best.r.e.p, e = best.r.e;
-    return { h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
+    var fr = e.fr ? { h: best.inv ? e.fr.a : e.fr.h, d: e.fr.d || null, a: best.inv ? e.fr.h : e.fr.a } : null;
+    return { fr: fr, h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
   }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
   // probabilité de gagner le set en cours depuis le score en jeux (i, j), jeu gagné avec la probabilité g, tie-break à 6-6
@@ -693,7 +695,7 @@
     }
     var SH = sharpFor(hn, an, x.date); if (SH && SH.d == null) SH = null;
     if (SH) market = [SH.h, SH.d, SH.a];
-    x.sharp = SH ? SH.label : null;
+    x.sharp = SH ? SH.label : null; x.fr = SH ? SH.fr : null;
     if (!x._rated && !market) {
       x.nodata = true; x.lam = null; x.main = { label: 'Pas de pronostic', p: 0 }; x.conf = 0; x.level = 'NA'; x.markets = []; x.probs = null;
       x.why = ['Au moins une des deux équipes n\'a pas assez de matchs dans nos données pour cette compétition (souvent une équipe de division inférieure en coupe), et aucune cote n\'est publiée. Pas de pronostic plutôt qu\'un pronostic inventé.'];
@@ -741,12 +743,18 @@
   // seuils internes (marge de sécurité par rapport aux 70 % affichés), mesurés sur ~70 jours de matchs passés prédits à l'aveugle :
   // foot 72 % -> 76,7 % réel ; NBA 75 % -> 75,0 % ; NFL 75 % -> 73,6 % ; NHL 74 % -> ~72 %. WNBA, MLB, rugby : pas assez fiables, aucune formule publiée.
   var PICK_T = { foot: 0.72, nba: 0.75, nfl: 0.75, nhl: 0.74, tennis: 0.72, mma: 0.72 };
+  // meilleure cote d'un bookmaker agréé en France pour un pari « victoire » (cotes de victoire seulement : les handicaps et les buts ne sont pas dans ce flux)
+  function frBook(x, c, favSide) {
+    if (!x.fr || !c) return;
+    var o = x.fr[favSide]; if (!o) return;
+    c.book = { name: o[1], odds: o[0], ok: o[0] >= c.minOdds };
+  }
   function setPicks(x, list) {
     var T = PICK_T[x.sport];
     x.pick = null; x.picks = list.slice().sort(function (a, b) { return b.p - a.p; }); x.pickT = T || null;
     if (!T) return;
     var c = list.filter(function (q) { return q.p >= T; }).sort(function (a, b) { return a.p - b.p; })[0];
-    if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; }
+    if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; if (c.side) frBook(x, c, c.side); }
     x.pickWon = undefined;
     if (c && x.state && x.state.done && c.ok) {
       if (c.fin) x.pickWon = c.fin(x);
@@ -765,7 +773,7 @@
       { k: 'OT15', label: ot + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) <= 1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) <= 1; } },
       { k: 'FV15', label: fv + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) >= -1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= -1; } },
       { k: 'FDC', label: fv + ' ou match nul', p: fin[fav] + fin[1], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 0; } },
-      { k: 'FW', label: 'Victoire ' + fv, p: fin[fav], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 1; } }
+      { k: 'FW', side: fav === 0 ? 'h' : 'a', label: 'Victoire ' + fv, p: fin[fav], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 1; } }
     ];
     setPicks(x, L);
   }
@@ -776,7 +784,7 @@
     var L = [], fm = function (h, a) { return fav ? h - a : a - h; };
     lines.forEach(function (l) {
       var n = Math.floor(l);
-      L.push({ k: 'F' + l, label: l === 0.5 ? 'Victoire ' + fv : fv + ' gagne avec plus de ' + n + ' ' + unit + (n > 1 ? 's' : '') + ' d\'écart', p: Phi((mf - l) / sd), ok: function (h, a) { return fm(h, a) > l; } });
+      L.push({ k: 'F' + l, side: l === 0.5 ? (fav ? 'h' : 'a') : null, label: l === 0.5 ? 'Victoire ' + fv : fv + ' gagne avec plus de ' + n + ' ' + unit + (n > 1 ? 's' : '') + ' d\'écart', p: Phi((mf - l) / sd), ok: function (h, a) { return fm(h, a) > l; } });
       if (l > 0.5) L.push({ k: 'O' + l, label: ot + ' +' + l.toString().replace('.', ',') + ' (ne perd pas de ' + (n + 1) + ' ' + unit + 's d\'écart ou plus)', p: Phi((l - mf) / sd), ok: function (h, a) { return fm(h, a) < l; } });
     });
     setPicks(x, L);
@@ -824,7 +832,7 @@
     var od = E.odds || x._od, pMarket = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) pMarket = q1 / (q1 + q2); }
     else if (od && od.spread != null && x.sport === 'nba') pMarket = sig(-od.spread * 0.135);
-    var SHU = sharpFor(hn, an, x.date); x.sharp = SHU ? SHU.label : null; if (SHU) { pMarket = SHU.h / (SHU.h + SHU.a); why.push('Cotes de référence (' + SHU.label + ', marge retirée) : ' + hn + ' ' + pct(pMarket) + '. Marché le plus précis disponible : il pèse 80 % du pronostic.'); }
+    var SHU = sharpFor(hn, an, x.date); x.sharp = SHU ? SHU.label : null; x.fr = SHU ? SHU.fr : null; if (SHU) { pMarket = SHU.h / (SHU.h + SHU.a); why.push('Cotes de référence (' + SHU.label + ', marge retirée) : ' + hn + ' ' + pct(pMarket) + '. Marché le plus précis disponible : il pèse 80 % du pronostic.'); }
     else if (pMarket != null) why.push('Marché' + (od.provider ? ' (' + od.provider + ')' : '') + (E.odds ? ', cote mise à jour' : '') + ' : ' + hn + ' ' + pct(pMarket) + (od.details ? ', ligne ' + od.details : '') + '.');
     var pB = E.bpi != null ? E.bpi : null;
     if (pB != null) why.push('Prédicteur ESPN : ' + hn + ' ' + pct(pB) + '.');
@@ -978,12 +986,12 @@
     res.sharp = SHT ? SHT.label : null;
     if (nodata) { res.won = undefined; res.nodata = true; res.main = { label: 'Pas de pronostic', p: 0 }; res.conf = 0; return res; }
     if (res.state.state !== 'in') {
-      var fvn = fa ? na : nb, boT = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3, LT = [{ k: 'W', label: 'Victoire ' + fvn, p: pf, fin: function () { return res.won; } }];
+      var fvn = fa ? na : nb, boT = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3, LT = [{ k: 'W', side: fa ? 'h' : 'a', label: 'Victoire ' + fvn, p: pf, fin: function () { return res.won; } }];
       if (boT === 3 && (pM != null || pModel != null)) {
         var sF = setProb(pf, 3), pS1 = 1 - Math.pow(1 - sF, 2) - 0.03;   // sets supposés indépendants : décote de 3 points (les sets d'un même match se ressemblent)
         LT.push({ k: 'S1', label: fvn + ' gagne au moins un set', p: pS1, fin: function () { var w = 0; (sets[0] || []).forEach(function (v, i) { var o = sets[1][i] != null ? sets[1][i] : 0; if (fa ? v > o : o > v) w++; }); return w >= 1; } });
       }
-      setPicks(res, LT);
+      res.fr = SHT ? SHT.fr : null; setPicks(res, LT);
     }
     res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
@@ -1016,7 +1024,7 @@
       state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
     res.sharp = SHM ? SHM.label : null;
-    if (pM != null && st.state !== 'in') setPicks(res, [{ k: 'W', label: 'Victoire ' + (fa ? na : nb), p: pf, fin: function () { return res.won; } }]);
+    if (pM != null && st.state !== 'in') res.fr = SHM ? SHM.fr : null; setPicks(res, [{ k: 'W', side: fa ? 'h' : 'a', label: 'Victoire ' + (fa ? na : nb), p: pf, fin: function () { return res.won; } }]);
     return res;
   }
 

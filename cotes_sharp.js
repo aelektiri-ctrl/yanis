@@ -4,7 +4,8 @@
 const fs = require('fs');
 const KEY = process.env.ODDS_API_KEY;
 if (!KEY) { console.log('ODDS_API_KEY absent : étape ignorée'); process.exit(0); }
-const BUDGET = +process.argv[2] || 60;          // crédits maximum consommés par exécution
+const BUDGET = +process.argv[2] || 60;          // crédits maximum consommés par exécution (réduit automatiquement pour ne jamais dépasser le forfait)
+const FR = /betclic|winamax|zebet|parionssport|pmu|netbet|genybet|joa|vbet|unibet_fr|bwin_fr/i;   // bookmakers agréés en France
 const BASE = 'https://api.the-odds-api.com/v4';
 const OUT = 'docs/data/sharp.json';
 
@@ -36,16 +37,20 @@ const rank = k => { const i = PRIO.findIndex(r => r.test(k)); return i < 0 ? 99 
   const now = Date.now(), H48 = now + 48 * 3600e3, PAST = now - 3 * 3600e3;
   const sp = await api('/sports');
   const keys = sp.data.filter(s => s.active && !s.has_outrights && KEEP.test(s.key)).map(s => s.key).sort((a, b) => rank(a) - rank(b));
-  console.log(keys.length, 'compétitions actives ; crédits restants', sp.left, '; budget', BUDGET);
+  // budget adaptatif : on répartit les crédits restants sur les exécutions restantes du mois (8 par jour) ; le forfait n'est jamais dépassé
+  const dNow = new Date(), dim = new Date(dNow.getFullYear(), dNow.getMonth() + 1, 0).getDate(), runsLeft = Math.max(1, (dim - dNow.getDate() + 1) * 8);
+  const rem = +sp.left, budget = isFinite(rem) ? Math.max(0, Math.min(BUDGET, Math.floor(0.9 * rem / runsLeft))) : BUDGET;
+  console.log(keys.length, 'compétitions actives ; crédits restants', sp.left, '; budget de cette exécution', budget);
+  if (budget < 1) { console.log('plus de crédits à dépenser : fichier précédent conservé'); return; }
   const events = []; let spent = 0, left = sp.left, fail = 0;
   for (const k of keys) {
-    if (spent >= BUDGET) { console.log('budget atteint, compétitions non lues :', keys.slice(keys.indexOf(k)).length); break; }
+    if (spent >= budget) { console.log('budget atteint, compétitions non lues :', keys.slice(keys.indexOf(k)).length); break; }
     try {
       const { data, cost, left: l } = await api('/sports/' + k + '/odds?regions=eu&markets=h2h&oddsFormat=decimal&dateFormat=iso');
       spent += cost; left = l;
       for (const e of data) {
         const t = Date.parse(e.commence_time); if (!(t >= PAST && t <= H48)) continue;
-        const per = [];
+        const per = [], fr = {};
         for (const b of e.bookmakers || []) {
           const m = (b.markets || []).find(x => x.key === 'h2h'); if (!m) continue;
           const get = n => { const o = m.outcomes.find(x => x.name === n); return o ? o.price : null; };
@@ -54,6 +59,7 @@ const rank = k => { const i = PRIO.findIndex(r => r.test(k)); return i < 0 ? 99 
           const arr = pd ? [ph, pd, pa] : [ph, pa], d = devig(arr);
           if (!d) continue;
           per.push({ b: b.key, p: pd ? { h: d[0], d: d[1], a: d[2] } : { h: d[0], a: d[1] } });
+          if (FR.test(b.key)) { [['h', ph], ['d', pd], ['a', pa]].forEach(([f, v]) => { if (v && (!fr[f] || v > fr[f][0])) fr[f] = [v, b.title || b.key]; }); }
         }
         if (!per.length) continue;
         const sharp = per.find(x => x.b === 'pinnacle') || per.find(x => /betfair_ex|matchbook|smarkets/.test(x.b));
@@ -63,7 +69,7 @@ const rank = k => { const i = PRIO.findIndex(r => r.test(k)); return i < 0 ? 99 
           const avg = f => per.reduce((a, x) => a + (x.p[f] || 0), 0) / per.length;
           p = per[0].p.d != null ? { h: avg('h'), d: avg('d'), a: avg('a') } : { h: avg('h'), a: avg('a') }; src = 'consensus';
         } else continue;
-        events.push({ k, t: e.commence_time, h: e.home_team, a: e.away_team, p, src, nb });
+        events.push({ k, t: e.commence_time, h: e.home_team, a: e.away_team, p, src, nb, fr: Object.keys(fr).length ? fr : undefined });
       }
     } catch (err) { fail++; console.log('échec', k, err.message); if (fail >= 5) break; }
   }

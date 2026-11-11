@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v25</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v26</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -769,7 +769,8 @@ a{color:var(--accent)}
       var F = fitSoccer(G, todayN, cut); if (!F) return;
       recent.forEach(function (x) {
         var h = F.T[x[1]], a = F.T[x[2]]; if (!h || !a || h.n < 4 || a.n < 4) return;
-        var P = soccerProbs(F.c * (x[5] ? 1 : F.H) * h.A * a.D, F.c * a.A * h.D).p;
+        var P = soccerProbs(F.c * (x[5] ? 1 : F.H) * h.A * a.D, F.c * a.A * h.D).p.map(function (v) { return Math.pow(v, CALFOOT); });   // même calibration que les pronostics affichés
+        var Ps = P[0] + P[1] + P[2]; P = P.map(function (v) { return v / Ps; });
         var fav = P[0] >= P[2] ? 0 : 2, res = x[3] > x[4] ? 0 : x[3] === x[4] ? 1 : 2;
         cal.push([P[fav], res === fav ? 1 : 0, sport, 'win']); cal.push([P[fav] + P[1], res !== 2 - fav ? 1 : 0, sport, 'dc']);
       });
@@ -777,7 +778,7 @@ a{color:var(--accent)}
       var R = fitMargin(G, todayN, cut, lg); if (!R) return;
       recent.forEach(function (x) {
         if (R.R[x[1]] == null || R.R[x[2]] == null || R.N[x[1]] < 4 || R.N[x[2]] < 4 || x[3] === x[4]) return;
-        var p = Phi(((x[5] ? 0 : R.h) + R.R[x[1]] - R.R[x[2]]) / R.sd), fav = p >= 0.5;
+        var p = sig(logit(Math.min(0.999, Math.max(0.001, Phi(((x[5] ? 0 : R.h) + R.R[x[1]] - R.R[x[2]]) / R.sd)))) * (CALUS[sport] || 1)), fav = p >= 0.5;
         cal.push([fav ? p : 1 - p, (fav ? x[3] > x[4] : x[4] > x[3]) ? 1 : 0, sport, 'win']);
       });
     }
@@ -1035,7 +1036,8 @@ a{color:var(--accent)}
     });
     if (!best) return null;
     var p = best.r.e.p, e = best.r.e;
-    return { h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
+    var fr = e.fr ? { h: best.inv ? e.fr.a : e.fr.h, d: e.fr.d || null, a: best.inv ? e.fr.h : e.fr.a } : null;
+    return { fr: fr, h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
   }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
   // probabilité de gagner le set en cours depuis le score en jeux (i, j), jeu gagné avec la probabilité g, tie-break à 6-6
@@ -1325,7 +1327,7 @@ a{color:var(--accent)}
     }
     var SH = sharpFor(hn, an, x.date); if (SH && SH.d == null) SH = null;
     if (SH) market = [SH.h, SH.d, SH.a];
-    x.sharp = SH ? SH.label : null;
+    x.sharp = SH ? SH.label : null; x.fr = SH ? SH.fr : null;
     if (!x._rated && !market) {
       x.nodata = true; x.lam = null; x.main = { label: 'Pas de pronostic', p: 0 }; x.conf = 0; x.level = 'NA'; x.markets = []; x.probs = null;
       x.why = ['Au moins une des deux équipes n\'a pas assez de matchs dans nos données pour cette compétition (souvent une équipe de division inférieure en coupe), et aucune cote n\'est publiée. Pas de pronostic plutôt qu\'un pronostic inventé.'];
@@ -1373,12 +1375,18 @@ a{color:var(--accent)}
   // seuils internes (marge de sécurité par rapport aux 70 % affichés), mesurés sur ~70 jours de matchs passés prédits à l'aveugle :
   // foot 72 % -> 76,7 % réel ; NBA 75 % -> 75,0 % ; NFL 75 % -> 73,6 % ; NHL 74 % -> ~72 %. WNBA, MLB, rugby : pas assez fiables, aucune formule publiée.
   var PICK_T = { foot: 0.72, nba: 0.75, nfl: 0.75, nhl: 0.74, tennis: 0.72, mma: 0.72 };
+  // meilleure cote d'un bookmaker agréé en France pour un pari « victoire » (cotes de victoire seulement : les handicaps et les buts ne sont pas dans ce flux)
+  function frBook(x, c, favSide) {
+    if (!x.fr || !c) return;
+    var o = x.fr[favSide]; if (!o) return;
+    c.book = { name: o[1], odds: o[0], ok: o[0] >= c.minOdds };
+  }
   function setPicks(x, list) {
     var T = PICK_T[x.sport];
     x.pick = null; x.picks = list.slice().sort(function (a, b) { return b.p - a.p; }); x.pickT = T || null;
     if (!T) return;
     var c = list.filter(function (q) { return q.p >= T; }).sort(function (a, b) { return a.p - b.p; })[0];
-    if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; }
+    if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; if (c.side) frBook(x, c, c.side); }
     x.pickWon = undefined;
     if (c && x.state && x.state.done && c.ok) {
       if (c.fin) x.pickWon = c.fin(x);
@@ -1397,7 +1405,7 @@ a{color:var(--accent)}
       { k: 'OT15', label: ot + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) <= 1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) <= 1; } },
       { k: 'FV15', label: fv + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) >= -1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= -1; } },
       { k: 'FDC', label: fv + ' ou match nul', p: fin[fav] + fin[1], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 0; } },
-      { k: 'FW', label: 'Victoire ' + fv, p: fin[fav], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 1; } }
+      { k: 'FW', side: fav === 0 ? 'h' : 'a', label: 'Victoire ' + fv, p: fin[fav], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 1; } }
     ];
     setPicks(x, L);
   }
@@ -1408,7 +1416,7 @@ a{color:var(--accent)}
     var L = [], fm = function (h, a) { return fav ? h - a : a - h; };
     lines.forEach(function (l) {
       var n = Math.floor(l);
-      L.push({ k: 'F' + l, label: l === 0.5 ? 'Victoire ' + fv : fv + ' gagne avec plus de ' + n + ' ' + unit + (n > 1 ? 's' : '') + ' d\'écart', p: Phi((mf - l) / sd), ok: function (h, a) { return fm(h, a) > l; } });
+      L.push({ k: 'F' + l, side: l === 0.5 ? (fav ? 'h' : 'a') : null, label: l === 0.5 ? 'Victoire ' + fv : fv + ' gagne avec plus de ' + n + ' ' + unit + (n > 1 ? 's' : '') + ' d\'écart', p: Phi((mf - l) / sd), ok: function (h, a) { return fm(h, a) > l; } });
       if (l > 0.5) L.push({ k: 'O' + l, label: ot + ' +' + l.toString().replace('.', ',') + ' (ne perd pas de ' + (n + 1) + ' ' + unit + 's d\'écart ou plus)', p: Phi((l - mf) / sd), ok: function (h, a) { return fm(h, a) < l; } });
     });
     setPicks(x, L);
@@ -1456,7 +1464,7 @@ a{color:var(--accent)}
     var od = E.odds || x._od, pMarket = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) pMarket = q1 / (q1 + q2); }
     else if (od && od.spread != null && x.sport === 'nba') pMarket = sig(-od.spread * 0.135);
-    var SHU = sharpFor(hn, an, x.date); x.sharp = SHU ? SHU.label : null; if (SHU) { pMarket = SHU.h / (SHU.h + SHU.a); why.push('Cotes de référence (' + SHU.label + ', marge retirée) : ' + hn + ' ' + pct(pMarket) + '. Marché le plus précis disponible : il pèse 80 % du pronostic.'); }
+    var SHU = sharpFor(hn, an, x.date); x.sharp = SHU ? SHU.label : null; x.fr = SHU ? SHU.fr : null; if (SHU) { pMarket = SHU.h / (SHU.h + SHU.a); why.push('Cotes de référence (' + SHU.label + ', marge retirée) : ' + hn + ' ' + pct(pMarket) + '. Marché le plus précis disponible : il pèse 80 % du pronostic.'); }
     else if (pMarket != null) why.push('Marché' + (od.provider ? ' (' + od.provider + ')' : '') + (E.odds ? ', cote mise à jour' : '') + ' : ' + hn + ' ' + pct(pMarket) + (od.details ? ', ligne ' + od.details : '') + '.');
     var pB = E.bpi != null ? E.bpi : null;
     if (pB != null) why.push('Prédicteur ESPN : ' + hn + ' ' + pct(pB) + '.');
@@ -1610,12 +1618,12 @@ a{color:var(--accent)}
     res.sharp = SHT ? SHT.label : null;
     if (nodata) { res.won = undefined; res.nodata = true; res.main = { label: 'Pas de pronostic', p: 0 }; res.conf = 0; return res; }
     if (res.state.state !== 'in') {
-      var fvn = fa ? na : nb, boT = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3, LT = [{ k: 'W', label: 'Victoire ' + fvn, p: pf, fin: function () { return res.won; } }];
+      var fvn = fa ? na : nb, boT = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3, LT = [{ k: 'W', side: fa ? 'h' : 'a', label: 'Victoire ' + fvn, p: pf, fin: function () { return res.won; } }];
       if (boT === 3 && (pM != null || pModel != null)) {
         var sF = setProb(pf, 3), pS1 = 1 - Math.pow(1 - sF, 2) - 0.03;   // sets supposés indépendants : décote de 3 points (les sets d'un même match se ressemblent)
         LT.push({ k: 'S1', label: fvn + ' gagne au moins un set', p: pS1, fin: function () { var w = 0; (sets[0] || []).forEach(function (v, i) { var o = sets[1][i] != null ? sets[1][i] : 0; if (fa ? v > o : o > v) w++; }); return w >= 1; } });
       }
-      setPicks(res, LT);
+      res.fr = SHT ? SHT.fr : null; setPicks(res, LT);
     }
     res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
@@ -1648,7 +1656,7 @@ a{color:var(--accent)}
       state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
     res.sharp = SHM ? SHM.label : null;
-    if (pM != null && st.state !== 'in') setPicks(res, [{ k: 'W', label: 'Victoire ' + (fa ? na : nb), p: pf, fin: function () { return res.won; } }]);
+    if (pM != null && st.state !== 'in') res.fr = SHM ? SHM.fr : null; setPicks(res, [{ k: 'W', side: fa ? 'h' : 'a', label: 'Victoire ' + (fa ? na : nb), p: pf, fin: function () { return res.won; } }]);
     return res;
   }
 
@@ -2418,6 +2426,11 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     var have={};(SP.data||[]).forEach(function(x){have[x.sport]=(have[x.sport]||0)+1});
     return '<div class="chips">'+['all','foot','rugby','nba','wnba','nfl','nhl','mlb','tennis','mma'].filter(function(k){return k==='all'||have[k]}).map(function(k){return '<button data-f="'+k+'" class="'+(SP.filter===k?'on':'')+'">'+(ICON[k]||'')+' '+SNAME[k]+(k!=='all'?' '+have[k]:'')+'</button>'}).join('')+'</div>';
   },
+  bookLine:function(c){
+    if(!c)return '';
+    if(c.book)return '<div class="'+(c.book.ok?'ok':'ko')+'" style="margin-top:2px">'+esc(c.book.name)+' : cote '+c.book.odds.toFixed(2).replace('.',',')+(c.book.ok?' : au-dessus de la cote minimale, jouable.':' : sous la cote minimale, ne pas jouer.')+'</div>';
+    return '<div class="mute">Cote à vérifier chez ton bookmaker (handicap, buts ou double chance : pas dans le flux de cotes).</div>';
+  },
   card:function(x,i){
     var t=new Date(x.date),hh=isNaN(t)?'':t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     var day=isNaN(t)?'':(t.toDateString()!==new Date().toDateString()?t.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})+' ':'');
@@ -2443,7 +2456,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
       (x.nodata?'<div class="prono"><span class="mute">Pas de pronostic : données insuffisantes'+res+'</span><span class="badge NA">'+SLVL.NA+'</span></div>':
       (x.lv?'<div class="prono"><span>'+esc(x.lv.label)+trend+'</span><span class="row" style="gap:6px"><span class="badge '+x.lv.level+'">'+SLVL[x.lv.level]+'</span><span class="conf">'+pL(x.lv.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.lv.p*100)+'%"></i></div><div class="mute">Pronostic en direct, recalculé avec le score.'+(x.lv.switched?' Pronostic d\'avant-match dépassé : '+esc(x.main.label)+' ('+E.pct(x.conf)+').':' Avant-match : '+E.pct(x.conf)+'.')+'</div>'
-      :x.pick?'<div class="prono"><span>'+esc(x.pick.label)+(x.pickWon===true?' <span class="ok">✓ gagné</span>':x.pickWon===false?' <span class="ko">✗ perdu</span>':'')+'</span><span class="row" style="gap:6px"><span class="badge '+(x.pick.p>=0.8?'SEC':'FORT')+'">'+(x.pick.p>=0.8?'SEC':'SOLIDE')+'</span><span class="conf">'+E.pct(x.pick.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.pick.p*100)+'%"></i></div><div class="mute">Cote minimale pour jouer : <b>'+x.pick.minOdds.toFixed(2).replace('.',',')+'</b>. En dessous, le pari perd de l\'argent sur la durée. Match : '+esc(x.main.label)+' '+E.pct(x.conf)+'.</div>'
+      :x.pick?'<div class="prono"><span>'+esc(x.pick.label)+(x.pickWon===true?' <span class="ok">✓ gagné</span>':x.pickWon===false?' <span class="ko">✗ perdu</span>':'')+'</span><span class="row" style="gap:6px"><span class="badge '+(x.pick.p>=0.8?'SEC':'FORT')+'">'+(x.pick.p>=0.8?'SEC':'SOLIDE')+'</span><span class="conf">'+E.pct(x.pick.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.pick.p*100)+'%"></i></div><div class="mute">Cote minimale pour jouer : <b>'+x.pick.minOdds.toFixed(2).replace('.',',')+'</b>. En dessous, le pari perd de l\'argent sur la durée. Match : '+esc(x.main.label)+' '+E.pct(x.conf)+'.</div>'+(x.state.done?'':SP.bookLine(x.pick))
       :'<div class="prono"><span class="mute">Pas de pari : aucune formule à 70 %. '+(x.picks&&x.picks[0]?'Meilleure : '+esc(x.picks[0].label)+' '+E.pct(x.picks[0].p)+'.':esc(x.main.label)+' '+E.pct(x.conf)+'.')+'</span><span class="badge NA">SOUS 70 %</span></div>'))+tv+'</div>';
   },
   view:function(){
@@ -2475,7 +2488,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     var w=fin.filter(function(x){return x.won}).length,exp=fin.reduce(function(s,x){return s+x.conf},0)/fin.length;
     var f70=fin.filter(function(x){return x.conf>=0.7}),w70=f70.filter(function(x){return x.won}).length;
     h+='<div class="kpis"><div><b>'+w+'/'+fin.length+'</b><span class="mute">pronostics gagnants</span></div><div><b>'+E.pct(w/fin.length)+'</b><span class="mute">réussite réelle</span></div><div><b>'+E.pct(exp)+'</b><span class="mute">réussite prévue</span></div></div>';
-    if(f70.length)h+='<div class="card" style="margin-top:10px">Pronostics à 70 % et plus : <b>'+w70+' / '+f70.length+'</b> gagnants.</div>';
+    var fp=all.filter(function(x){return x.pick&&(x.pickWon===true||x.pickWon===false)}),wp=fp.filter(function(x){return x.pickWon}).length;
+    h+='<div class="card" style="margin-top:10px"><div class="ttl">Formules à plus de 70 %</div>'+(fp.length?'<div class="mk"><span>Formules retenues passées</span><b>'+wp+' / '+fp.length+'</b></div><div class="mk"><span>Réussite réelle / annoncée</span><b>'+E.pct(wp/fp.length)+' / '+E.pct(fp.reduce(function(s,x){return s+x.pick.p},0)/fp.length)+'</b></div><div class="mute">Calculées après coup sur les matchs terminés avec les données disponibles aujourd\'hui : un petit biais favorable est possible. Le test honnête sur 70 jours est dans la note en bas de l\'onglet.</div>':'<div class="mute">Aucun match terminé avec une formule à plus de 70 % pour cette date.</div>')+'</div>';
     h+='<h2>Matchs terminés</h2>';fin.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))});
     return h;
   },
@@ -2490,7 +2504,9 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     h+='<div class="tv" style="margin-top:8px">'+(x.tv&&x.tv.length?'📺 Diffusion annoncée : '+esc(x.tv.join(', '))+' · ':'')+'<a href="https://www.google.com/search?q='+encodeURIComponent(x.home+' '+x.away+' diffusion tv chaîne')+'" target="_blank" rel="noopener">Où regarder ce match ?</a></div>';
     if(x.nodata)h+='<h2>Pronostic</h2><div class="card">Pas de pronostic pour ce match : données insuffisantes (voir ci-dessous).</div>';
     else if(x.lv)h+='<h2>Pronostic en direct</h2><div class="jeu main"><div class="row"><span class="ttl">'+esc(x.lv.label)+'</span><span class="conf">'+pL(x.lv.p)+'</span></div><div class="mute">Recalculé avec le score et le temps restant ('+SP.nsim(x)+'). Avant le match : '+esc(x.main.label)+' à '+E.pct(x.conf)+(x.lv.switched?' — dépassé par le score.':'.')+'</div></div>';
+    else if(x.pick)h+='<h2>Formule retenue (plus de 70 %)</h2><div class="jeu main"><div class="row"><span class="ttl">'+esc(x.pick.label)+'</span><span class="conf">'+E.pct(x.pick.p)+'</span></div><div class="mute">Cote minimale pour jouer : '+x.pick.minOdds.toFixed(2).replace('.',',')+'. Parmi toutes les formules testées sur ce match, c\'est la plus payante dont la probabilité dépasse '+Math.round((x.pickT||0.72)*100)+' %.</div>'+(x.state.done?'':SP.bookLine(x.pick))+(x.pickWon===true?'<div class="ok">✓ gagné</div>':x.pickWon===false?'<div class="ko">✗ perdu</div>':'')+'</div>';
     else h+='<h2>Pronostic principal</h2><div class="jeu main"><div class="row"><span class="ttl">'+esc(x.main.label)+'</span><span class="conf">'+E.pct(x.main.p)+'</span></div>'+(x.main.dec?'<div class="mute">Cote '+x.main.dec.toFixed(2).replace('.',',')+' : 1 € misé rapporte '+x.main.dec.toFixed(2).replace('.',',')+' € si gagnant · cote juste '+fair(x.main.p)+'</div>':'<div class="mute">Cote juste (minimum à exiger) : '+fair(x.main.p)+'</div>')+(x.won===true?'<div class="ok">✓ gagnant</div>':x.won===false?'<div class="ko">✗ perdu</div>':'')+'</div>';
+    if(!x.nodata&&!x.lv&&x.picks&&x.picks.length)h+='<h2>Formules testées sur ce match</h2><div class="card">'+x.picks.map(function(q){return '<div class="mk"><span>'+esc(q.label)+'</span><span class="'+(q.p>=(x.pickT||0.72)?'ok':'ko')+'">'+E.pct(q.p)+'</span></div>'}).join('')+'<p class="mute">Vert : au-dessus du seuil interne de '+Math.round((x.pickT||0.72)*100)+' % (marge de sécurité sur les 70 % affichés). Retenue : la plus payante parmi les vertes.</p></div>';
     if(x.safe&&x.safe.p>=0.7)h+='<div class="jeu"><div class="row"><span class="ttl">Option la plus sûre : '+esc(x.safe.label)+'</span><span class="conf">'+E.pct(x.safe.p)+'</span></div></div>';
     if(x.value)h+='<div class="jeu"><div class="row"><span class="ttl">Pari value : '+esc(x.value.label)+'</span><span class="conf">'+E.pct(x.value.p)+'</span></div><div class="mute">Cote '+x.value.dec.toFixed(2).replace('.',',')+' : le marché sous-estime cette issue.</div></div>';
     if(x.enr){
