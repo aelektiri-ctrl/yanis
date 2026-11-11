@@ -57,7 +57,7 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
       spent += cost; left = l;
       for (const e of data) {
         const t = Date.parse(e.commence_time); if (!(t > now && t <= H48)) continue;   // avant-match uniquement : les cotes en direct ne sont pas une probabilité d'avant-match
-        const per = [], fr = {};
+        const per = [], frl = [];
         for (const b of e.bookmakers || []) {
           const m = (b.markets || []).find(x => x.key === 'h2h'); if (!m) continue;
           const get = n => { const o = m.outcomes.find(x => x.name === n); return o ? o.price : null; };
@@ -66,16 +66,22 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
           const arr = pd ? [ph, pd, pa] : [ph, pa], d = devig(arr);
           if (!d) continue;
           per.push({ b: b.key, p: pd ? { h: d[0], d: d[1], a: d[2] } : { h: d[0], a: d[1] } });
-          if (isFR(b)) { [['h', ph], ['d', pd], ['a', pa]].forEach(([f, v]) => { if (v && (!fr[f] || v > fr[f][0])) fr[f] = [v, b.title || b.key]; }); }
+          if (isFR(b)) frl.push({ t: b.title || b.key, h: ph, d: pd, a: pa });
         }
         if (!per.length) continue;
         const sharp = per.find(x => x.b === 'pinnacle') || per.find(x => /betfair_ex|matchbook|smarkets/.test(x.b));
         let p, src, nb = per.length;
         if (sharp) { p = sharp.p; src = sharp.b; }
-        else if (per.length >= 3) {
-          const avg = f => per.reduce((a, x) => a + (x.p[f] || 0), 0) / per.length;
-          p = per[0].p.d != null ? { h: avg('h'), d: avg('d'), a: avg('a') } : { h: avg('h'), a: avg('a') }; src = 'consensus';
-        } else continue;
+        else {
+          // on ne mélange jamais un marché à 3 issues (victoire / nul / défaite, ex. hockey en temps réglementaire) avec un marché à 2 issues (prolongation incluse)
+          const n3 = per.filter(x => x.p.d != null).length, three0 = n3 * 2 > per.length, same = per.filter(x => (x.p.d != null) === three0);
+          if (same.length < 3) continue;
+          const avg = f => same.reduce((a, x) => a + (x.p[f] || 0), 0) / same.length;
+          p = three0 ? { h: avg('h'), d: avg('d'), a: avg('a') } : { h: avg('h'), a: avg('a') }; src = 'consensus'; nb = same.length;
+        }
+        // cotes françaises : seulement celles du même type de marché que la probabilité de référence (sinon la comparaison est fausse)
+        const three = p.d != null, fr = {};
+        frl.filter(x => (x.d != null) === three).forEach(x => { [['h', x.h], ['d', x.d], ['a', x.a]].forEach(([f, v]) => { if (v && (!fr[f] || v > fr[f][0])) fr[f] = [v, x.t]; }); });
         const vals = Object.values(p); if (vals.some(v => !(v > 0.02 && v < 0.98))) continue;   // probabilité dégénérée : on ignore
         events.push({ k, t: e.commence_time, h: e.home_team, a: e.away_team, p, src, nb, c: new Date(now).toISOString(), fr: Object.keys(fr).length ? fr : undefined });
       }

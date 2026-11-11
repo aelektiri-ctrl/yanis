@@ -405,7 +405,7 @@
     });
     if (!best) return null;
     var p = best.r.e.p, e = best.r.e;
-    var fr = e.fr ? { h: best.inv ? e.fr.a : e.fr.h, d: e.fr.d || null, a: best.inv ? e.fr.h : e.fr.a } : null;
+    var fr = (e.fr && (e.fr.d != null) === (p.d != null)) ? { h: best.inv ? e.fr.a : e.fr.h, d: e.fr.d || null, a: best.inv ? e.fr.h : e.fr.a } : null;
     return { fr: fr, h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
   }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
