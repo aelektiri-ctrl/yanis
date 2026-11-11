@@ -140,7 +140,9 @@ async function loadDayY(full){
       if(oa&&oa.ok&&na.ok&&!na.arrivee&&c.heureDepart>Date.now()){
         var lbl='R'+r.numOfficiel+'C'+c.numOrdre+' '+hhmm(c.heureDepart)+' · ';
         if(na.n<oa.n)pushAlert('turf',k,lbl+'Non-partant : '+na.n+' partants désormais.');
-        if(oa.main&&na.main&&(oa.main.detail!==na.main.detail||oa.level!==na.level))pushAlert('turf',k,lbl+'Pronostic modifié : '+na.main.label+' — '+na.main.detail);
+        if(na.pick&&!oa.pick)pushAlert('turf',k,lbl+'Nouvelle formule à plus de 70 % : '+na.main.label+' — '+na.main.detail+' ('+E.pct(na.conf)+')');
+        else if(!na.pick&&oa.pick)pushAlert('turf',k,lbl+'La formule repasse sous 70 % : ne plus jouer.');
+        else if(na.pick&&oa.pick&&oa.main.detail!==na.main.detail)pushAlert('turf',k,lbl+'Formule modifiée : '+na.main.label+' — '+na.main.detail+' ('+E.pct(na.conf)+')');
       }
       if(oa&&oa.ok&&!oa.arrivee&&na.arrivee&&na.main)pushAlert('turf',k,'R'+r.numOfficiel+'C'+c.numOrdre+' · Arrivée '+na.arrivee.slice(0,5).join('-')+' : '+(na.main.gagne?'✓ '+na.main.label+' gagnant'+(na.main.retour?' ('+euros(na.main.retour)+' pour '+euros(na.main.cout)+')':''):'✗ '+na.main.label+' perdu'));
       done++;
@@ -184,7 +186,9 @@ async function loadDay(full){
           if(oa&&oa.ok&&na.ok&&!na.arrivee&&c.heureDepart>Date.now()){
             var lbl='R'+r.numOfficiel+'C'+c.numOrdre+' '+hhmm(c.heureDepart)+' · ';
             if(na.n<oa.n)pushAlert('turf',k,lbl+'Non-partant : '+na.n+' partants désormais.');
-            if(oa.main&&na.main&&(oa.main.detail!==na.main.detail||oa.level!==na.level))pushAlert('turf',k,lbl+'Pronostic modifié : '+na.main.label+' — '+na.main.detail);
+            if(na.pick&&!oa.pick)pushAlert('turf',k,lbl+'Nouvelle formule à plus de 70 % : '+na.main.label+' — '+na.main.detail+' ('+E.pct(na.conf)+')');
+        else if(!na.pick&&oa.pick)pushAlert('turf',k,lbl+'La formule repasse sous 70 % : ne plus jouer.');
+        else if(na.pick&&oa.pick&&oa.main.detail!==na.main.detail)pushAlert('turf',k,lbl+'Formule modifiée : '+na.main.label+' — '+na.main.detail+' ('+E.pct(na.conf)+')');
             else if(oa.ranking[0].num!==na.ranking[0].num)pushAlert('turf',k,lbl+'Nouvelle base : n°'+na.ranking[0].num+' '+na.ranking[0].nom);
           }
         }catch(e){S.an[key(r.numOfficiel,c.numOrdre)]={ok:false,message:'Partants indisponibles ('+e.message+')',course:c}}
@@ -300,16 +304,23 @@ function viewSel(){
   if(!S.prog)return intro();
   var lc=(!MODELS||LEARN.running)?learnCard(false):'';
   if(!top.length)return lc+'<div class="card">'+(S.loading?'Analyse en cours…':'Aucune course à venir avec des partants publiés pour cette date.')+'</div>'+finishedBlock();
-  var h=lc+'<h2>Toutes les courses à venir ('+top.length+'), classées par potentiel</h2><p class="mute" style="margin-top:-4px">Jeu principal : simple placé sur le n°1 du modèle, le format qui perd le moins sur 5 680 courses testées. COURSE NETTE = deux chevaux dominent · ÉQUILIBRÉE = deux bases solides, 3e place ouverte · OUVERTE = favori peu sûr · LOUP = outsider sous-estimé (champs réduits et multi en complément). Le pourcentage est la chance que le jeu principal soit gagnant.</p>';
-  top.forEach(function(x,i){
+  var picks=top.filter(function(x){return x.a.pick}),rest=top.filter(function(x){return !x.a.pick});
+  var h=lc+'<h2>'+picks.length+' course'+(picks.length>1?'s':'')+' avec une formule à plus de 70 %</h2><p class="mute" style="margin-top:-4px">Pour chaque course, l\'appli teste le simple placé, le 2 sur 4, le trio et le multi (jusqu\'à 8 combinaisons) et ne retient que la formule la moins chère qui dépasse 70 % de chances. Le pourcentage est la chance que la formule passe. Elle n\'est rentable que si le rapport dépasse le retour indiqué sur la carte.</p>';
+  if(!picks.length)h+='<div class="card">Aucune course n\'a pour l\'instant de formule au-dessus de 70 %. Les cotes ouvrent en général une à deux heures avant le départ : l\'analyse se met à jour toute seule.</div>';
+  picks.forEach(function(x,i){
     var a=x.a,m=a.main,base=a.ranking[0];
     h+='<div class="card tap sp-'+(/TROT/.test(x.c.specialite)?'trot':'galop')+'" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'">'+liveStrip(x.c,a)+
       '<div class="row"><span class="mute">#'+(i+1)+' · '+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(a)+'</div>'+
       '<div class="big">'+esc(m.label)+'</div><div>'+esc(m.detail)+'</div>'+wolf(a)+
       '<div class="kv"><span>Base n°'+base.num+' '+esc(base.nom)+'</span><span>cote '+E.fmtCote(base.cote)+' · gagne '+E.pct(base.p)+' · top 3 '+E.pct(base.top[2])+'</span></div>'+
-      '<div class="kv"><span>Le jeu proposé passe</span><b class="conf">'+E.pct(a.conf)+'</b></div><div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div>'+(m.combos?'<div class="mute">'+m.combos+' combinaison'+(m.combos>1?'s':'')+' · '+euros(m.cout)+' (1 € par combinaison)</div>':'')+'</div>';
+      '<div class="kv"><span>La formule passe</span><b class="conf">'+E.pct(a.conf)+'</b></div><div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div>'+(m.combos?'<div class="mute">'+m.combos+' combinaison'+(m.combos>1?'s':'')+' · '+euros(m.cout)+' (1 € par combinaison) · rentable si le retour dépasse '+euros(m.cout/m.p)+'</div>':'')+'</div>';
   });
-  h+='<p class="mute">Le pourcentage est la probabilité estimée sur 20 000 arrivées simulées. Vérifié sur 5 902 courses réelles : quand l\'appli annonce 60 à 80 %, le jeu passe 71 % du temps.</p>';
+  if(rest.length){
+    h+='<h2>Sous 70 % : pas de pari ('+rest.length+')</h2><p class="mute" style="margin-top:-4px">Aucune formule à 8 combinaisons ou moins ne dépasse 70 % sur ces courses. Beaucoup n\'ont pas encore leurs cotes : elles sont réanalysées à l\'ouverture.</p>';
+    rest.forEach(function(x){var a=x.a;
+      h+='<div class="card tap" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'"><div class="row"><span class="mute">'+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span><span class="badge NA">'+(a.market?'SOUS 70 %':'COTES FERMÉES')+'</span></div><div class="mute">Meilleur jeu : '+esc(a.main.label)+' à '+E.pct(a.conf)+(a.market?'':' (forme seule, à revoir à l\'ouverture des cotes)')+'</div></div>';});
+  }
+  h+='<p class="mute">Les pourcentages viennent de 20 000 arrivées simulées. Le bilan réel des formules retenues (prévu contre réussi) est dans l\'onglet Bilan.</p>';
   return h+finishedBlock();
 }
 function finishedBlock(){
@@ -343,6 +354,10 @@ function viewBilan(){
   fin.forEach(function(x){var m=x.a.main,g=m.gagne;if(g)win++;mise+=m.cout;var L=byL[x.a.level];L[0]+=g?1:0;L[1]++;if(m.rapportOk){nR++;ret+=m.retour;L[2]+=m.cout;L[3]+=m.retour}});
   var exp=fin.reduce(function(s,x){return s+x.a.conf},0);
   var h=lc+'<div class="kpis"><div><b>'+win+'/'+fin.length+'</b><span class="mute">jeux gagnants</span></div><div><b>'+E.pct(win/fin.length)+'</b><span class="mute">réussite réelle</span></div><div><b>'+E.pct(exp/fin.length)+'</b><span class="mute">réussite prévue</span></div></div>';
+  var fp=fin.filter(function(x){return x.a.pick});
+  if(fp.length){var wp=fp.filter(function(x){return x.a.main.gagne}).length,ep=fp.reduce(function(s,x){return s+x.a.conf},0)/fp.length,mp=0,rp=0,np=0;fp.forEach(function(x){var m=x.a.main;mp+=m.cout;if(m.rapportOk){rp+=m.retour;np++}});
+    h+='<h2>Formules à plus de 70 %</h2><div class="card"><div class="mk"><span>Formules retenues passées</span><b>'+wp+' / '+fp.length+'</b></div><div class="mk"><span>Réussite réelle / annoncée</span><b>'+E.pct(wp/fp.length)+' / '+E.pct(ep)+'</b></div>'+(np?'<div class="mk"><span>Résultat avec les rapports PMU</span><b class="'+(rp>=mp?'ok':'ko')+'">'+(rp-mp>=0?'+':'')+euros(rp-mp)+' pour '+euros(mp)+' misés</b></div>':'')+'</div>';
+  }else h+='<h2>Formules à plus de 70 %</h2><div class="card mute">Aucune course terminée n\'avait de formule à plus de 70 %. Le suivi apparaît ici dès qu\'il y en a.</div>';
   h+='<h2>Par niveau</h2><div class="card">';
   ['SEC','FORT','DOUTE'].forEach(function(l){var v=byL[l];h+='<div class="row" style="padding:4px 0"><span class="badge '+l+'">'+LVL[l]+'</span><span>'+v[0]+' / '+v[1]+(v[2]?' · <span class="'+(v[3]>=v[2]?'ok':'ko')+'">'+(v[3]-v[2]>=0?'+':'')+euros(v[3]-v[2])+'</span>':'')+'</span></div>'});
   h+='</div>';
@@ -379,6 +394,7 @@ function sheet(k){
   a.jeux.forEach(function(j){
     h+='<div class="jeu'+(j.main?' main':'')+'"><div class="row"><span class="ttl">'+(j.main?'★ ':'')+esc(j.label)+'</span><span class="conf">'+E.pct(j.p)+'</span></div><div>'+esc(j.detail)+'</div><div class="mute">'+j.combos+' combinaison'+(j.combos>1?'s':'')+' · '+euros(j.cout)+(YANIS?' (1 € par combinaison)':' en mise de base')+(j.hist?'<br>📊 Testé sur '+j.hist.n+' courses réelles : '+E.pct(j.hist.hit)+' gagnants · rentabilité <span class="'+(j.hist.roi>=0?'ok':'ko')+'">'+(j.hist.roi>=0?'+':'')+String(Math.round(j.hist.roi*1000)/10).replace('.',',')+' %</span>':'')+(j.gagne===true?' · <span class="ok">✓ gagnant'+(j.rapportOk?' : retour '+euros(j.retour):'')+'</span>':j.gagne===false?' · <span class="ko">✗ perdu</span>':'')+'</div></div>';
   });
+  if(a.cands&&a.cands.length)h+='<h2>Formules testées sur cette course</h2><div class="card">'+a.cands.slice().sort(function(u,v){return u.cost-v.cost||v.p-u.p}).map(function(q){return '<div class="mk"><span>'+esc(q.l)+'<br><span class="mute">'+q.cost+' combinaison'+(q.cost>1?'s':'')+'</span></span><span class="'+(q.p>=0.72?'ok':'ko')+'">'+E.pct(q.p)+'</span></div>'}).join('')+'<p class="mute">Retenue : la moins chère à 72 % ou plus (marge de sécurité sur les 70 % affichés).</p></div>';
   h+=rapportsTable(c);
   h+='<h2>Pourquoi ce choix</h2><div class="card">'+a.why.map(function(w){return '<p style="margin:4px 0">'+esc(w)+'</p>'}).join('')+'</div>';
   h+='<h2>Classement du modèle</h2><div class="card">';
@@ -477,7 +493,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       var res=await SportEngine.loadAll(getESPN,ymd,function(x){if(S.mode==='sport')setProg(x);SP.setSt('Matchs et historiques de saison… '+Math.round(x*100)+' %')},function(k,j){SP.diag[k]=j?(j.events||[]).length+' évts':'vide'},ST);
       SP.cal=res.cal;SP.info=res.info;
       if(!res.items.length&&res.errors.length===res.jobs)throw new Error(res.errors[0]||'aucune donnée');
-      var old={};(SP.data||[]).forEach(function(x){if(x.main)old[x.id]={l:x.main.label,c:x.conf,inj:x.enr&&x.enr.abs?x.enr.abs[0].out+x.enr.abs[1].out:null,lu:!!(x.enr&&x.enr.lineups)}});
+      var old={};(SP.data||[]).forEach(function(x){if(x.main)old[x.id]={l:x.main.label,c:x.conf,pk:x.pick?x.pick.label:null,pp:x.pick?x.pick.p:null,inj:x.enr&&x.enr.abs?x.enr.abs[0].out+x.enr.abs[1].out:null,lu:!!(x.enr&&x.enr.lineups)}});
       SP.setSt('Blessures, compos et cotes de dernière minute…');
       var nE=await SportEngine.enrich(getESPN,res.items,SP.cache,function(x){if(S.mode==='sport')setProg(x)});
       SP.data=res.items;SP.last=new Date();
@@ -485,8 +501,10 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       res.items.forEach(function(x){
         var o=old[x.id];if(!o||x.state.done||!x.main)return;
         var lbl=x.title+' · ';
-        if(o.l!==x.main.label&&(x.conf>=0.62||o.c>=0.62))pushAlert('sport',x.id,lbl+'Pronostic modifié : '+x.main.label+' ('+E.pct(x.conf)+')');
-        else if(Math.abs(o.c-x.conf)>=0.05)pushAlert('sport',x.id,lbl+x.main.label+' passe de '+E.pct(o.c)+' à '+E.pct(x.conf));
+        var npk=x.pick?x.pick.label:null;
+        if(npk&&!o.pk)pushAlert('sport',x.id,lbl+'Nouveau pronostic à plus de 70 % : '+npk+' ('+E.pct(x.pick.p)+', cote mini '+x.pick.minOdds.toFixed(2).replace('.',',')+')');
+        else if(!npk&&o.pk)pushAlert('sport',x.id,lbl+'Le pronostic « '+o.pk+' » repasse sous 70 % : ne plus jouer.');
+        else if(npk&&o.pk&&npk!==o.pk)pushAlert('sport',x.id,lbl+'Pronostic modifié : '+npk+' ('+E.pct(x.pick.p)+')');
         if(!o.lu&&x.enr&&x.enr.lineups)pushAlert('sport',x.id,lbl+'Compositions officielles publiées.');
         var inj=x.enr&&x.enr.abs?x.enr.abs[0].out+x.enr.abs[1].out:null;
         if(o.inj!=null&&inj!=null&&inj>o.inj)pushAlert('sport',x.id,lbl+'Nouvelle absence signalée.');
@@ -525,7 +543,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
       (x.nodata?'<div class="prono"><span class="mute">Pas de pronostic : données insuffisantes'+res+'</span><span class="badge NA">'+SLVL.NA+'</span></div>':
       (x.lv?'<div class="prono"><span>'+esc(x.lv.label)+trend+'</span><span class="row" style="gap:6px"><span class="badge '+x.lv.level+'">'+SLVL[x.lv.level]+'</span><span class="conf">'+pL(x.lv.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.lv.p*100)+'%"></i></div><div class="mute">Pronostic en direct, recalculé avec le score.'+(x.lv.switched?' Pronostic d\'avant-match dépassé : '+esc(x.main.label)+' ('+E.pct(x.conf)+').':' Avant-match : '+E.pct(x.conf)+'.')+'</div>'
-      :'<div class="prono"><span>'+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div>'))+tv+'</div>';
+      :x.pick?'<div class="prono"><span>'+esc(x.pick.label)+(x.pickWon===true?' <span class="ok">✓ gagné</span>':x.pickWon===false?' <span class="ko">✗ perdu</span>':'')+'</span><span class="row" style="gap:6px"><span class="badge '+(x.pick.p>=0.8?'SEC':'FORT')+'">'+(x.pick.p>=0.8?'SEC':'SOLIDE')+'</span><span class="conf">'+E.pct(x.pick.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.pick.p*100)+'%"></i></div><div class="mute">Cote minimale pour jouer : <b>'+x.pick.minOdds.toFixed(2).replace('.',',')+'</b>. En dessous, le pari perd de l\'argent sur la durée. Match : '+esc(x.main.label)+' '+E.pct(x.conf)+'.</div>'
+      :'<div class="prono"><span class="mute">Pas de pari : aucune formule à 70 %. '+(x.picks&&x.picks[0]?'Meilleure : '+esc(x.picks[0].label)+' '+E.pct(x.picks[0].p)+'.':esc(x.main.label)+' '+E.pct(x.conf)+'.')+'</span><span class="badge NA">SOUS 70 %</span></div>'))+tv+'</div>';
   },
   view:function(){
     if(SP.err&&!SP.data)return '<div class="card err"><div class="ttl">Connexion aux données sport impossible</div><p>'+esc(SP.err)+'</p><button class="primary" id="retry">Réessayer</button></div>';
@@ -536,13 +555,13 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       h+='<p class="mute" style="margin:2px 0 6px">'+(SP.sharpOn?'Cotes de référence (Pinnacle et marchés précis) : '+nSh+' match'+(nSh>1?'s':'')+' sur '+nUp+' à venir. Elles pèsent 80 à 90 % du pronostic quand elles existent.':'Cotes de référence Pinnacle non activées : le pronostic s\'appuie sur les cotes ESPN et le modèle. Activation : clé The Odds API dans les secrets du dépôt (ODDS_API_KEY).')+'</p>';
       var lv=all.filter(function(x){return x.state.state==='in'});
       if(lv.length){h+='<h2>🔴 En direct ('+lv.length+')</h2>';lv.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))})}
-      var up=all.filter(function(x){return !x.state.done&&x.state.state!=='in'}).sort(function(a,b){return b.conf-a.conf});
-      var top=up.filter(function(x){return x.conf>=0.70}),rest=up.filter(function(x){return x.conf<0.70});
-      h+='<h2>'+top.length+' pronostic'+(top.length>1?'s':'')+' à 70 % et plus</h2>';
-      if(!top.length)h+='<div class="card">Aucun match à venir ne dépasse 70 % pour ce filtre.</div>';
+      var up=all.filter(function(x){return !x.state.done&&x.state.state!=='in'&&!x.nodata});
+      var top=up.filter(function(x){return x.pick}).sort(function(a,b){return b.pick.p-a.pick.p}),rest=up.filter(function(x){return !x.pick});
+      h+='<h2>'+top.length+' pronostic'+(top.length>1?'s':'')+' à plus de 70 %</h2>';
+      if(!top.length)h+='<div class="card">Aucun match à venir n\'a de formule au-dessus de 70 %. L\'appli attend les cotes, les compositions et les absences : elle se met à jour toute seule.</div>';
       top.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))});
-      if(rest.length){h+='<h2>Tous les autres pronostics ('+rest.length+')</h2>';rest.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))})}
-      return h+'<p class="mute">Le pourcentage est la probabilité estimée du pronostic. Un 75 % perd encore une fois sur quatre : vérifie la cote proposée avant de jouer.</p>';
+      if(rest.length){h+='<h2>Sous 70 % : pas de pari ('+rest.length+')</h2>';rest.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))})}
+      return h+'<p class="mute">Pour chaque match, l\'appli teste toutes les formules (victoire, handicaps, buts, double chance, sets) et retient la plus payante dont la probabilité dépasse 72 % (75 % en NBA et NFL). Mesuré sur environ 70 jours de matchs passés : 77 % annoncé pour 77 % réel en football, 75 % pour 75 % en NBA. Un 75 % perd encore une fois sur quatre : joue seulement à la cote minimale indiquée ou au-dessus. WNBA, MLB et rugby : pas assez de recul, aucune formule publiée.</p>';
     }
     if(SP.tab==='list'){
       if(!all.length)return h+'<div class="card">Aucun match pour ce filtre aujourd\'hui.</div>';

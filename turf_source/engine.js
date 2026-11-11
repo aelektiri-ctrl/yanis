@@ -385,6 +385,32 @@
     if (!jeux.some(function (j) { return j.main; }) && jeux.length) { var pref = jeux.filter(function (j) { return j.type === 'TRIO'; })[0] || jeux.filter(function (j) { return j.type === 'MULTI'; })[0] || jeux[0]; pref.main = true; }
     var main = jeux.filter(function (j) { return j.main; })[0] || null;
 
+    // recherche de formule : la moins chère (en combinaisons) dont la probabilité dépasse 72 % (seuil interne pour afficher « plus de 70 % »)
+    var PT = 0.72, KMAX = 8, bestC = null, avail = function (t) { return !!(dispo[t] || dispo['E_' + t]); };
+    var cands = [];
+    function consider(c) { cands.push({ l: c.j ? c.j.label : c.make()[1], cost: c.cost, p: c.p }); if (c.p >= PT && c.cost <= KMAX && (!bestC || c.cost < bestC.cost || (c.cost === bestC.cost && c.p > bestC.p))) bestC = c; }
+    var spJ0 = jeux.filter(function (j) { return j.type === 'SIMPLE_PLACE'; })[0];
+    if (spJ0) consider({ cost: 1, p: spJ0.p, j: spJ0 });
+    if (n >= 6 && avail('DEUX_SUR_QUATRE')) for (var kk = 1; kk <= Math.min(KMAX, others4.length); kk++) (function (kk) {
+      var sk = others4.slice(0, kk);
+      consider({ cost: kk, p: freq(orders, function (o) { return inTop(o, A, 4) && countIn(o, sk, 4) >= 1; }), make: function () { return ['DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + kk, 'Base ' + N(A) + ' / avec ' + nums(sk), kk, freq(orders, function (o) { return inTop(o, A, 4) && countIn(o, sk, 4) >= 1; }), function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && sk.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, true, sk.map(function (x) { return [N(A), N(x)]; }), null]; } });
+    })(kk);
+    if (n >= 5 && avail('TRIO')) for (var kt = 1; kt <= Math.min(KMAX, others3.length); kt++) (function (kt) {
+      var st = others3.slice(0, kt);
+      consider({ cost: kt, p: pChamp(B2, st, 3, 1), make: function () { return ['TRIO', 'Trio champ réduit — 2 bases + ' + kt, 'Bases ' + nums(B2) + ' / avec ' + nums(st), kt, pChamp(B2, st, 3, 1), hitChamp(B2, st, 3, 1), true, champ(B2, st, 3), null]; } });
+    })(kt);
+    if (n >= 8 && MM) for (var km = 3; km <= 5 && km <= others4.length; km++) (function (km) {
+      var sm = others4.slice(0, km), cm = comb(km, 2);
+      consider({ cost: cm, p: pChamp(B2, sm, 4, 2), make: function () { return [MM, (MM === 'MULTI' ? 'Multi' : 'Mini multi') + ' en 4 champ réduit — 2 bases + ' + km, 'Bases ' + nums(B2) + ' / avec ' + nums(sm), cm, pChamp(B2, sm, 4, 2), hitChamp(B2, sm, 4, 2), true, champ(B2, sm, 4), /en 4/i]; } });
+    })(km);
+    res.cands = cands; res.pick = null;
+    if (bestC) {
+      jeux.forEach(function (j) { j.main = false; });
+      var pj = bestC.j;
+      if (!pj) { var mk0 = bestC.make(); add.apply(null, mk0); pj = jeux[jeux.length - 1]; }
+      pj.main = true; pj.pick70 = true; main = pj; res.pick = pj;
+    }
+
     // explication du format
     var why = [];
     var hA = H[A], hB = H[B];
@@ -400,7 +426,8 @@
     if (nbIned >= 2) why.push(nbIned + ' chevaux sans référence : fiabilité réduite.');
     if (res.perfN) why.push('Historique course par course intégré pour ' + res.perfN + ' chevaux (réduction kilométrique, niveau des courses, fraîcheur, hippodrome, distance).');
 
-    if (main && main.type === 'SIMPLE_PLACE') why.unshift('Jeu principal : simple placé sur le n°' + hA.num + ' ' + hA.nom + ' (placé ' + pct(main.p) + ' du temps). C\'est le format qui perd le moins sur 5 680 courses réelles testées (−4,6 %, contre −38 % pour un 2 sur 4 et −30 % pour un trio). Aucun pari PMU n\'est rentable en moyenne : le prélèvement est de 15 à 30 %. Les champs réduits (2 sur 4, trio, multi) restent proposés plus bas, à petite mise.');
+    if (res.pick) why.unshift('Formule retenue : ' + main.label + (main.type === 'SIMPLE_PLACE' ? ' sur le n°' + hA.num + ' ' + hA.nom : '') + ' — ' + pct(main.p) + ' de chances de passer, pour ' + main.combos + ' combinaison' + (main.combos > 1 ? 's' : '') + ' (' + String(main.cout).replace('.', ',') + ' €). Parmi toutes les formules testées sur cette course (simple placé, 2 sur 4, trio, multi, jusqu\'à ' + KMAX + ' combinaisons), c\'est la moins chère qui dépasse 70 %. Attention : plus on joue de combinaisons, plus il faut un gros rapport pour gagner de l\'argent. Ici il faut un retour supérieur à ' + (main.cout / main.p).toFixed(2).replace('.', ',') + ' € pour ' + String(main.cout).replace('.', ',') + ' € misés, soit ' + (1 / main.p).toFixed(2).replace('.', ',') + ' fois la mise ; sur 5 680 courses testées, aucun format PMU n\'a rapporté en moyenne.');
+    else if (main) why.unshift('Aucune formule à ' + KMAX + ' combinaisons ou moins ne dépasse 70 % sur cette course (meilleure : ' + pct(Math.max.apply(null, jeux.map(function (j) { return j.combos <= KMAX ? j.p : 0; }))) + '). Pas de pari conseillé : course à attendre (cotes, partants) ou à laisser passer.');
     var conf = main ? main.p : 0;
     var potentiel = conf * (1 + Math.max(0, (hA.ev || 1) - 1)) * (level === 'SEC' ? 1.15 : level === 'FORT' ? 1.05 : 0.9) * (nbIned >= 2 ? 0.8 : 1) * (res.market ? 1 : 0.85);
 
@@ -435,8 +462,9 @@
     res.loup = loup ? H[L] : null;
     var loupIn = loup && main && main.list && main.list.some(function (c) { return c.indexOf(H[L].num) >= 0; });
     res.loupMode = loup ? (M3 ? '3 bases + 5' : loupIn ? 'ajouté au ' + main.label.split(' —')[0].toLowerCase() : 'ajouté au trio champ réduit') : null;
-    res.avoid = !!main && (main.type === 'SIMPLE_PLACE' ? (!!res.market && conf < 0.45) : conf < 0.25);   // sans cotes ouvertes, l'analyse est provisoire : on n'écarte pas la course
-    if (res.avoid) why.unshift(main.type === 'SIMPLE_PLACE' ? 'Course très ouverte : même le n°' + hA.num + ' ne finit placé que ' + pct(conf) + ' du temps. À éviter, ou mise minimale.' : 'Course très ouverte : aucun jeu proposé ne passe plus de 25 % du temps. À éviter, ou mise minimale.');
+    res.avoid = !!main && !res.pick && !!res.market && conf < 0.45;   // sans cotes ouvertes, l'analyse est provisoire : on n'écarte pas la course
+    res.sous70 = !res.pick;
+    if (res.avoid) why.unshift('Course très ouverte : même le n°' + hA.num + ' ne finit placé que ' + pct(conf) + ' du temps. À éviter.');
     res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch && watch.sc >= 1.08 && watch.pPlace - watch.pBase >= 0.03 ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;

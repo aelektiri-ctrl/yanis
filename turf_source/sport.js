@@ -713,9 +713,10 @@
       { k: 'BTTS', label: 'Les deux équipes marquent', p: btts, ok: function (h, a) { return h > 0 && a > 0; } },
       { k: 'NBTTS', label: 'Au moins une équipe ne marque pas', p: 1 - btts, ok: function (h, a) { return h === 0 || a === 0; } }
     ];
-    mk.slice(4).forEach(function (m) { m.p = 0.5 + 0.9 * (m.p - 0.5); });
+    // mesuré sur ~2 300 matchs : « plus de 1,5 but » est fiable (82 % annoncé, 80 % réel) ; « moins de 2,5 », « les deux marquent » et « une équipe ne marque pas » ne le sont pas (75 % annoncé, 45 à 59 % réel) : ramenés vers 50 % et plafonnés
+    mk.forEach(function (m, i) { if (i === 4) m.p = 0.5 + 0.9 * (m.p - 0.5); else if (i > 4) m.p = Math.min(0.62, 0.5 + 0.5 * (m.p - 0.5)); });
     var win = fin[0] >= fin[2] ? mk[0] : mk[1], dc = fin[0] >= fin[2] ? mk[2] : mk[3], main;
-    if (win.p >= 0.62) main = win; else if (dc.p >= 0.74 || !x._rated) main = dc; else main = mk.slice(4).sort(function (u, v) { return v.p - u.p; })[0];
+    if (win.p >= 0.62) main = win; else if (dc.p >= 0.74 || !x._rated) main = dc; else main = mk[4];
     var level = main.p >= 0.75 ? 'SEC' : main.p >= 0.62 ? 'FORT' : 'DOUTE';
     var safe = mk.filter(function (m) { return m !== main; }).sort(function (u, v) { return v.p - u.p; })[0];
     var value = null;
@@ -725,12 +726,60 @@
     else if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
     else why.push('Pas de cote disponible : estimation sur les statistiques uniquement.');
     // buts attendus recalés pour que la simulation colle à la probabilité finale (modèle + cotes)
-    var tot = lh + la, lo = -2, hi = 2;
-    for (var it = 0; it < 30; it++) { var md = (lo + hi) / 2, f = Math.exp(md), q = soccerProbs(lh * f, la / f).p; if (q[0] - q[2] < fin[0] - fin[2]) lo = md; else hi = md; }
-    var ff = Math.exp((lo + hi) / 2); x.lam = [lh * ff, la / ff];
+    // le total de buts attendu reste celui du modèle (validé sur ~2 300 matchs) ; seule la répartition entre les deux équipes est recalée sur la probabilité finale
+    var tot = lh + la, lo = 0.02, hi = 0.98;
+    for (var it = 0; it < 40; it++) { var sM = (lo + hi) / 2, q = soccerProbs(tot * sM, tot * (1 - sM)).p; if (q[0] - q[2] < fin[0] - fin[2]) lo = sM; else hi = sM; }
+    var sF = (lo + hi) / 2; x.lam = [tot * sF, tot * (1 - sF)];
     x.probs = { '1': fin[0], 'X': fin[1], '2': fin[2] }; x.markets = mk; x.main = main; x.safe = safe; x.value = value; x.level = level; x.why = why; x.conf = main.p;
     x.won = (x.score && x.score[0] != null) ? main.ok(x.score[0], x.score[1]) : undefined;
+    footPicks(x, hn, an, fin);
     return x;
+  }
+
+
+  // ---------- formule retenue : parmi toutes les formules d'un match, la plus payante dont la probabilité dépasse le seuil ----------
+  // seuils internes (marge de sécurité par rapport aux 70 % affichés), mesurés sur ~70 jours de matchs passés prédits à l'aveugle :
+  // foot 72 % -> 76,7 % réel ; NBA 75 % -> 75,0 % ; NFL 75 % -> 73,6 % ; NHL 74 % -> ~72 %. WNBA, MLB, rugby : pas assez fiables, aucune formule publiée.
+  var PICK_T = { foot: 0.72, nba: 0.75, nfl: 0.75, nhl: 0.74, tennis: 0.72, mma: 0.72 };
+  function setPicks(x, list) {
+    var T = PICK_T[x.sport];
+    x.pick = null; x.picks = list.slice().sort(function (a, b) { return b.p - a.p; }); x.pickT = T || null;
+    if (!T) return;
+    var c = list.filter(function (q) { return q.p >= T; }).sort(function (a, b) { return a.p - b.p; })[0];
+    if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; }
+    x.pickWon = undefined;
+    if (c && x.state && x.state.done && c.ok) {
+      if (c.fin) x.pickWon = c.fin(x);
+      else if (x.score && x.score[0] != null) x.pickWon = c.ok(x.score[0], x.score[1]);
+    }
+  }
+  function footPicks(x, hn, an, fin) {
+    var lam = x.lam; if (!lam) return;
+    var M = soccerProbs(lam[0], lam[1]).M, fav = fin[0] >= fin[2] ? 0 : 1, fv = fav === 0 ? hn : an, ot = fav === 0 ? an : hn;
+    var FM = function (i, j) { return fav === 0 ? i - j : j - i; };
+    var pr = function (fn) { return M.reduce(function (s, m) { return s + (fn(m[0], m[1]) ? m[2] : 0); }, 0); };
+    var L = [
+      { k: 'O15', label: 'Plus de 1,5 but dans le match', p: pr(function (i, j) { return i + j >= 2; }), ok: function (h, a) { return h + a >= 2; } },
+      { k: 'U45', label: 'Moins de 4,5 buts dans le match', p: pr(function (i, j) { return i + j <= 4; }), ok: function (h, a) { return h + a <= 4; } },
+      { k: 'FSC', label: fv + ' marque au moins un but', p: pr(function (i, j) { return (fav === 0 ? i : j) >= 1; }), ok: function (h, a) { return (fav === 0 ? h : a) >= 1; } },
+      { k: 'OT15', label: ot + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) <= 1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) <= 1; } },
+      { k: 'FV15', label: fv + ' +1,5 (ne perd pas par 2 buts d\'écart ou plus)', p: pr(function (i, j) { return FM(i, j) >= -1; }), ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= -1; } },
+      { k: 'FDC', label: fv + ' ou match nul', p: fin[fav] + fin[1], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 0; } },
+      { k: 'FW', label: 'Victoire ' + fv, p: fin[fav], ok: function (h, a) { return (fav === 0 ? h - a : a - h) >= 1; } }
+    ];
+    setPicks(x, L);
+  }
+  function usPicks(x, hn, an, p) {
+    if (!PICK_T[x.sport] || x.mu == null) return;
+    var fav = p >= 0.5, fv = fav ? hn : an, ot = fav ? an : hn, mf = Math.abs(x.mu), sd = x.sdm || 12;
+    var unit = x.sport === 'nhl' ? 'but' : 'point', lines = x.sport === 'nhl' ? [0.5, 1.5] : [0.5, 2.5, 4.5, 6.5, 8.5, 10.5, 12.5, 14.5];
+    var L = [], fm = function (h, a) { return fav ? h - a : a - h; };
+    lines.forEach(function (l) {
+      var n = Math.floor(l);
+      L.push({ k: 'F' + l, label: l === 0.5 ? 'Victoire ' + fv : fv + ' gagne avec plus de ' + n + ' ' + unit + (n > 1 ? 's' : '') + ' d\'écart', p: Phi((mf - l) / sd), ok: function (h, a) { return fm(h, a) > l; } });
+      if (l > 0.5) L.push({ k: 'O' + l, label: ot + ' +' + l.toString().replace('.', ',') + ' (ne perd pas de ' + (n + 1) + ' ' + unit + 's d\'écart ou plus)', p: Phi((l - mf) / sd), ok: function (h, a) { return fm(h, a) < l; } });
+    });
+    setPicks(x, L);
   }
 
   // ---------- NBA / NFL / NHL ----------
@@ -798,6 +847,7 @@
     x.level = level; x.why = why; x.conf = pf; x.value = dec && pf * dec >= 1.06 ? x.main : null; x.ou = od ? od.ou : null;
     x.pHome = p; x.odNow = od;
     x.won = (x.score && x.score[0] != null) ? (fav ? x.score[0] > x.score[1] : x.score[1] > x.score[0]) : undefined;
+    usPicks(x, hn, an, p);
     return x;
   }
 
@@ -927,6 +977,14 @@
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
     res.sharp = SHT ? SHT.label : null;
     if (nodata) { res.won = undefined; res.nodata = true; res.main = { label: 'Pas de pronostic', p: 0 }; res.conf = 0; return res; }
+    if (res.state.state !== 'in') {
+      var fvn = fa ? na : nb, boT = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3, LT = [{ k: 'W', label: 'Victoire ' + fvn, p: pf, fin: function () { return res.won; } }];
+      if (boT === 3 && (pM != null || pModel != null)) {
+        var sF = setProb(pf, 3), pS1 = 1 - Math.pow(1 - sF, 2) - 0.03;   // sets supposés indépendants : décote de 3 points (les sets d'un même match se ressemblent)
+        LT.push({ k: 'S1', label: fvn + ' gagne au moins un set', p: pS1, fin: function () { var w = 0; (sets[0] || []).forEach(function (v, i) { var o = sets[1][i] != null ? sets[1][i] : 0; if (fa ? v > o : o > v) w++; }); return w >= 1; } });
+      }
+      setPicks(res, LT);
+    }
     res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
     for (var k = 0; k < nS; k++) { var va = sets[0][k] || 0, vb = sets[1][k] || 0; if (va > vb) sw[0]++; else if (vb > va) sw[1]++; }
@@ -958,6 +1016,7 @@
       state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
     res.sharp = SHM ? SHM.label : null;
+    if (pM != null && st.state !== 'in') setPicks(res, [{ k: 'W', label: 'Victoire ' + (fa ? na : nb), p: pf, fin: function () { return res.won; } }]);
     return res;
   }
 
