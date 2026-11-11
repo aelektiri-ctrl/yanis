@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 11/11/2026 a 16:26.
+Mis a jour le 11/11/2026 a 16:41.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 11/11/2026 a 16:26.
 | Reunions | 7154 |
 | Courses | 50050 |
 | Partants | 592260 |
-| Rapports | 746530 |
-| Partants avec cote finale | 513243 |
-| Partants avec place a l'arrivee | 485531 |
+| Rapports | 746589 |
+| Partants avec cote finale | 513255 |
+| Partants avec place a l'arrivee | 485560 |
 
 ## Courses par discipline
 
@@ -31,7 +31,7 @@ Mis a jour le 11/11/2026 a 16:26.
 | E. RAFFIN | 5008 | 956 | 19.1 | 43.2 |
 | B. ROCHARD | 5188 | 768 | 14.8 | 38.4 |
 | M. MOTTIER | 3894 | 621 | 15.9 | 35.9 |
-| M. GUYON | 3733 | 604 | 16.2 | 41.4 |
+| M. GUYON | 3734 | 604 | 16.2 | 41.4 |
 | M. BARZALONA | 2891 | 567 | 19.6 | 49.3 |
 | Y. LEBOURGEOIS | 3135 | 539 | 17.2 | 35.9 |
 | C. DEMURO | 3804 | 524 | 13.8 | 37.5 |
@@ -42,4 +42,4 @@ Mis a jour le 11/11/2026 a 16:26.
 | P. PH. PLOQUIN | 3798 | 388 | 10.2 | 30.3 |
 | TH. BRIAND | 2204 | 353 | 16.0 | 39.8 |
 | A. POUCHIN | 2764 | 346 | 12.5 | 34.7 |
-| A. ORANI | 2085 | 338 | 16.2 | 39.9 |
+| A. ORANI | 2086 | 338 | 16.2 | 39.8 |
