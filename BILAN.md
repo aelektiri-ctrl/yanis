@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 11/11/2026 a 17:58.
+Mis a jour le 11/11/2026 a 18:13.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 11/11/2026 a 17:58.
 | Reunions | 7441 |
 | Courses | 52029 |
 | Partants | 615503 |
-| Rapports | 773642 |
+| Rapports | 773660 |
 | Partants avec cote finale | 532434 |
-| Partants avec place a l'arrivee | 504620 |
+| Partants avec place a l'arrivee | 504630 |
 
 ## Courses par discipline
 
@@ -41,5 +41,5 @@ Mis a jour le 11/11/2026 a 17:58.
 | D. THOMAIN | 3486 | 424 | 12.2 | 32.7 |
 | P. PH. PLOQUIN | 3910 | 394 | 10.1 | 30.2 |
 | A. POUCHIN | 2858 | 358 | 12.5 | 34.7 |
-| TH. BRIAND | 2244 | 357 | 15.9 | 39.5 |
+| TH. BRIAND | 2245 | 357 | 15.9 | 39.5 |
 | P. Y. VERVA | 3519 | 347 | 9.9 | 30.1 |
