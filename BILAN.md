@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 11/11/2026 a 15:10.
+Mis a jour le 11/11/2026 a 15:25.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 11/11/2026 a 15:10.
 | Reunions | 7023 |
 | Courses | 49118 |
 | Partants | 581007 |
-| Rapports | 733503 |
-| Partants avec cote finale | 503862 |
-| Partants avec place a l'arrivee | 476044 |
+| Rapports | 733566 |
+| Partants avec cote finale | 503881 |
+| Partants avec place a l'arrivee | 476089 |
 
 ## Courses par discipline
 
@@ -35,11 +35,11 @@ Mis a jour le 11/11/2026 a 15:10.
 | M. BARZALONA | 2845 | 564 | 19.8 | 49.6 |
 | Y. LEBOURGEOIS | 3082 | 528 | 17.1 | 35.8 |
 | C. DEMURO | 3751 | 518 | 13.8 | 37.5 |
-| A. ABRIVARD | 3019 | 503 | 16.7 | 38.2 |
+| A. ABRIVARD | 3020 | 503 | 16.7 | 38.1 |
 | M. ABRIVARD | 3591 | 441 | 12.3 | 33.9 |
 | D. THOMAIN | 3317 | 408 | 12.3 | 32.9 |
 | D. BEKAERT | 2553 | 402 | 15.7 | 41.4 |
-| P. PH. PLOQUIN | 3742 | 385 | 10.3 | 30.4 |
+| P. PH. PLOQUIN | 3743 | 385 | 10.3 | 30.4 |
 | TH. BRIAND | 2183 | 347 | 15.9 | 39.7 |
 | A. POUCHIN | 2712 | 342 | 12.6 | 34.8 |
 | A. ORANI | 2049 | 330 | 16.1 | 40.0 |
