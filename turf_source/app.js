@@ -64,6 +64,7 @@ var route=0;try{route=+localStorage.getItem('turf.route2')||0}catch(e){}
 var QD=new URLSearchParams(location.search).get('date');
 var S={perf:{},alerts:[],date:QD?new Date(QD+'T12:00:00'):new Date(),prog:null,an:{},tab:'sel',open:null,loading:false,last:null,err:null};
 var $=function(id){return document.getElementById(id)};
+function pL(p){return p>=0.995?'> 99 %':p<=0.005?'< 1 %':E.pct(p)}
 var EMO=/(?:[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{1F900}-\u{1F9FF}]|[\u2600-\u26FF\u2B50\u2B06]|[\u2700-\u2712\u2714-\u2716\u2718-\u27BF])\uFE0F?\u200D?\s?/gu;
 function clean(h){return String(h).replace(EMO,'')}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -229,13 +230,13 @@ function rLabel(r){
 }
 function fmtR(x){return x==null?'—':Number(x).toFixed(2).replace('.',',')+' €'}
 function rapportsTable(c){
-  var R=c.rapports||[];if(!R.length)return c.arriveeTxt?'<h2>Rapports officiels PMU</h2><div class="card mute">Rapports pas encore publiés par le PMU. Ils apparaissent ici dès leur publication (mise à jour toutes les 15 minutes).</div>':'';
+  var R=(c.rapports||[]).filter(function(r){return r.rapport>0});if(!R.length)return c.arriveeTxt?'<h2>Rapports officiels PMU</h2><div class="card mute">Rapports pas encore publiés par le PMU. Ils apparaissent ici dès leur publication (mise à jour toutes les 15 minutes).</div>':'';
   var rs=R.slice().sort(function(a,b){return (RORDER.indexOf(a.pari)+1||99)-(RORDER.indexOf(b.pari)+1||99)||String(a.libelle).localeCompare(String(b.libelle))});
   var h='<h2>Rapports officiels PMU — pour 1 € joué</h2><div class="card rtab"><div class="rh"><span>Pari</span><span>Combinaison</span><span>Pour 1 €</span></div>';
   rs.forEach(function(r){h+='<div class="rr"><span>'+esc(rLabel(r))+'</span><span class="mono">'+esc(String(r.combinaison))+'</span><b>'+fmtR(r.rapport)+'</b></div>'});
   return h+'</div>';
 }
-function rapportsMini(c){var R=c.rapports||[];if(!R.length)return '';var pick=function(t,re){var x=R.filter(function(r){return r.pari===t&&(!re||re.test(r.libelle||''))})[0];return x?x.rapport:null};
+function rapportsMini(c){var R=c.rapports||[];if(!R.length)return '';var pick=function(t,re){var x=R.filter(function(r){return r.pari===t&&(!re||re.test(r.libelle||''))})[0];return x&&x.rapport>0?x.rapport:null};
   var o=[['Gagnant',pick('SIMPLE_GAGNANT')],['Couplé G.',pick('COUPLE_GAGNANT')],['2 sur 4',pick('DEUX_SUR_QUATRE')],['Trio',pick('TRIO')],['Multi en 4',pick('MULTI',/en 4/i)],['Mini multi en 4',pick('MINI_MULTI',/en 4/i)],['Quinté+ désordre',pick('QUINTE_PLUS',/sordre/i)]].filter(function(x){return x[1]!=null});
   return o.length?'<div class="rmini"><em>Rapports pour 1 €</em>'+o.map(function(x){return '<span>'+x[0]+' <b>'+fmtR(x[1])+'</b></span>'}).join('')+'</div>':''}
 function money(a){var m=a.main;if(!m||!a.arrivee)return '';if(m.rapportOk)return m.gagne?' <span class="ok">✓ retour '+euros(m.retour)+' pour '+euros(m.cout)+'</span>':' <span class="ko">✗ −'+euros(m.cout)+'</span>';return resultTag(a)}
@@ -507,7 +508,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     else if(x.sport==='mma')mid='<b class="vs">vs</b>';
     else mid=sc&&sc[0]!=null?'<b class="sc">'+sc[0]+' - '+sc[1]+'</b>':'<b class="vs">vs</b>';
     var trend='';
-    if(isLive&&sc&&sc[0]!=null&&!x.nodata){var ok=null;if(x.main.ok)ok=x.main.ok(sc[0],sc[1]);else if(x.favHome!=null)ok=x.favHome?sc[0]>sc[1]:sc[1]>sc[0];if(ok!=null)trend=ok?' <span class="ok">· en bonne voie</span>':' <span class="ko">· menacé</span>'}
+    if(isLive&&sc&&sc[0]!=null&&!x.nodata&&!(x.lv&&x.lv.switched)){var ok=null;if(x.main.ok)ok=x.main.ok(sc[0],sc[1]);else if(x.favHome!=null)ok=x.favHome?sc[0]>sc[1]:sc[1]>sc[0];if(ok!=null)trend=ok?' <span class="ok">· en bonne voie</span>':' <span class="ko">· menacé</span>'}
     var res=x.won===true?' <span class="ok">✓ gagné</span>':x.won===false?' <span class="ko">✗ perdu</span>':trend;
     var tv=x.tv&&x.tv.length?'<div class="tv">📺 '+esc(x.tv.join(' · '))+'</div>':'';
     tv=oddsRow(x)+tv;
@@ -520,7 +521,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     return '<div class="card tap sp-'+x.sport+(isLive?' is-live':'')+'" data-s="'+i+'"><div class="row"><span class="mute">'+(ICON[x.sport]||'')+' '+esc(x.league)+'</span>'+chip+'</div>'+
       '<div class="board"><span class="tm">'+esc(x.home)+'</span>'+mid+'<span class="tm r">'+esc(x.away)+'</span></div>'+(tags?'<div style="text-align:center">'+tags+'</div>':'')+
       (x.nodata?'<div class="prono"><span class="mute">Pas de pronostic : données insuffisantes'+res+'</span><span class="badge NA">'+SLVL.NA+'</span></div>':
-      '<div class="prono"><span>'+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.liveP!=null?x.liveP:x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round((x.liveP!=null?x.liveP:x.conf)*100)+'%"></i></div>'+(x.liveP!=null?'<div class="mute">En direct · avant-match : '+E.pct(x.conf)+'</div>':''))+tv+'</div>';
+      (x.lv?'<div class="prono"><span>'+esc(x.lv.label)+trend+'</span><span class="row" style="gap:6px"><span class="badge '+x.lv.level+'">'+SLVL[x.lv.level]+'</span><span class="conf">'+pL(x.lv.p)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.lv.p*100)+'%"></i></div><div class="mute">Pronostic en direct, recalculé avec le score.'+(x.lv.switched?' Pronostic d\'avant-match dépassé : '+esc(x.main.label)+' ('+E.pct(x.conf)+').':' Avant-match : '+E.pct(x.conf)+'.')+'</div>'
+      :'<div class="prono"><span>'+esc(x.main.label)+res+'</span><span class="row" style="gap:6px"><span class="badge '+x.level+'">'+SLVL[x.level]+'</span><span class="conf">'+E.pct(x.conf)+'</span></span></div><div class="meter"><i style="width:'+Math.round(x.conf*100)+'%"></i></div>'))+tv+'</div>';
   },
   view:function(){
     if(SP.err&&!SP.data)return '<div class="card err"><div class="ttl">Connexion aux données sport impossible</div><p>'+esc(SP.err)+'</p><button class="primary" id="retry">Réessayer</button></div>';
@@ -563,6 +565,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     h+=oddsRow(x);
     h+='<div class="tv" style="margin-top:8px">'+(x.tv&&x.tv.length?'📺 Diffusion annoncée : '+esc(x.tv.join(', '))+' · ':'')+'<a href="https://www.google.com/search?q='+encodeURIComponent(x.home+' '+x.away+' diffusion tv chaîne')+'" target="_blank" rel="noopener">Où regarder ce match ?</a></div>';
     if(x.nodata)h+='<h2>Pronostic</h2><div class="card">Pas de pronostic pour ce match : données insuffisantes (voir ci-dessous).</div>';
+    else if(x.lv)h+='<h2>Pronostic en direct</h2><div class="jeu main"><div class="row"><span class="ttl">'+esc(x.lv.label)+'</span><span class="conf">'+pL(x.lv.p)+'</span></div><div class="mute">Recalculé avec le score et le temps restant ('+SP.nsim(x)+'). Avant le match : '+esc(x.main.label)+' à '+E.pct(x.conf)+(x.lv.switched?' — dépassé par le score.':'.')+'</div></div>';
     else h+='<h2>Pronostic principal</h2><div class="jeu main"><div class="row"><span class="ttl">'+esc(x.main.label)+'</span><span class="conf">'+E.pct(x.main.p)+'</span></div>'+(x.main.dec?'<div class="mute">Cote '+x.main.dec.toFixed(2).replace('.',',')+' : 1 € misé rapporte '+x.main.dec.toFixed(2).replace('.',',')+' € si gagnant · cote juste '+fair(x.main.p)+'</div>':'<div class="mute">Cote juste (minimum à exiger) : '+fair(x.main.p)+'</div>')+(x.won===true?'<div class="ok">✓ gagnant</div>':x.won===false?'<div class="ko">✗ perdu</div>':'')+'</div>';
     if(x.safe&&x.safe.p>=0.7)h+='<div class="jeu"><div class="row"><span class="ttl">Option la plus sûre : '+esc(x.safe.label)+'</span><span class="conf">'+E.pct(x.safe.p)+'</span></div></div>';
     if(x.value)h+='<div class="jeu"><div class="row"><span class="ttl">Pari value : '+esc(x.value.label)+'</span><span class="conf">'+E.pct(x.value.p)+'</span></div><div class="mute">Cote '+x.value.dec.toFixed(2).replace('.',',')+' : le marché sous-estime cette issue.</div></div>';

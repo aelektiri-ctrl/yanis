@@ -356,6 +356,7 @@
     [-step, step].forEach(function (l) { props.push({ label: x.home + ' ' + (l > 0 ? '+' : '') + l.toString().replace('.', ','), p: cover(l), kind: 'hcp' }); });
     return { n: NSIM, r: r, p: [ph, 0, 1 - ph], main: x.favHome ? ph : 1 - ph, top: top, margin: true, props: props };
   }
+  var CALUS = { nba: 0.70, nhl: 0.55, wnba: 0.8 }, CALFOOT = 0.80;
   var EXT = {};
   function nrm(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function setExtern(sp) {
@@ -397,7 +398,19 @@
     if (x.nodata) { x.sim = null; return x; }
     var S = x.sport === 'foot' ? simFoot(x) : x.sport === 'tennis' ? simTennis(x) : x.sport === 'mma' ? null : simUS(x);
     x.sim = S;
-    if (S && x.state.state === 'in') x.liveP = S.main;
+    x.lv = null;
+    if (S && x.state.state === 'in') {
+      x.lvP = S.main;
+      // Pronostic en direct : si le pari d'avant-match est passé sous 50 %, on affiche le favori ACTUEL (jamais un perdant donné « solide »)
+      var P = S.p || [], nm = [x.home, 'Match nul', x.away], lvl = function (q) { return q >= 0.75 ? 'SEC' : q >= 0.62 ? 'FORT' : 'DOUTE'; };
+      if (S.main >= 0.5) x.lv = { label: x.main.label, p: S.main, level: lvl(S.main), switched: false };
+      else {
+        var bi = 0; for (var q = 1; q < P.length; q++) if (P[q] > P[bi]) bi = q;
+        var dc = x.sport === 'foot' ? Math.max(P[0] + P[1], P[1] + P[2]) : 0;
+        if (x.sport === 'foot' && P[bi] < 0.5 && dc >= 0.62) x.lv = { label: (P[0] >= P[2] ? x.home : x.away) + ' ou nul', p: dc, level: lvl(dc), switched: true };
+        else x.lv = { label: bi === 1 ? 'Match nul' : 'Victoire ' + nm[bi], p: P[bi], level: lvl(P[bi]), switched: true };
+      }
+    }
     if (x.sport === 'foot') x.buteurs = scorerProbs(x);
     if (x.sport === 'nba' || x.sport === 'wnba') x.points = pointsProps(x);
     return x;
@@ -639,7 +652,8 @@
     SP.M.forEach(function (m) { var p = m[2], i = m[0], j = m[1]; if (i + j >= 2) o15 += p; if (i + j >= 3) o25 += p; if (i + j <= 3) u35 += p; if (i > 0 && j > 0) btts += p; });
     var top = SP.M.slice().sort(function (u, v) { return v[2] - u[2]; }).slice(0, 3);
     x.scores = top.map(function (m) { return [m[0] + '-' + m[1], m[2]]; });
-    var model = [p1, px, p2];
+    var model = [p1, px, p2].map(function (v) { return Math.pow(v, CALFOOT); });   // température mesurée (0,80) : le modèle de buts était trop confiant
+    var ms = model[0] + model[1] + model[2]; model = model.map(function (v) { return v / ms; });
     var od = E.odds || x._od, market = null;
     if (od && od.home != null && od.away != null && od.draw != null) {
       var q = [mlToP(od.home), mlToP(od.draw), mlToP(od.away)];
@@ -699,6 +713,8 @@
       z = logit(pr);
       why.push('Notes de force sur ' + R.n + ' matchs récents (écarts de score, adversaires, terrain) : écart attendu ' + (mg >= 0 ? hn + ' +' : an + ' +') + Math.abs(mg).toFixed(1).replace('.', ',') + ' pts.');
     }
+    // Calibration mesurée sur 40 jours de matchs réels prédits à l'aveugle : les notes de force sont trop confiantes en début de saison
+    z *= CALUS[lg.sport] || 1;
     var s = state(ev, comp);
     var x = { sport: lg.sport, path: lg.path, league: lg.name, id: ev.id, date: ev.date, home: hn, away: an, hid: pick(H, 'team.id'), aid: pick(A, 'team.id'),
       title: an + ' @ ' + hn, state: s, score: s.done ? [num(H.score), num(A.score)] : null, live: liveOf(s, H, A), tv: tvOf(comp), _z: z, _od: oddsOf(comp), _why0: why, _lg: lg };
@@ -846,18 +862,22 @@
     var a = cs[0], b = cs[1], ra = rankOf(a), rb = rankOf(b), na = teamName(a), nb = teamName(b);
     if (/TBD|^\?$/i.test(na + nb)) return null;
     var why = [];
-    var E = extP(tour === 'ATP' ? 'atp' : 'wta', na, nb), pModel = E ? E.p : null;
+    var E = extP(tour === 'ATP' ? 'atp' : 'wta', na, nb), pElo = E ? E.p : null;
+    // ESPN ne donne que le numéro de tête de série du tournoi (pas le classement mondial) : on ne s'en sert pas dans le calcul
+    var pModel = pElo;
     var od = oddsOf(comp), pM = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
-    var nodata = pM == null && pModel == null;
+    var sNow = state(ev, comp), noPre = pM == null && pModel == null;
+    var nodata = noPre && sNow.state !== 'in';   // en direct, le score seul suffit à simuler la fin du match
     var p = pM != null && pModel != null ? sig(0.7 * logit(pM) + 0.3 * logit(pModel)) : pM != null ? pM : pModel != null ? pModel : 0.5;
     var fa = p >= 0.5, pf = fa ? p : 1 - p;
     var level = nodata ? 'NA' : pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
-    if (E) why.push('Classement Elo calculé sur ' + E.base + ' : ' + na + ' ' + E.ea + ', ' + nb + ' ' + E.eb + ' → ' + na + ' gagne ' + pct(pModel) + '. ' + E.test);
-    if (ra || rb) why.push('Têtes de série du tournoi : ' + na + ' ' + (ra ? 'n°' + ra : 'non tête de série') + ', ' + nb + ' ' + (rb ? 'n°' + rb : 'non tête de série') + ' (information seulement, pas utilisée dans le calcul).');
+    if (E) why.push('Elo calculé sur ' + E.base + ' : ' + na + ' ' + E.ea + ', ' + nb + ' ' + E.eb + ' → ' + na + ' gagne ' + pct(pElo) + '. ' + E.test);
+    if (ra || rb) why.push('Têtes de série du tournoi : ' + na + ' ' + (ra ? 'n°' + ra : 'non tête de série') + ', ' + nb + ' ' + (rb ? 'n°' + rb : 'non tête de série') + ' (information seulement : un non-classé peut être un ancien top 10).');
     if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.');
-    else if (!nodata) why.push('Pas de cote publiée dans ce flux : estimation sur le classement Elo seul (surface et fatigue non prises en compte).');
-    if (nodata) why.push('Pas assez de matchs connus pour au moins un des deux joueurs et pas de cote : aucun pronostic plutôt qu\'un pronostic au hasard.');
+    else if (pModel != null) why.push('Pas de cote publiée dans ce flux : estimation sur le classement Elo seul (surface et fatigue non prises en compte).');
+    if (nodata) why.push('Ni classement, ni Elo, ni cote pour ces joueurs : aucun pronostic plutôt qu\'un pronostic au hasard.');
+    if (noPre && !nodata) why.push('Aucune donnée d\'avant-match sur ces joueurs : le pronostic en direct vient uniquement du score (sets et jeux) et du temps restant.');
     var s = state(ev, comp), done = s.done || a.winner === true || b.winner === true;
     var sets = [a, b].map(function (c) { return (c.linescores || []).map(function (l) { return num(l.value); }); });
     var setTxt = sets[0].length ? sets[0].map(function (v, i) { return v + '-' + (sets[1][i] != null ? sets[1][i] : 0); }).join(' ') : '';
