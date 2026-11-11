@@ -1,0 +1,38 @@
+name: Yanis - modele a l'etude
+
+on:
+  schedule:
+    - cron: "24,54 * * * *"   # deux fois par heure : les cotes arrivent au fil de la journee
+  workflow_dispatch:
+  push:
+    paths:
+      - modele_etude.py
+      - .github/workflows/etude.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: etude
+  cancel-in-progress: false
+
+jobs:
+  etude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Modele a l'etude (verification par discipline, paris valeur, journal)
+        run: |
+          pip install --quiet numpy pandas scipy scikit-learn
+          python modele_etude.py
+      - name: Publier
+        run: |
+          git config user.name "Yanis"
+          git config user.email "yanis@users.noreply.github.com"
+          git add docs/data/etude.json docs/data/etude_suivi.json
+          git diff --cached --quiet || git commit -q -m "Etude du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
+          for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
