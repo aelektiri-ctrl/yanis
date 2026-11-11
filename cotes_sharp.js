@@ -31,14 +31,19 @@ function devig(prices) {
 const PRIO = [/^tennis_/, /^basketball_nba$/, /^icehockey_nhl$/, /^mma_/, /^baseball_mlb$/, /^americanfootball_nfl$/, /^basketball_wnba$/,
   /^soccer_(epl|spain_la_liga|italy_serie_a|germany_bundesliga|france_ligue_one|uefa_champs_league|uefa_europa_league|uefa_europa_conf_league|netherlands_eredivisie|portugal_primeira_liga|efl_champ|spain_segunda_division|france_ligue_two|germany_bundesliga2|italy_serie_b|fa_cup|spain_copa_del_rey|italy_coppa_italia|germany_dfb_pokal|league_cup)/, /^soccer_/, /^rugby/];
 const KEEP = /^(soccer_|basketball_(nba|wnba)$|icehockey_nhl$|baseball_mlb$|americanfootball_nfl$|mma_|tennis_(atp|wta)_|rugby)/;
-const rank = k => { const i = PRIO.findIndex(r => r.test(k)); return i < 0 ? 99 : i; };
+// forfait gratuit (500 crédits/mois) : peu de crédits par exécution, donc on lit d'abord ce qui produit le plus de paris à 70 % (NBA, NHL, grands championnats), puis le tennis
+const PRIO_FREE = [/^basketball_nba$/, /^icehockey_nhl$/, /^soccer_(epl|spain_la_liga|italy_serie_a|germany_bundesliga|france_ligue_one|uefa_champs_league|uefa_europa_league)$/, /^tennis_/, /^mma_/, /^soccer_/, /^americanfootball_nfl$/];
+const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findIndex(r => r.test(k)); return i < 0 ? 99 : i; };
 
 (async () => {
   const now = Date.now(), H48 = now + 48 * 3600e3, PAST = now - 3 * 3600e3;
   const sp = await api('/sports');
-  const keys = sp.data.filter(s => s.active && !s.has_outrights && KEEP.test(s.key)).map(s => s.key).sort((a, b) => rank(a) - rank(b));
+  const rem0 = +sp.left, free = isFinite(rem0) && rem0 <= 1000;           // plus de 1 000 crédits restants = forfait payant
+  const forced = process.env.GITHUB_EVENT_NAME && process.env.GITHUB_EVENT_NAME !== 'schedule';   // lancement manuel : toujours exécuté
+  if (free && !forced && ![9, 15].includes(new Date().getUTCHours())) { console.log('forfait gratuit : 2 lectures par jour (10 h et 16 h, heure de Paris) ; exécution ignorée'); return; }
+  const keys = sp.data.filter(s => s.active && !s.has_outrights && KEEP.test(s.key)).map(s => s.key).sort((a, b) => rank(a, free) - rank(b, free));
   // budget adaptatif : on répartit les crédits restants sur les exécutions restantes du mois (8 par jour) ; le forfait n'est jamais dépassé
-  const dNow = new Date(), dim = new Date(dNow.getFullYear(), dNow.getMonth() + 1, 0).getDate(), runsLeft = Math.max(1, (dim - dNow.getDate() + 1) * 8);
+  const dNow = new Date(), dim = new Date(dNow.getFullYear(), dNow.getMonth() + 1, 0).getDate(), runsLeft = Math.max(1, (dim - dNow.getDate() + 1) * (free ? 2 : 8));
   const rem = +sp.left, budget = isFinite(rem) ? Math.max(0, Math.min(BUDGET, Math.floor(0.9 * rem / runsLeft))) : BUDGET;
   console.log(keys.length, 'compétitions actives ; crédits restants', sp.left, '; budget de cette exécution', budget);
   if (budget < 1) { console.log('plus de crédits à dépenser : fichier précédent conservé'); return; }

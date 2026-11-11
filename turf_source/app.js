@@ -489,7 +489,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     try{
       if(YANIS)SportEngine.setHistSource(function(k){return yFetch('hist/'+k+'.json')});
       if(YANIS&&(!SP.ext||Date.now()-SP.ext>20*60000))try{var sj=await yFetch('sports.json');SportEngine.setExtern(sj.sports);SP.ext=Date.now()}catch(e){}
-      if(YANIS&&(!SP.shT||Date.now()-SP.shT>10*60000)){try{var sh=await yFetch('sharp.json');var okSh=sh&&sh.events&&sh.events.length&&Date.now()-Date.parse(sh.maj)<8*3600e3;SportEngine.setSharp(okSh?sh.events:[]);SP.sharpOn=!!okSh}catch(e){SportEngine.setSharp([]);SP.sharpOn=false}SP.shT=Date.now()}
+      if(YANIS&&(!SP.shT||Date.now()-SP.shT>10*60000)){try{var sh=await yFetch('sharp.json');var okSh=sh&&sh.events&&sh.events.length&&Date.now()-Date.parse(sh.maj)<30*3600e3;SportEngine.setSharp(okSh?sh.events:[]);SP.sharpOn=!!okSh}catch(e){SportEngine.setSharp([]);SP.sharpOn=false}SP.shT=Date.now()}
       var res=await SportEngine.loadAll(getESPN,ymd,function(x){if(S.mode==='sport')setProg(x);SP.setSt('Matchs et historiques de saison… '+Math.round(x*100)+' %')},function(k,j){SP.diag[k]=j?(j.events||[]).length+' évts':'vide'},ST);
       SP.cal=res.cal;SP.info=res.info;
       if(!res.items.length&&res.errors.length===res.jobs)throw new Error(res.errors[0]||'aucune donnée');
