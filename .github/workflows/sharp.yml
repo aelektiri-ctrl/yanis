@@ -1,0 +1,38 @@
+name: Yanis - cotes de reference (Pinnacle et marche) pour l'appli
+
+on:
+  schedule:
+    - cron: "10 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [cotes_sharp.js]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yanis-sharp
+  cancel-in-progress: false
+
+jobs:
+  sharp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cotes de reference (ignore si le secret ODDS_API_KEY est absent)
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: node cotes_sharp.js 70
+      - name: Enregistrer
+        run: |
+          git config user.name "Yanis"
+          git config user.email "yanis@users.noreply.github.com"
+          git add docs/data/sharp.json 2>/dev/null || true
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Cotes de reference du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
+          for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done

@@ -373,6 +373,38 @@
     if (!r || r.fiable === false) return null;
     return { p: inv ? 1 - r.p_dom : r.p_dom, ea: inv ? r.elo_ext : r.elo_dom, eb: inv ? r.elo_dom : r.elo_ext, base: T.base, test: T.test };
   }
+
+  // ---------- cotes de référence (Pinnacle, exchanges, consensus) : fichier docs/data/sharp.json, rempli côté serveur ----------
+  var SHARP = [];
+  var STOP = { fc: 1, cf: 1, afc: 1, sc: 1, ac: 1, as: 1, ss: 1, ssc: 1, cd: 1, ud: 1, sd: 1, rc: 1, fk: 1, sk: 1, bk: 1, ik: 1, de: 1, la: 1, el: 1, the: 1, club: 1, calcio: 1, and: 1, sv: 1, vfb: 1, vfl: 1, tsg: 1, fsv: 1, us: 1, ca: 1, cs: 1, rcd: 1, real: 0 };
+  var ALIAS = { wolves: 'wolverhampton', spurs: 'tottenham', utd: 'united', man: 'manchester', internazionale: 'inter', 'gladbach': 'monchengladbach', sporting: 'sporting', munchen: 'munich', bayern: 'bayern' };
+  function toks(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').map(function (w) { return ALIAS[w] || w; }).filter(function (w) { return w && !STOP[w]; }); }
+  function tmatch(a, b, person) {
+    if (!a.length || !b.length) return false;
+    var inter = 0; a.forEach(function (w) { if (b.indexOf(w) >= 0) inter++; });
+    var mn = Math.min(a.length, b.length);
+    if (inter === mn && (mn >= 2 || a.concat(b).some(function (w) { return (w.length >= 4 || /\d/.test(w)) && a.indexOf(w) >= 0 && b.indexOf(w) >= 0; }))) return true;
+    // joueurs : même nom de famille et même initiale du prénom
+    if (person && a.length >= 2 && b.length >= 2 && a[a.length - 1].length >= 3 && a[a.length - 1] === b[b.length - 1] && a[0].charAt(0) === b[0].charAt(0)) return true;
+    return false;
+  }
+  function setSharp(list) {
+    SHARP = (list || []).map(function (e) { return { t: Date.parse(e.t), h: toks(e.h), a: toks(e.a), e: e }; }).filter(function (r) { return isFinite(r.t); });
+  }
+  // renvoie les probabilités sans marge du marché de référence, orientées (n1, n2), ou null
+  function sharpFor(n1, n2, date, maxH, person) {
+    if (!SHARP.length) return null;
+    var t0 = Date.parse(date), a = toks(n1), b = toks(n2); if (!isFinite(t0)) return null;
+    var best = null;
+    SHARP.forEach(function (r) {
+      var dt = Math.abs(r.t - t0); if (dt > (maxH || 8) * 3600e3) return;
+      var dir = tmatch(a, r.h, person) && tmatch(b, r.a, person), inv = !dir && tmatch(a, r.a, person) && tmatch(b, r.h, person);
+      if ((dir || inv) && (!best || dt < best.dt)) best = { dt: dt, r: r, inv: inv };
+    });
+    if (!best) return null;
+    var p = best.r.e.p, e = best.r.e;
+    return { h: best.inv ? p.a : p.h, d: p.d != null ? p.d : null, a: best.inv ? p.h : p.a, src: e.src, nb: e.nb, label: e.src === 'consensus' ? 'consensus de ' + e.nb + ' bookmakers' : e.src === 'pinnacle' ? 'Pinnacle' : e.src.replace(/_/g, ' ') };
+  }
   function setProb(p, bo) { var lo = 0.01, hi = 0.99; for (var i = 0; i < 40; i++) { var q = (lo + hi) / 2, m = bo === 5 ? q * q * q * (10 - 15 * q + 6 * q * q) : q * q * (3 - 2 * q); if (m < p) lo = q; else hi = q; } return (lo + hi) / 2; }
   // probabilité de gagner le set en cours depuis le score en jeux (i, j), jeu gagné avec la probabilité g, tie-break à 6-6
   function setFrom(g, i, j) {
@@ -659,12 +691,16 @@
       var q = [mlToP(od.home), mlToP(od.draw), mlToP(od.away)];
       if (q.every(function (v) { return v; })) { var s = q[0] + q[1] + q[2]; market = q.map(function (v) { return v / s; }); }
     }
+    var SH = sharpFor(hn, an, x.date); if (SH && SH.d == null) SH = null;
+    if (SH) market = [SH.h, SH.d, SH.a];
+    x.sharp = SH ? SH.label : null;
     if (!x._rated && !market) {
       x.nodata = true; x.lam = null; x.main = { label: 'Pas de pronostic', p: 0 }; x.conf = 0; x.level = 'NA'; x.markets = []; x.probs = null;
       x.why = ['Au moins une des deux équipes n\'a pas assez de matchs dans nos données pour cette compétition (souvent une équipe de division inférieure en coupe), et aucune cote n\'est publiée. Pas de pronostic plutôt qu\'un pronostic inventé.'];
       return x;
     }
-    var fin = market ? (x._rated ? model.map(function (v, k) { return 0.6 * market[k] + 0.4 * v; }) : market) : model;
+    var wMk = SH ? 0.88 : 0.6;
+    var fin = market ? (x._rated ? model.map(function (v, k) { return wMk * market[k] + (1 - wMk) * v; }) : market) : model;
     if (!x._rated) why.push('Pas assez de matchs pour noter au moins une des deux équipes : la probabilité vient des cotes seules.');
     var mk = [
       { k: '1', label: 'Victoire ' + hn, p: fin[0], dec: od ? mlToDec(od.home) : null, ok: function (h, a) { return h > a; } },
@@ -685,7 +721,8 @@
     var value = null;
     if (market) [0, 1].forEach(function (k) { var m = mk[k]; if (m.dec && m.p * m.dec >= 1.08 && m.p >= 0.3 && (!value || m.p * m.dec > value.p * value.dec)) value = m; });
     why.push('Buts attendus : ' + f2(lh) + ' – ' + f2(la) + ' (avantage du terrain inclus).');
-    if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
+    if (SH) why.push('Cotes de référence (' + SH.label + ', marge retirée) : ' + hn + ' ' + pct(SH.h) + ', nul ' + pct(SH.d) + ', ' + an + ' ' + pct(SH.a) + '. Marché le plus précis disponible : il pèse 88 % du pronostic.');
+    else if (market) why.push('Cotes ' + (od.provider || 'du marché') + (E.odds ? ' (mises à jour)' : '') + ' : le marché donne ' + pct(market[0]) + ' / ' + pct(market[1]) + ' / ' + pct(market[2]) + '.');
     else why.push('Pas de cote disponible : estimation sur les statistiques uniquement.');
     // buts attendus recalés pour que la simulation colle à la probabilité finale (modèle + cotes)
     var tot = lh + la, lo = -2, hi = 2;
@@ -738,13 +775,14 @@
     var od = E.odds || x._od, pMarket = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) pMarket = q1 / (q1 + q2); }
     else if (od && od.spread != null && x.sport === 'nba') pMarket = sig(-od.spread * 0.135);
-    if (pMarket != null) why.push('Marché' + (od.provider ? ' (' + od.provider + ')' : '') + (E.odds ? ', cote mise à jour' : '') + ' : ' + hn + ' ' + pct(pMarket) + (od.details ? ', ligne ' + od.details : '') + '.');
+    var SHU = sharpFor(hn, an, x.date); x.sharp = SHU ? SHU.label : null; if (SHU) { pMarket = SHU.h / (SHU.h + SHU.a); why.push('Cotes de référence (' + SHU.label + ', marge retirée) : ' + hn + ' ' + pct(pMarket) + '. Marché le plus précis disponible : il pèse 80 % du pronostic.'); }
+    else if (pMarket != null) why.push('Marché' + (od.provider ? ' (' + od.provider + ')' : '') + (E.odds ? ', cote mise à jour' : '') + ' : ' + hn + ' ' + pct(pMarket) + (od.details ? ', ligne ' + od.details : '') + '.');
     var pB = E.bpi != null ? E.bpi : null;
     if (pB != null) why.push('Prédicteur ESPN : ' + hn + ' ' + pct(pB) + '.');
     var parts = [];
-    if (pMarket != null) parts.push([0.6, pMarket]);
-    if (pB != null) parts.push([0.25, pB]);
-    parts.push([pMarket != null ? 0.15 : 0.5, pModel]);
+    if (pMarket != null) parts.push([SHU ? 0.8 : 0.6, pMarket]);
+    if (pB != null) parts.push([SHU ? 0.1 : 0.25, pB]);
+    parts.push([pMarket != null ? (SHU ? 0.1 : 0.15) : 0.5, pModel]);
     var tw = parts.reduce(function (s, p) { return s + p[0]; }, 0);
     var p = sig(parts.reduce(function (s, q) { return s + q[0] * logit(q[1]); }, 0) / tw);
     if (pMarket == null && pB == null) why.push('Pas de cote disponible : estimation sur les bilans uniquement.');
@@ -867,14 +905,17 @@
     var pModel = pElo;
     var od = oddsOf(comp), pM = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
+    var SHT = sharpFor(na, nb, comp.date || ev.date, 14, true); if (SHT) pM = SHT.h / (SHT.h + SHT.a);
     var sNow = state(ev, comp), noPre = pM == null && pModel == null;
     var nodata = noPre && sNow.state !== 'in';   // en direct, le score seul suffit à simuler la fin du match
-    var p = pM != null && pModel != null ? sig(0.7 * logit(pM) + 0.3 * logit(pModel)) : pM != null ? pM : pModel != null ? pModel : 0.5;
+    var wT = SHT ? 0.9 : 0.7;
+    var p = pM != null && pModel != null ? sig(wT * logit(pM) + (1 - wT) * logit(pModel)) : pM != null ? pM : pModel != null ? pModel : 0.5;
     var fa = p >= 0.5, pf = fa ? p : 1 - p;
     var level = nodata ? 'NA' : pf >= 0.72 ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
     if (E) why.push('Elo calculé sur ' + E.base + ' : ' + na + ' ' + E.ea + ', ' + nb + ' ' + E.eb + ' → ' + na + ' gagne ' + pct(pElo) + '. ' + E.test);
     if (ra || rb) why.push('Têtes de série du tournoi : ' + na + ' ' + (ra ? 'n°' + ra : 'non tête de série') + ', ' + nb + ' ' + (rb ? 'n°' + rb : 'non tête de série') + ' (information seulement : un non-classé peut être un ancien top 10).');
-    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.');
+    if (SHT) why.push('Cotes de référence (' + SHT.label + ', marge retirée) : ' + na + ' ' + pct(pM) + '. Marché le plus précis disponible : il pèse 90 % du pronostic.');
+    else if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.');
     else if (pModel != null) why.push('Pas de cote publiée dans ce flux : estimation sur le classement Elo seul (surface et fatigue non prises en compte).');
     if (nodata) why.push('Ni classement, ni Elo, ni cote pour ces joueurs : aucun pronostic plutôt qu\'un pronostic au hasard.');
     if (noPre && !nodata) why.push('Aucune donnée d\'avant-match sur ces joueurs : le pronostic en direct vient uniquement du score (sets et jeux) et du temps restant.');
@@ -884,6 +925,7 @@
     var res = { sport: 'tennis', league: tour + (ev.name ? ' · ' + ev.name : ''), id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : s.state, done: done, txt: s.txt }, setTxt: setTxt, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
+    res.sharp = SHT ? SHT.label : null;
     if (nodata) { res.won = undefined; res.nodata = true; res.main = { label: 'Pas de pronostic', p: 0 }; res.conf = 0; return res; }
     res.pA = p; res.favA = fa; res.odNow = od; res.homeFirst = a.homeAway !== 'away'; res.bo = tour === 'ATP' && /australian open|us open|wimbledon|roland|garros/i.test(ev.name || '') ? 5 : 3;
     var sw = [0, 0], nS = sets[0].length - (s.state === 'in' ? 1 : 0);
@@ -901,19 +943,21 @@
     var pModel = sig(0.7 * (s(ra) - s(rb)));
     var od = oddsOf(comp), pM = null;
     if (od && od.home != null && od.away != null) { var q1 = mlToP(od.home), q2 = mlToP(od.away); if (q1 && q2) { pM = q1 / (q1 + q2); if (a.homeAway === 'away') pM = 1 - pM; } }
+    var SHM = sharpFor(na, nb, comp.date || ev.date, 24, true); if (SHM) pM = SHM.h / (SHM.h + SHM.a);
     var EU = extP('ufc', na, nb);
     if (EU) pModel = sig(0.5 * logit(pModel) + 0.5 * logit(EU.p));
-    var p = pM != null ? sig(0.75 * logit(pM) + 0.25 * logit(pModel)) : pModel;
+    var p = pM != null ? sig((SHM ? 0.9 : 0.75) * logit(pM) + (SHM ? 0.1 : 0.25) * logit(pModel)) : pModel;
     var fa = p >= 0.5, pf = fa ? p : 1 - p;
     var level = pf >= 0.72 && pM != null ? 'SEC' : pf >= 0.62 ? 'FORT' : 'DOUTE';
     var why = ['Palmarès : ' + na + ' ' + (ra ? ra.s : '—') + ', ' + nb + ' ' + (rb ? rb.s : '—') + ' (V-D-N).'];
     if (EU) why.push('Classement Elo calculé sur ' + EU.base + ' : ' + na + ' ' + EU.ea + ', ' + nb + ' ' + EU.eb + ' (moitié du calcul sans cote). ' + EU.test);
-    if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès' + (EU ? ' et le classement Elo' : ' seul') + '. Styles, allonge et cut de poids absents de ce flux : jamais classé SEC sans cote.');
+    if (SHM) why.push('Cotes de référence (' + SHM.label + ', marge retirée) : ' + na + ' ' + pct(pM) + '. Marché le plus précis disponible : il pèse 90 % du pronostic.'); else if (pM != null) why.push('Marché : ' + na + ' ' + pct(pM) + '.'); else why.push('Pas de cote : estimation sur le palmarès' + (EU ? ' et le classement Elo' : ' seul') + '. Styles, allonge et cut de poids absents de ce flux : jamais classé SEC sans cote.');
     var st = state(ev, comp), done = st.done || a.winner === true || b.winner === true;
     var res0 = { od: od, p: p, homeFirst: a.homeAway !== 'away' };
     var res = { pA: res0.p, odNow: res0.od, homeFirst: res0.homeFirst, sport: 'mma', league: ev.name || 'UFC', id: comp.id || ev.id, date: comp.date || ev.date, home: na, away: nb, title: na + ' – ' + nb,
       state: { state: done ? 'post' : st.state, done: done, txt: st.txt }, tv: tvOf(comp), main: { label: 'Victoire ' + (fa ? na : nb), p: pf }, level: level, why: why, conf: pf };
     if (done && (a.winner === true || b.winner === true)) res.won = fa ? a.winner === true : b.winner === true;
+    res.sharp = SHM ? SHM.label : null;
     return res;
   }
 
@@ -989,7 +1033,7 @@
     return { items: out, errors: errors, jobs: jobs.length, cal: cal, info: info };
   }
 
-  var api = { US: US, ymdOf: ymdOf, dayN: dayN, histKey: histKey, setHistSource: setHistSource, setExtern: setExtern, buildFor: function (x) { var r = x.sport === 'foot' && x.lam ? simFoot(x, true) : null; return r && r.builder; }, teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
+  var api = { US: US, ymdOf: ymdOf, dayN: dayN, histKey: histKey, setHistSource: setHistSource, setExtern: setExtern, setSharp: setSharp, sharpFor: sharpFor, buildFor: function (x) { var r = x.sport === 'foot' && x.lam ? simFoot(x, true) : null; return r && r.builder; }, teamScorers: teamScorers, pointsProps: pointsProps, parseGames: parseGames, parseScorers: parseScorers, scorerProbs: scorerProbs, valueBets: valueBets, simulate: simulate, remaining: remaining, fitSoccer: fitSoccer, fitMargin: fitMargin, soccerProbs: soccerProbs, Phi: Phi, loadAll: loadAll, enrich: enrich, parseSummary: parseSummary, refresh: refresh, analyseFoot: analyseFoot, analyseUS: analyseUS, analyseTennis: analyseTennis, analyseMMA: analyseMMA, parseStandings: parseStandings, LEAGUES: LEAGUES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SportEngine = api;
 })(this);
 

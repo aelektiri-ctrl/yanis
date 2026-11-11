@@ -43,12 +43,13 @@ function learnCard(full){
   }
   return h+'<button id="learnBtn" style="margin-top:8px">Réentraîner maintenant</button></div>';
 }
+function seTxt(st){var h=st.reussite;if(!(h>0&&h<1&&st.paris>0))return '';var se=((1+st.roi)/h)*Math.sqrt(h*(1-h))/Math.sqrt(st.paris);var sure=st.paris>=500&&Math.abs(st.roi)>2.58*se;return '± '+String(Math.round(se*1000)/10).replace('.',',')+' pts · '+(sure?'écart établi':'non démontré (trop peu de paris)')}
 function yBancCard(full){
   var b=YD.banc;if(!b)return '';
   if(!full)return '';
   var h='<div class="card hl"><div class="ttl">🧠 Modèle Yanis : test honnête sur '+b.courses.toLocaleString('fr-FR')+' courses réelles</div><div class="mute">Mois testés : '+(b.mois_testes||[]).join(', ')+'. Le modèle n\'avait jamais vu ces courses.</div>';
   h+='<div class="mk"><span>Le n°1 du modèle gagne</span><span class="conf">'+E.pct(b.n1_yanis_gagne)+'</span></div><div class="mk"><span>Le favori du public gagne</span><span class="conf">'+E.pct(b.favori_gagne)+'</span></div>';
-  if(b.strategies){h+='<div class="ttl" style="margin-top:8px">Stratégies testées (rentabilité réelle avec les rapports PMU)</div>';Object.keys(b.strategies).forEach(function(k){var st=b.strategies[k];h+='<div class="mk"><span>'+esc(st.nom)+'<br><span class="mute">'+st.paris.toLocaleString('fr-FR')+' paris · '+E.pct(st.reussite)+' gagnants</span></span><span class="'+(st.roi>=0?'ok':'ko')+'">'+(st.roi>=0?'+':'')+String(Math.round(st.roi*1000)/10).replace('.',',')+' %</span></div>'})}
+  if(b.strategies){h+='<div class="ttl" style="margin-top:8px">Stratégies testées (rentabilité réelle avec les rapports PMU)</div>';Object.keys(b.strategies).forEach(function(k){var st=b.strategies[k];h+='<div class="mk"><span>'+esc(st.nom)+'<br><span class="mute">'+st.paris.toLocaleString('fr-FR')+' paris · '+E.pct(st.reussite)+' gagnants</span></span><span class="'+(st.roi>=0?'ok':'ko')+'">'+(st.roi>=0?'+':'')+String(Math.round(st.roi*1000)/10).replace('.',',')+' %<br><span class="mute" style="font-weight:400">'+seTxt(st)+'</span></span></div>'})}
   return h+'<p class="mute">Rentabilité = gain net pour 100 € joués. Négatif = perte sur la durée. C\'est la réalité du PMU : le prélèvement est de 15 à 30 % selon le pari.</p></div>';
 }
 var FNAME={form:'forme',disc:'forme dans la spécialité',win:'taux de victoire',place:'régularité',gps:'classe',an:'gains de l\'année',faults:'fautes',def4:'déferré 4 pieds',def2:'déferré 2 pieds',recul:'recul',poids:'poids',cordeG:'bonne corde',cordeB:'mauvaise corde',avisP:'avis entraîneur +',avisN:'avis entraîneur −',move:'mouvement de cote',inedit:'inédit',drv:'driver/jockey',trn:'entraîneur',drvChg:'changement de driver',exp:'expérience',age:'âge'};
@@ -73,7 +74,7 @@ function hhmm(ms){return new Date(ms).toLocaleTimeString('fr-FR',{hour:'2-digit'
 function key(r,c){return 'R'+r+'C'+c}
 function euros(x){return (Math.round(x*100)/100).toString().replace('.',',')+' €'}
 var SPEC={TROT_ATTELE:'Trot attelé',TROT_MONTE:'Trot monté',PLAT:'Plat',HAIE:'Haies',STEEPLECHASE:'Steeple',CROSS:'Cross'};
-var LVL={SEC:'SEC',FORT:'CHAMP RÉDUIT',DOUTE:'PRUDENT'};
+var LVL={SEC:'COURSE NETTE',FORT:'ÉQUILIBRÉE',DOUTE:'OUVERTE'};
 
 function timeout(ms){return new Promise(function(_,rej){setTimeout(function(){rej(new Error('délai dépassé'))},ms)})}
 async function getJSON(url){
@@ -237,7 +238,8 @@ function rapportsTable(c){
   return h+'</div>';
 }
 function rapportsMini(c){var R=c.rapports||[];if(!R.length)return '';var pick=function(t,re){var x=R.filter(function(r){return r.pari===t&&(!re||re.test(r.libelle||''))})[0];return x&&x.rapport>0?x.rapport:null};
-  var o=[['Gagnant',pick('SIMPLE_GAGNANT')],['Couplé G.',pick('COUPLE_GAGNANT')],['2 sur 4',pick('DEUX_SUR_QUATRE')],['Trio',pick('TRIO')],['Multi en 4',pick('MULTI',/en 4/i)],['Mini multi en 4',pick('MINI_MULTI',/en 4/i)],['Quinté+ désordre',pick('QUINTE_PLUS',/sordre/i)]].filter(function(x){return x[1]!=null});
+  var pl=R.filter(function(r){return r.pari==='SIMPLE_PLACE'&&r.rapport>0}).map(function(r){return ['Placé n°'+String(r.combinaison).replace(/\D+/g,''),r.rapport]});
+  var o=[['Gagnant',pick('SIMPLE_GAGNANT')]].concat(pl,[['Couplé G.',pick('COUPLE_GAGNANT')],['2 sur 4',pick('DEUX_SUR_QUATRE')],['Trio',pick('TRIO')],['Multi en 4',pick('MULTI',/en 4/i)],['Mini multi en 4',pick('MINI_MULTI',/en 4/i)],['Quinté+ désordre',pick('QUINTE_PLUS',/sordre/i)]]).filter(function(x){return x[1]!=null});
   return o.length?'<div class="rmini"><em>Rapports pour 1 €</em>'+o.map(function(x){return '<span>'+x[0]+' <b>'+fmtR(x[1])+'</b></span>'}).join('')+'</div>':''}
 function money(a){var m=a.main;if(!m||!a.arrivee)return '';if(m.rapportOk)return m.gagne?' <span class="ok">✓ retour '+euros(m.retour)+' pour '+euros(m.cout)+'</span>':' <span class="ko">✗ −'+euros(m.cout)+'</span>';return resultTag(a)}
 /* ===== onglet Value : la cote paie plus que le risque ===== */
@@ -298,7 +300,7 @@ function viewSel(){
   if(!S.prog)return intro();
   var lc=(!MODELS||LEARN.running)?learnCard(false):'';
   if(!top.length)return lc+'<div class="card">'+(S.loading?'Analyse en cours…':'Aucune course à venir avec des partants publiés pour cette date.')+'</div>'+finishedBlock();
-  var h=lc+'<h2>Toutes les courses à venir ('+top.length+'), classées par potentiel</h2><p class="mute" style="margin-top:-4px">SEC = course nette, jeu simple · CHAMP RÉDUIT = 2 bases solides · PRUDENT = course ouverte, 2 sur 4 · LOUP = outsider sous-estimé : 3 bases + 5 en multi, ou ajouté aux champs s\'il n\'y a pas de multi. Le pourcentage est la chance que le jeu proposé soit gagnant.</p>';
+  var h=lc+'<h2>Toutes les courses à venir ('+top.length+'), classées par potentiel</h2><p class="mute" style="margin-top:-4px">Jeu principal : simple placé sur le n°1 du modèle, le format qui perd le moins sur 5 680 courses testées. COURSE NETTE = deux chevaux dominent · ÉQUILIBRÉE = deux bases solides, 3e place ouverte · OUVERTE = favori peu sûr · LOUP = outsider sous-estimé (champs réduits et multi en complément). Le pourcentage est la chance que le jeu principal soit gagnant.</p>';
   top.forEach(function(x,i){
     var a=x.a,m=a.main,base=a.ranking[0];
     h+='<div class="card tap sp-'+(/TROT/.test(x.c.specialite)?'trot':'galop')+'" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'">'+liveStrip(x.c,a)+
@@ -471,6 +473,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     try{
       if(YANIS)SportEngine.setHistSource(function(k){return yFetch('hist/'+k+'.json')});
       if(YANIS&&(!SP.ext||Date.now()-SP.ext>20*60000))try{var sj=await yFetch('sports.json');SportEngine.setExtern(sj.sports);SP.ext=Date.now()}catch(e){}
+      if(YANIS&&(!SP.shT||Date.now()-SP.shT>10*60000)){try{var sh=await yFetch('sharp.json');var okSh=sh&&sh.events&&sh.events.length&&Date.now()-Date.parse(sh.maj)<8*3600e3;SportEngine.setSharp(okSh?sh.events:[]);SP.sharpOn=!!okSh}catch(e){SportEngine.setSharp([]);SP.sharpOn=false}SP.shT=Date.now()}
       var res=await SportEngine.loadAll(getESPN,ymd,function(x){if(S.mode==='sport')setProg(x);SP.setSt('Matchs et historiques de saison… '+Math.round(x*100)+' %')},function(k,j){SP.diag[k]=j?(j.events||[]).length+' évts':'vide'},ST);
       SP.cal=res.cal;SP.info=res.info;
       if(!res.items.length&&res.errors.length===res.jobs)throw new Error(res.errors[0]||'aucune donnée');
@@ -529,6 +532,8 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     if(!SP.data)return '<div class="card">Chargement des matchs du jour…</div>';
     var all=SP.items(),h=SP.chips();
     if(SP.tab==='top'){
+      var nSh=all.filter(function(x){return x.sharp}).length,nUp=all.filter(function(x){return !x.state.done}).length;
+      h+='<p class="mute" style="margin:2px 0 6px">'+(SP.sharpOn?'Cotes de référence (Pinnacle et marchés précis) : '+nSh+' match'+(nSh>1?'s':'')+' sur '+nUp+' à venir. Elles pèsent 80 à 90 % du pronostic quand elles existent.':'Cotes de référence Pinnacle non activées : le pronostic s\'appuie sur les cotes ESPN et le modèle. Activation : clé The Odds API dans les secrets du dépôt (ODDS_API_KEY).')+'</p>';
       var lv=all.filter(function(x){return x.state.state==='in'});
       if(lv.length){h+='<h2>🔴 En direct ('+lv.length+')</h2>';lv.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))})}
       var up=all.filter(function(x){return !x.state.done&&x.state.state!=='in'}).sort(function(a,b){return b.conf-a.conf});
