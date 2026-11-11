@@ -1,3 +1,4 @@
+// Premier lancement avec la clé enregistrée le 11/11/2026.
 // Cotes de référence (Pinnacle, exchanges, consensus des bookmakers) via The Odds API.
 // Nécessite le secret GitHub ODDS_API_KEY ; sans clé, l'étape est ignorée sans erreur.
 // Écrit docs/data/sharp.json, relu par l'appli : probabilités sans marge du marché le plus précis.
