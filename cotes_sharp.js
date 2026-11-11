@@ -6,7 +6,8 @@ const fs = require('fs');
 const KEY = process.env.ODDS_API_KEY;
 if (!KEY) { console.log('ODDS_API_KEY absent : étape ignorée'); process.exit(0); }
 const BUDGET = +process.argv[2] || 60;          // crédits maximum consommés par exécution (réduit automatiquement pour ne jamais dépasser le forfait)
-const FR = /betclic|winamax|zebet|parionssport|pmu|netbet|genybet|joa|vbet|unibet_fr|bwin_fr/i;   // bookmakers agréés en France
+const FR = /betclic|winamax|zebet|parionssport|pmu|netbet|genybet|joa|vbet|unibet|bwin/i;   // bookmakers agréés en France
+const isFR = b => FR.test(b.key + ' ' + (b.title || '')) && (/\(FR\)/i.test(b.title || '') || /_fr$/i.test(b.key));   // uniquement la version française (« Winamax (DE) » est allemand)
 const BASE = 'https://api.the-odds-api.com/v4';
 const OUT = 'docs/data/sharp.json';
 
@@ -37,7 +38,7 @@ const PRIO_FREE = [/^basketball_nba$/, /^icehockey_nhl$/, /^soccer_(epl|spain_la
 const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findIndex(r => r.test(k)); return i < 0 ? 99 : i; };
 
 (async () => {
-  const now = Date.now(), H48 = now + 48 * 3600e3, PAST = now - 3 * 3600e3;
+  const now = Date.now(), H48 = now + 48 * 3600e3;
   const sp = await api('/sports');
   const rem0 = +sp.left, free = isFinite(rem0) && rem0 <= 1000;           // plus de 1 000 crédits restants = forfait payant
   const forced = process.env.GITHUB_EVENT_NAME && process.env.GITHUB_EVENT_NAME !== 'schedule';   // lancement manuel : toujours exécuté
@@ -55,7 +56,7 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
       const { data, cost, left: l } = await api('/sports/' + k + '/odds?regions=eu&markets=h2h&oddsFormat=decimal&dateFormat=iso');
       spent += cost; left = l;
       for (const e of data) {
-        const t = Date.parse(e.commence_time); if (!(t >= PAST && t <= H48)) continue;
+        const t = Date.parse(e.commence_time); if (!(t > now && t <= H48)) continue;   // avant-match uniquement : les cotes en direct ne sont pas une probabilité d'avant-match
         const per = [], fr = {};
         for (const b of e.bookmakers || []) {
           const m = (b.markets || []).find(x => x.key === 'h2h'); if (!m) continue;
@@ -65,7 +66,7 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
           const arr = pd ? [ph, pd, pa] : [ph, pa], d = devig(arr);
           if (!d) continue;
           per.push({ b: b.key, p: pd ? { h: d[0], d: d[1], a: d[2] } : { h: d[0], a: d[1] } });
-          if (FR.test(b.key)) { [['h', ph], ['d', pd], ['a', pa]].forEach(([f, v]) => { if (v && (!fr[f] || v > fr[f][0])) fr[f] = [v, b.title || b.key]; }); }
+          if (isFR(b)) { [['h', ph], ['d', pd], ['a', pa]].forEach(([f, v]) => { if (v && (!fr[f] || v > fr[f][0])) fr[f] = [v, b.title || b.key]; }); }
         }
         if (!per.length) continue;
         const sharp = per.find(x => x.b === 'pinnacle') || per.find(x => /betfair_ex|matchbook|smarkets/.test(x.b));
@@ -75,11 +76,22 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
           const avg = f => per.reduce((a, x) => a + (x.p[f] || 0), 0) / per.length;
           p = per[0].p.d != null ? { h: avg('h'), d: avg('d'), a: avg('a') } : { h: avg('h'), a: avg('a') }; src = 'consensus';
         } else continue;
-        events.push({ k, t: e.commence_time, h: e.home_team, a: e.away_team, p, src, nb, fr: Object.keys(fr).length ? fr : undefined });
+        const vals = Object.values(p); if (vals.some(v => !(v > 0.02 && v < 0.98))) continue;   // probabilité dégénérée : on ignore
+        events.push({ k, t: e.commence_time, h: e.home_team, a: e.away_team, p, src, nb, c: new Date(now).toISOString(), fr: Object.keys(fr).length ? fr : undefined });
       }
     } catch (err) { fail++; console.log('échec', k, err.message); if (fail >= 5) break; }
   }
   console.log(events.length, 'matchs avec cotes de référence ;', spent, 'crédits utilisés ; restants', left);
+  // on garde les cotes d'avant-match des matchs déjà commencés (6 h) et des compétitions non relues ce coup-ci : elles servent de base au pronostic en direct
+  try {
+    const prev = JSON.parse(fs.readFileSync(OUT, 'utf8')).events || [], id = e => e.k + '|' + e.h + '|' + e.a, have = new Set(events.map(id));
+    prev.forEach(e => {
+      const t = Date.parse(e.t), c = Date.parse(e.c);
+      if (!e.c || !(c < t) || have.has(id(e)) || t < now - 6 * 3600e3) return;
+      if (t > now && now - c > 30 * 3600e3) return;
+      events.push(e);
+    });
+  } catch (e) { }
   if (!events.length) { console.log('rien à écrire : fichier précédent conservé'); return; }
   fs.mkdirSync('docs/data', { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify({ maj: new Date().toISOString(), reste: left, n: events.length, events }));

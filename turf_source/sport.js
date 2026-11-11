@@ -390,7 +390,8 @@
     return false;
   }
   function setSharp(list) {
-    SHARP = (list || []).map(function (e) { return { t: Date.parse(e.t), h: toks(e.h), a: toks(e.a), e: e }; }).filter(function (r) { return isFinite(r.t); });
+    // seules les cotes relevées AVANT le coup d'envoi comptent : une cote en direct n'est pas une probabilité d'avant-match
+    SHARP = (list || []).filter(function (e) { return e.c && Date.parse(e.c) < Date.parse(e.t); }).map(function (e) { return { t: Date.parse(e.t), h: toks(e.h), a: toks(e.a), e: e }; }).filter(function (r) { return isFinite(r.t); });
   }
   // renvoie les probabilités sans marge du marché de référence, orientées (n1, n2), ou null
   function sharpFor(n1, n2, date, maxH, person) {
