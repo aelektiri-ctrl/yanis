@@ -390,6 +390,17 @@ function viewEtude(){
     h+='</div>'}
   return h;
 }
+
+/* Bilan vérifié sur le serveur : probabilité de référence d'avant-match comparée au vrai résultat */
+function spVerif(){
+  var b=SP.shB,h='<div class="card" style="margin-top:10px"><div class="ttl">Bilan vérifié (résultats réels)</div>';
+  if(!b||!b.total||!b.total.n)return h+'<div class="mute" style="margin-top:6px">Chaque probabilité d\'avant-match est enregistrée sur le serveur puis comparée au vrai résultat. Premiers chiffres dès les prochains matchs terminés'+(b&&b.en_attente?' ('+b.en_attente+' en attente)':'')+'.</div></div>';
+  var d=String(b.depuis||'').split('-').reverse().join('/'),ln=function(nom,S){return (S.n70?'<div class="mk"><span>'+nom+' · favoris à 70 % et plus</span><b class="'+(S.w70>=S.a70-0.5?'ok':'ko')+'">'+S.w70+' / '+S.n70+'</b></div>':'')+'<div class="mk"><span>'+nom+' · tous les favoris</span><b>'+S.fav+' / '+S.n+' <span class="mute" style="font-weight:400">(attendu '+String(S.att).replace('.',',')+')</span></b></div>'};
+  h+='<div class="mute" style="margin:6px 0">Depuis le '+esc(d)+' : le favori désigné par la référence de marché avant le match, comparé au résultat réel. « Attendu » = ce que les probabilités annonçaient.</div>'+ln('Tous sports',b.total);
+  Object.keys(b.sports||{}).sort(function(x,y){return b.sports[y].n-b.sports[x].n}).forEach(function(k){h+=ln(esc(k),b.sports[k])});
+  if((b.derniers||[]).length){h+='<div class="mute" style="margin-top:8px">Derniers favoris à 70 % et plus</div>';b.derniers.slice(0,8).forEach(function(x){h+='<div class="mk"><span>'+esc(x.m)+' <span class="mute">· '+esc(x.f)+' '+Math.round(x.p*100)+' %</span></span><b class="'+(x.ok?'ok':'ko')+'">'+(x.ok?'gagné':'raté')+(x.sc?' '+x.sc[0]+'-'+x.sc[1]:'')+'</b></div>'})}
+  return h+'</div>';
+}
 function viewBilan(){
   if(!S.prog)return intro();
   var lc=learnCard(true);
@@ -534,7 +545,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     try{
       if(YANIS)SportEngine.setHistSource(function(k){return yFetch('hist/'+k+'.json')});
       if(YANIS&&(!SP.ext||Date.now()-SP.ext>20*60000))try{var sj=await yFetch('sports.json');SportEngine.setExtern(sj.sports);SP.ext=Date.now()}catch(e){}
-      if(YANIS&&(!SP.shT||Date.now()-SP.shT>10*60000)){try{var sh=await yFetch('sharp.json');var okSh=sh&&sh.events&&sh.events.length&&Date.now()-Date.parse(sh.maj)<30*3600e3;SportEngine.setSharp(okSh?sh.events:[]);SP.sharpOn=!!okSh}catch(e){SportEngine.setSharp([]);SP.sharpOn=false}SP.shT=Date.now()}
+      if(YANIS&&(!SP.shT||Date.now()-SP.shT>10*60000)){try{var sh=await yFetch('sharp.json');var okSh=sh&&sh.events&&sh.events.length&&Date.now()-Date.parse(sh.maj)<30*3600e3;SportEngine.setSharp(okSh?sh.events:[]);SP.sharpOn=!!okSh}catch(e){SportEngine.setSharp([]);SP.sharpOn=false}try{SP.shB=await yFetch('sharp_bilan.json')}catch(e){}SP.shT=Date.now()}
       var res=await SportEngine.loadAll(getESPN,ymd,function(x){if(S.mode==='sport')setProg(x);SP.setSt('Matchs et historiques de saison… '+Math.round(x*100)+' %')},function(k,j){SP.diag[k]=j?(j.events||[]).length+' évts':'vide'},ST);
       SP.cal=res.cal;SP.info=res.info;
       if(!res.items.length&&res.errors.length===res.jobs)throw new Error(res.errors[0]||'aucune donnée');
@@ -621,12 +632,12 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
     }
     h+=SP.calCard();
     var fin=all.filter(function(x){return !x.nodata&&(x.won===true||x.won===false)});
-    if(!fin.length)return h+'<div class="card">Aucun résultat connu pour le moment pour cette date. Le bilan du jour se remplit au fil des matchs.</div>';
+    if(!fin.length)return h+spVerif()+'<div class="card" style="margin-top:10px">Aucun résultat connu pour le moment pour cette date. Le bilan du jour se remplit au fil des matchs.</div>';
     var w=fin.filter(function(x){return x.won}).length,exp=fin.reduce(function(s,x){return s+x.conf},0)/fin.length;
     var f70=fin.filter(function(x){return x.conf>=0.7}),w70=f70.filter(function(x){return x.won}).length;
     h+='<div class="kpis"><div><b>'+w+'/'+fin.length+'</b><span class="mute">pronostics gagnants</span></div><div><b>'+E.pct(w/fin.length)+'</b><span class="mute">réussite réelle</span></div><div><b>'+E.pct(exp)+'</b><span class="mute">réussite prévue</span></div></div>';
     var fp=all.filter(function(x){return x.pick&&(x.pickWon===true||x.pickWon===false)}),wp=fp.filter(function(x){return x.pickWon}).length;
-    h+='<div class="card" style="margin-top:10px"><div class="ttl">Formules à plus de 70 %</div>'+(fp.length?'<div class="mk"><span>Formules retenues passées</span><b>'+wp+' / '+fp.length+'</b></div><div class="mk"><span>Réussite réelle / annoncée</span><b>'+E.pct(wp/fp.length)+' / '+E.pct(fp.reduce(function(s,x){return s+x.pick.p},0)/fp.length)+'</b></div><div class="mute">Calculées après coup sur les matchs terminés avec les données disponibles aujourd\'hui : un petit biais favorable est possible. Le test honnête sur 70 jours est dans la note en bas de l\'onglet.</div>':'<div class="mute">Aucun match terminé avec une formule à plus de 70 % pour cette date.</div>')+'</div>';
+    h+=spVerif();h+='<div class="card" style="margin-top:10px"><div class="ttl">Formules à plus de 70 %</div>'+(fp.length?'<div class="mk"><span>Formules retenues passées</span><b>'+wp+' / '+fp.length+'</b></div><div class="mk"><span>Réussite réelle / annoncée</span><b>'+E.pct(wp/fp.length)+' / '+E.pct(fp.reduce(function(s,x){return s+x.pick.p},0)/fp.length)+'</b></div><div class="mute">Calculées après coup sur les matchs terminés avec les données disponibles aujourd\'hui : un petit biais favorable est possible. Le test honnête sur 70 jours est dans la note en bas de l\'onglet.</div>':'<div class="mute">Aucun match terminé avec une formule à plus de 70 % pour cette date.</div>')+'</div>';
     h+='<h2>Matchs terminés</h2>';fin.forEach(function(x){h+=SP.card(x,SP.data.indexOf(x))});
     return h;
   },

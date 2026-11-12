@@ -98,6 +98,53 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
       events.push(e);
     });
   } catch (e) { }
+  // ---- Bilan vérifié : chaque probabilité d'avant-match est enregistrée, puis comparée au vrai résultat (scores de The Odds API) ----
+  try {
+    const SUIVI = 'docs/data/sharp_suivi.json', BILAN = 'docs/data/sharp_bilan.json';
+    let sv = { depuis: new Date(now).toISOString().slice(0, 10), regle: 0, ev: {} };
+    try { sv = JSON.parse(fs.readFileSync(SUIVI, 'utf8')); } catch (e) { }
+    const sid = (k, h, a, t) => k + '|' + h + '|' + a + '|' + String(t).slice(0, 10);
+    for (const e of events) {
+      if (!(Date.parse(e.c) < Date.parse(e.t))) continue;
+      const id = sid(e.k, e.h, e.a, e.t), o = sv.ev[id];
+      if (!o || !o.res) sv.ev[id] = { k: e.k, t: e.t, h: e.h, a: e.a, p: e.p, src: e.src };      // dernière probabilité connue avant le coup d'envoi
+    }
+    const pend = {};
+    for (const [id, o] of Object.entries(sv.ev)) {
+      const t = Date.parse(o.t);
+      if (t < now - 45 * 86400e3) { delete sv.ev[id]; continue; }
+      if (!o.res && t < now - 3 * 3600e3) { if (t < now - 3 * 86400e3) o.res = '?'; else (pend[o.k] = pend[o.k] || []).push(id); }
+    }
+    if (Object.keys(pend).length && now - (sv.regle || 0) > 5.5 * 3600e3 && +left > 2000) {      // au plus 4 lectures de résultats par jour
+      sv.regle = now; let lus = 0;
+      for (const k of Object.keys(pend)) {
+        try {
+          const { data, cost, left: l } = await api('/sports/' + k + '/scores?daysFrom=3&dateFormat=iso'); spent += cost; left = l;
+          for (const sc of data) {
+            if (!sc.completed || !sc.scores) continue;
+            const o = sv.ev[sid(k, sc.home_team, sc.away_team, sc.commence_time)]; if (!o || o.res) continue;
+            const g = n => { const x = sc.scores.find(y => y.name === n); return x ? +x.score : NaN; }, hs = g(sc.home_team), as = g(sc.away_team);
+            if (!isFinite(hs) || !isFinite(as)) continue;
+            o.res = hs > as ? 'h' : hs < as ? 'a' : 'd'; o.sc = [hs, as]; lus++;
+          }
+        } catch (err) { console.log('résultats indisponibles', k, err.message); }
+      }
+      console.log(lus, 'résultats enregistrés ; crédits restants', left);
+    }
+    const fam = k => /^soccer_/.test(k) ? 'Football' : k === 'basketball_nba' ? 'NBA' : k === 'icehockey_nhl' ? 'NHL' : /^tennis_/.test(k) ? 'Tennis' : /^mma_/.test(k) ? 'MMA' : k === 'americanfootball_nfl' ? 'NFL' : /^rugby/.test(k) ? 'Rugby' : 'Autres';
+    const vide = () => ({ n: 0, fav: 0, att: 0, n70: 0, w70: 0, a70: 0 }), B = { total: vide(), sports: {}, derniers: [] };
+    const regles = Object.values(sv.ev).filter(o => o.res && o.res !== '?').sort((a, b) => Date.parse(b.t) - Date.parse(a.t));
+    for (const o of regles) {
+      const iss = Object.keys(o.p), f = iss.reduce((a, b) => o.p[a] >= o.p[b] ? a : b), pf = o.p[f], ok = o.res === f ? 1 : 0;
+      for (const S of [B.total, (B.sports[fam(o.k)] = B.sports[fam(o.k)] || vide())]) { S.n++; S.fav += ok; S.att += pf; if (pf >= 0.7) { S.n70++; S.w70 += ok; S.a70 += pf; } }
+      if (pf >= 0.7 && B.derniers.length < 25) B.derniers.push({ t: o.t, s: fam(o.k), m: o.h + ' - ' + o.a, f: f === 'h' ? o.h : f === 'a' ? o.a : 'Nul', p: +pf.toFixed(3), ok: !!ok, sc: o.sc });
+    }
+    const arr = S => { S.att = +S.att.toFixed(1); S.a70 = +S.a70.toFixed(1); }; arr(B.total); Object.values(B.sports).forEach(arr);
+    B.maj = new Date().toISOString(); B.depuis = sv.depuis; B.en_attente = Object.values(sv.ev).filter(o => !o.res).length;
+    fs.mkdirSync('docs/data', { recursive: true });
+    fs.writeFileSync(SUIVI, JSON.stringify(sv)); fs.writeFileSync(BILAN, JSON.stringify(B));
+    console.log('bilan vérifié :', B.total.n, 'matchs réglés ;', B.en_attente, 'en attente');
+  } catch (err) { console.log('bilan vérifié ignoré :', err.message); }
   if (!events.length) { console.log('rien à écrire : fichier précédent conservé'); return; }
   fs.mkdirSync('docs/data', { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify({ maj: new Date().toISOString(), reste: left, n: events.length, events }));

@@ -32,7 +32,7 @@ jobs:
         run: |
           git config user.name "Yanis"
           git config user.email "yanis@users.noreply.github.com"
-          git add docs/data/sharp.json 2>/dev/null || true
+          git add docs/data/sharp.json docs/data/sharp_suivi.json docs/data/sharp_bilan.json 2>/dev/null || true
           git diff --cached --quiet && exit 0
           git commit -q -m "Cotes de reference du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
           for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
