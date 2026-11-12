@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 12/11/2026 a 19:12.
+Mis a jour le 12/11/2026 a 19:33.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 12/11/2026 a 19:12.
 | Reunions | 11636 |
 | Courses | 80182 |
 | Partants | 940029 |
-| Rapports | 1173633 |
+| Rapports | 1173673 |
 | Partants avec cote finale | 808900 |
-| Partants avec place a l'arrivee | 772096 |
+| Partants avec place a l'arrivee | 772134 |
 
 ## Courses par discipline
 
@@ -42,4 +42,4 @@ Mis a jour le 12/11/2026 a 19:12.
 | F. LAGADEUC | 5025 | 556 | 11.1 | 29.0 |
 | P. PH. PLOQUIN | 5197 | 510 | 9.8 | 29.9 |
 | A. POUCHIN | 4152 | 492 | 11.8 | 33.3 |
-| P. Y. VERVA | 5000 | 486 | 9.7 | 29.8 |
+| P. Y. VERVA | 5002 | 486 | 9.7 | 29.7 |
