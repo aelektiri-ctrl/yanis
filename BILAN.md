@@ -1,17 +1,17 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 12/11/2026 a 21:06.
+Mis a jour le 12/11/2026 a 21:26.
 
 | | |
 |---|---|
-| Jours collectes | 1724 (dont 1 sans course) |
-| Periode | 2022-02-24 au 2026-11-13 |
-| Reunions | 11770 |
-| Courses | 81104 |
-| Partants | 950799 |
-| Rapports | 1186315 |
-| Partants avec cote finale | 817772 |
-| Partants avec place a l'arrivee | 781023 |
+| Jours collectes | 1742 (dont 1 sans course) |
+| Periode | 2022-02-06 au 2026-11-13 |
+| Reunions | 11900 |
+| Courses | 82014 |
+| Partants | 961411 |
+| Rapports | 1198700 |
+| Partants avec cote finale | 826180 |
+| Partants avec place a l'arrivee | 789701 |
 
 ## Courses par discipline
 
@@ -42,4 +42,4 @@ Mis a jour le 12/11/2026 a 21:06.
 | F. LAGADEUC | 5193 | 582 | 11.2 | 29.2 |
 | P. PH. PLOQUIN | 5283 | 515 | 9.7 | 29.9 |
 | C. SOUMILLON | 3138 | 512 | 16.3 | 43.1 |
-| P. Y. VERVA | 5077 | 496 | 9.8 | 29.7 |
+| P. Y. VERVA | 5078 | 496 | 9.8 | 29.7 |
