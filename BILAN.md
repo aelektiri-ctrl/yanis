@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 12/11/2026 a 15:01.
+Mis a jour le 12/11/2026 a 15:28.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 12/11/2026 a 15:01.
 | Reunions | 10845 |
 | Courses | 74972 |
 | Partants | 879980 |
-| Rapports | 1099932 |
+| Rapports | 1099996 |
 | Partants avec cote finale | 758062 |
-| Partants avec place a l'arrivee | 722579 |
+| Partants avec place a l'arrivee | 722615 |
 
 ## Courses par discipline
 
@@ -28,9 +28,9 @@ Mis a jour le 12/11/2026 a 15:01.
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 7197 | 1343 | 18.7 | 42.7 |
+| E. RAFFIN | 7198 | 1343 | 18.7 | 42.7 |
 | M. GUYON | 5865 | 973 | 16.6 | 43.1 |
-| B. ROCHARD | 7182 | 971 | 13.5 | 36.2 |
+| B. ROCHARD | 7183 | 971 | 13.5 | 36.2 |
 | A. ABRIVARD | 5144 | 908 | 17.7 | 39.3 |
 | M. BARZALONA | 4467 | 875 | 19.6 | 49.0 |
 | Y. LEBOURGEOIS | 4790 | 832 | 17.4 | 35.9 |
@@ -42,4 +42,4 @@ Mis a jour le 12/11/2026 a 15:01.
 | F. LAGADEUC | 4653 | 502 | 10.8 | 28.6 |
 | P. PH. PLOQUIN | 4945 | 493 | 10.0 | 29.9 |
 | A. POUCHIN | 4001 | 484 | 12.1 | 33.8 |
-| A. BARRIER | 3634 | 466 | 12.8 | 33.9 |
+| A. BARRIER | 3635 | 466 | 12.8 | 33.9 |
