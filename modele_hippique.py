@@ -59,14 +59,43 @@ def charger_perfs():
     lignes = []
     for f in glob.glob(os.path.join(yanis.DOSSIER, "donnees_perf_resume", "*", "*", "*.json.gz")):
         date = os.path.basename(f)[:10]
-        with gzip.open(f, "rt", encoding="utf-8") as fh:
-            d = json.load(fh)
+        try:
+            with gzip.open(f, "rt", encoding="utf-8") as fh:
+                d = json.load(fh)
+        except Exception:
+            continue      # fichier vide ou abime : on l'ignore au lieu d'arreter tout le modele
         for cle, chevaux in d.items():
             r, c = cle[1:].split("C")
             for num, v in chevaux.items():
                 lignes.append({"date": date, "r": int(r), "c": int(c), "num": int(num), **{f"pf_{k}": x for k, x in v.items()}})
     cols = ["date", "r", "c", "num"]
     return pd.DataFrame(lignes) if lignes else pd.DataFrame(columns=cols)
+
+
+def cotes_en_direct(dates):
+    """Derniere cote relevee (et premiere de la journee) pour chaque cheval des dates demandees."""
+    import gzip
+    direct, ouverture = {}, {}
+    for date in dates:
+        ch = os.path.join(yanis.DOSSIER, "donnees_cotes", f"{date}.json.gz")
+        if not os.path.exists(ch):
+            continue
+        try:
+            with gzip.open(ch, "rt", encoding="utf-8") as fh:
+                histo = json.load(fh)
+        except Exception:
+            continue
+        for rc, chevaux in histo.items():
+            try:
+                r, c = (int(x) for x in rc[1:].split("C"))
+            except ValueError:
+                continue
+            for num, serie in chevaux.items():
+                vals = [v[1] for v in serie if v and v[1] and v[1] > 1]
+                if vals:
+                    direct[(date, r, c, int(num))] = float(vals[-1])
+                    ouverture[(date, r, c, int(num))] = float(vals[0])
+    return direct, ouverture
 
 
 def norm_nom(x):
@@ -129,6 +158,13 @@ def preparer(p):
     p = p.sort_values(["depart", "cle", "num"]).reset_index(drop=True)
 
     # --- marche ---
+    # Courses a venir : la cote finale n'existe pas encore. On prend la derniere cote relevee en direct (donnees_cotes),
+    # sinon le modele travaille a l'aveugle et passe a cote des favoris.
+    direct, ouverture = cotes_en_direct(sorted(p.loc[p["arrivee"].isna(), "date"].unique())[-3:])
+    if direct:
+        cles = list(zip(p["date"], p["r"], p["c"], p["num"]))
+        p["cote_finale"] = p["cote_finale"].fillna(pd.Series([direct.get(k) for k in cles], index=p.index, dtype="float64"))
+        p["cote_reference"] = p["cote_reference"].fillna(pd.Series([ouverture.get(k) for k in cles], index=p.index, dtype="float64"))
     cote = p["cote_finale"].fillna(p["cote_reference"])
     p["cote"] = cote
     inv = 1 / cote.where(cote > 1)
@@ -421,6 +457,9 @@ def choisir_pepite(jour_df, combien=1):
     if o.empty:
         return None if combien == 1 else []
     o = o.assign(ratio=o["p_v2"] / o["p_marche"]).sort_values("ratio", ascending=False)
+    o = o[o["ratio"] >= 1.15]      # une pepite doit etre nettement sous-estimee par le marche, sinon il n'y en a pas
+    if o.empty:
+        return None if combien == 1 else []
     return o.iloc[0] if combien == 1 else [row for _, row in o.head(combien).iterrows()]
 
 

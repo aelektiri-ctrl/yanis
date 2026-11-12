@@ -216,7 +216,8 @@
     });
     var pf = normalize(H.map(function (h) { return Math.exp(h.s2); }));
     var p = normalize(H.map(function (h, i) { return Math.exp(h.s + (market ? bm * Math.log(pm[i]) : 0)); }));
-    var yan = H.every(function (h) { return h.py != null && h.py > 0; });
+    // les probabilités Yanis ne sont mélangées que si elles ont été calculées en connaissant les cotes (sinon elles brouillent le classement et font rater les favoris)
+    var yan = H.every(function (h) { return h.py != null && h.py > 0; }) && (!market || H.every(function (h) { return h.pyMarche != null; }));
     if (yan) {
       // probabilités Yanis (modèle entraîné sur 15 000 courses), affinées à 20 % par l'analyse détaillée
       p = normalize(H.map(function (h, i) { return Math.exp(0.25 * Math.log(h.py) + 0.75 * Math.log(p[i])); }));
@@ -404,7 +405,7 @@
       consider({ cost: cm, p: pChamp(B2, sm, 4, 2), make: function () { return [MM, (MM === 'MULTI' ? 'Multi' : 'Mini multi') + ' en 4 champ réduit — 2 bases + ' + km, 'Bases ' + nums(B2) + ' / avec ' + nums(sm), cm, pChamp(B2, sm, 4, 2), hitChamp(B2, sm, 4, 2), true, champ(B2, sm, 4), /en 4/i]; } });
     })(km);
     res.cands = cands; res.pick = null;
-    if (bestC) {
+    if (bestC && res.market) {   // aucune formule validée tant que les cotes ne sont pas ouvertes : la forme seule ne suffit pas
       jeux.forEach(function (j) { j.main = false; });
       var pj = bestC.j;
       if (!pj) { var mk0 = bestC.make(); add.apply(null, mk0); pj = jeux[jeux.length - 1]; }
@@ -464,6 +465,7 @@
     res.loupMode = loup ? (M3 ? '3 bases + 5' : loupIn ? 'ajouté au ' + main.label.split(' —')[0].toLowerCase() : 'ajouté au trio champ réduit') : null;
     res.avoid = !!main && !res.pick && !!res.market && conf < 0.45;   // sans cotes ouvertes, l'analyse est provisoire : on n'écarte pas la course
     res.sous70 = !res.pick;
+    if (!res.market) why.unshift('Cotes pas encore ouvertes : classement provisoire sur la forme seule. Aucune formule n\'est validée avant l\'ouverture des cotes ; tout est recalculé dès qu\'elles arrivent.');
     if (res.avoid) why.unshift('Course très ouverte : même le n°' + hA.num + ' ne finit placé que ' + pct(conf) + ' du temps. À éviter.');
     res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch && watch.sc >= 1.08 && watch.pPlace - watch.pBase >= 0.03 ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;

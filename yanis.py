@@ -519,10 +519,12 @@ def collecter_performances(pmu, jour, garder_brut=False):
             n += 1
     if not sortie:
         return 0
+    resume = resumer_performances(sortie, jour)      # calcule AVANT d'ouvrir le fichier : une erreur ne laisse plus de fichier vide
     cr = chemin_resume_perf(jour)
     os.makedirs(os.path.dirname(cr), exist_ok=True)
-    with gzip.open(cr, "wt", encoding="utf-8") as f:
-        json.dump(resumer_performances(sortie, jour), f, ensure_ascii=False, separators=(",", ":"))
+    with gzip.open(cr + ".tmp", "wt", encoding="utf-8") as f:
+        json.dump(resume, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(cr + ".tmp", cr)
     if garder_brut:
         dossier = os.path.join(DOSSIER, "donnees_perf")
         os.makedirs(dossier, exist_ok=True)
