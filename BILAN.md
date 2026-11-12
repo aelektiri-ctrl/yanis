@@ -1,45 +1,45 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 12/11/2026 a 06:52.
+Mis a jour le 12/11/2026 a 06:45.
 
 | | |
 |---|---|
-| Jours collectes | 1378 (dont 1 sans course) |
-| Periode | 2023-02-05 au 2026-11-13 |
-| Reunions | 9249 |
-| Courses | 64094 |
-| Partants | 753606 |
-| Rapports | 942798 |
-| Partants avec cote finale | 648812 |
-| Partants avec place a l'arrivee | 618359 |
+| Jours collectes | 1400 (dont 1 sans course) |
+| Periode | 2023-01-14 au 2026-11-13 |
+| Reunions | 9398 |
+| Courses | 65134 |
+| Partants | 765390 |
+| Rapports | 956879 |
+| Partants avec cote finale | 657937 |
+| Partants avec place a l'arrivee | 627832 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 28599 |
-| PLAT | 26214 |
-| MONTE | 4035 |
-| HAIE | 3035 |
-| STEEPLECHASE | 1916 |
-| CROSS | 295 |
+| ATTELE | 29080 |
+| PLAT | 26664 |
+| MONTE | 4100 |
+| HAIE | 3058 |
+| STEEPLECHASE | 1932 |
+| CROSS | 300 |
 
 ## Drivers et jockeys qui gagnent le plus (50 courses minimum)
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 6182 | 1185 | 19.2 | 43.1 |
-| B. ROCHARD | 6351 | 889 | 14.0 | 37.2 |
-| M. GUYON | 4972 | 813 | 16.4 | 42.5 |
+| E. RAFFIN | 6285 | 1193 | 19.0 | 43.0 |
+| B. ROCHARD | 6423 | 894 | 13.9 | 37.1 |
+| M. GUYON | 5077 | 837 | 16.5 | 42.7 |
+| M. MOTTIER | 4755 | 745 | 15.7 | 35.3 |
 | M. BARZALONA | 3805 | 745 | 19.6 | 49.6 |
-| M. MOTTIER | 4694 | 730 | 15.6 | 35.2 |
-| Y. LEBOURGEOIS | 4075 | 726 | 17.8 | 36.3 |
-| A. ABRIVARD | 4083 | 708 | 17.3 | 39.2 |
-| C. DEMURO | 4752 | 655 | 13.8 | 37.2 |
-| M. ABRIVARD | 4417 | 558 | 12.6 | 34.0 |
-| D. THOMAIN | 4339 | 546 | 12.6 | 33.2 |
-| D. BEKAERT | 3287 | 542 | 16.5 | 41.8 |
-| A. POUCHIN | 3630 | 444 | 12.2 | 34.0 |
-| P. PH. PLOQUIN | 4360 | 432 | 9.9 | 29.7 |
-| F. LAGADEUC | 3959 | 430 | 10.9 | 28.8 |
-| P. Y. VERVA | 4131 | 418 | 10.1 | 30.3 |
+| Y. LEBOURGEOIS | 4142 | 735 | 17.7 | 36.1 |
+| A. ABRIVARD | 4181 | 726 | 17.4 | 39.1 |
+| C. DEMURO | 4823 | 662 | 13.7 | 37.2 |
+| M. ABRIVARD | 4489 | 565 | 12.6 | 33.9 |
+| D. THOMAIN | 4409 | 553 | 12.5 | 33.2 |
+| D. BEKAERT | 3357 | 550 | 16.4 | 41.7 |
+| A. POUCHIN | 3686 | 449 | 12.2 | 33.9 |
+| P. PH. PLOQUIN | 4400 | 436 | 9.9 | 29.7 |
+| F. LAGADEUC | 4003 | 431 | 10.8 | 28.7 |
+| P. Y. VERVA | 4184 | 420 | 10.0 | 30.1 |
