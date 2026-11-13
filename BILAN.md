@@ -1,17 +1,17 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 13/11/2026 a 16:40.
+Mis a jour le 13/11/2026 a 16:59.
 
 | | |
 |---|---|
-| Jours collectes | 2209 (dont 1 sans course) |
-| Periode | 2020-10-28 au 2026-11-14 |
-| Reunions | 15194 |
-| Courses | 103884 |
-| Partants | 1221091 |
-| Rapports | 1517300 |
-| Partants avec cote finale | 1037802 |
-| Partants avec place a l'arrivee | 1001456 |
+| Jours collectes | 2228 (dont 1 sans course) |
+| Periode | 2020-10-09 au 2026-11-14 |
+| Reunions | 15338 |
+| Courses | 104904 |
+| Partants | 1233432 |
+| Rapports | 1532040 |
+| Partants avec cote finale | 1048822 |
+| Partants avec place a l'arrivee | 1011501 |
 
 ## Courses par discipline
 
@@ -41,5 +41,5 @@ Mis a jour le 13/11/2026 a 16:40.
 | D. BEKAERT | 4956 | 774 | 15.6 | 40.7 |
 | F. LAGADEUC | 6497 | 732 | 11.3 | 29.1 |
 | C. SOUMILLON | 4139 | 689 | 16.6 | 43.6 |
-| T. BACHELOT | 5774 | 656 | 11.4 | 31.7 |
+| T. BACHELOT | 5775 | 656 | 11.4 | 31.7 |
 | F. NIVARD | 6656 | 617 | 9.3 | 30.5 |
