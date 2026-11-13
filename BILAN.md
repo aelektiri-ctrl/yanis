@@ -1,45 +1,45 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 13/11/2026 a 01:04.
+Mis a jour le 13/11/2026 a 02:08.
 
 | | |
 |---|---|
-| Jours collectes | 1846 (dont 1 sans course) |
-| Periode | 2021-10-26 au 2026-11-14 |
-| Reunions | 12624 |
-| Courses | 87048 |
-| Partants | 1022511 |
-| Rapports | 1271327 |
-| Partants avec cote finale | 876102 |
-| Partants avec place a l'arrivee | 838853 |
+| Jours collectes | 1863 (dont 1 sans course) |
+| Periode | 2021-10-09 au 2026-11-14 |
+| Reunions | 12768 |
+| Courses | 88038 |
+| Partants | 1034459 |
+| Rapports | 1284583 |
+| Partants avec cote finale | 886105 |
+| Partants avec place a l'arrivee | 848518 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 38753 |
-| PLAT | 35631 |
-| MONTE | 5473 |
-| HAIE | 4137 |
-| STEEPLECHASE | 2645 |
-| CROSS | 409 |
+| ATTELE | 39178 |
+| PLAT | 36066 |
+| MONTE | 5522 |
+| HAIE | 4182 |
+| STEEPLECHASE | 2675 |
+| CROSS | 415 |
 
 ## Drivers et jockeys qui gagnent le plus (50 courses minimum)
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 8415 | 1533 | 18.2 | 42.3 |
-| M. GUYON | 6663 | 1112 | 16.7 | 43.3 |
-| A. ABRIVARD | 6148 | 1104 | 18.0 | 39.2 |
-| B. ROCHARD | 7896 | 1040 | 13.2 | 35.7 |
-| M. BARZALONA | 5039 | 980 | 19.4 | 48.3 |
-| M. MOTTIER | 6015 | 911 | 15.1 | 34.6 |
-| Y. LEBOURGEOIS | 5540 | 909 | 16.4 | 34.9 |
-| C. DEMURO | 5815 | 806 | 13.9 | 37.4 |
-| M. ABRIVARD | 5914 | 792 | 13.4 | 34.1 |
-| D. THOMAIN | 6076 | 726 | 11.9 | 32.2 |
-| D. BEKAERT | 4216 | 679 | 16.1 | 41.1 |
-| F. LAGADEUC | 5539 | 621 | 11.2 | 29.2 |
-| C. SOUMILLON | 3353 | 550 | 16.4 | 43.3 |
-| P. PH. PLOQUIN | 5489 | 539 | 9.8 | 29.9 |
-| A. BARRIER | 4170 | 519 | 12.4 | 32.9 |
+| E. RAFFIN | 8512 | 1554 | 18.3 | 42.3 |
+| M. GUYON | 6761 | 1124 | 16.6 | 43.3 |
+| A. ABRIVARD | 6203 | 1113 | 17.9 | 39.2 |
+| B. ROCHARD | 7963 | 1050 | 13.2 | 35.6 |
+| M. BARZALONA | 5124 | 991 | 19.3 | 48.2 |
+| M. MOTTIER | 6046 | 914 | 15.1 | 34.6 |
+| Y. LEBOURGEOIS | 5544 | 909 | 16.4 | 34.9 |
+| C. DEMURO | 5880 | 816 | 13.9 | 37.4 |
+| M. ABRIVARD | 5976 | 798 | 13.4 | 34.2 |
+| D. THOMAIN | 6145 | 735 | 12.0 | 32.2 |
+| D. BEKAERT | 4244 | 686 | 16.2 | 41.1 |
+| F. LAGADEUC | 5607 | 631 | 11.3 | 29.3 |
+| C. SOUMILLON | 3439 | 563 | 16.4 | 43.2 |
+| P. PH. PLOQUIN | 5525 | 541 | 9.8 | 29.9 |
+| A. BARRIER | 4208 | 520 | 12.4 | 32.8 |
