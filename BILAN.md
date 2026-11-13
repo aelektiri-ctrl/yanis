@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 13/11/2026 a 12:15.
+Mis a jour le 13/11/2026 a 12:42.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 13/11/2026 a 12:15.
 | Reunions | 14586 |
 | Courses | 99905 |
 | Partants | 1171818 |
-| Rapports | 1452519 |
-| Partants avec cote finale | 997616 |
-| Partants avec place a l'arrivee | 961269 |
+| Rapports | 1452580 |
+| Partants avec cote finale | 997618 |
+| Partants avec place a l'arrivee | 961307 |
 
 ## Courses par discipline
 
@@ -41,5 +41,5 @@ Mis a jour le 13/11/2026 a 12:15.
 | D. BEKAERT | 4746 | 749 | 15.8 | 40.9 |
 | F. LAGADEUC | 6202 | 711 | 11.5 | 29.4 |
 | C. SOUMILLON | 4082 | 682 | 16.7 | 43.7 |
-| T. BACHELOT | 5479 | 616 | 11.2 | 31.5 |
+| T. BACHELOT | 5480 | 616 | 11.2 | 31.5 |
 | G. GELORMINI | 5566 | 580 | 10.4 | 27.7 |
