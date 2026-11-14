@@ -930,6 +930,10 @@ def bilan_jours(p):
             if not m or co["arrivee"].isna().all():
                 continue
             m["fige"] = True
+            if not any(v for v in (m.get("cotes") or {}).values()):
+                # course etrangere dont les cotes ne sont jamais publiees : pronostic a l'aveugle, compte a part (pas dans le bilan)
+                total["sans_cotes"] = total.get("sans_cotes", 0) + 1
+                continue
             arr = co[co["place_arrivee"].between(1, 4)].sort_values("place_arrivee")
             arr4 = [int(x) for x in arr["num"]]
             partants = set(int(x) for x in co["num"])
