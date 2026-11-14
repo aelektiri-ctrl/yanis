@@ -43,15 +43,36 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
   const rem0 = +sp.left, free = isFinite(rem0) && rem0 <= 1000;           // plus de 1 000 crédits restants = forfait payant
   const forced = process.env.GITHUB_EVENT_NAME && process.env.GITHUB_EVENT_NAME !== 'schedule';   // lancement manuel : toujours exécuté
   if (free && !forced && ![9, 15].includes(new Date().getUTCHours())) { console.log('forfait gratuit : 2 lectures par jour (10 h et 16 h, heure de Paris) ; exécution ignorée'); return; }
-  const keys = sp.data.filter(s => s.active && !s.has_outrights && KEEP.test(s.key)).map(s => s.key).sort((a, b) => rank(a, free) - rank(b, free));
+  let keys = sp.data.filter(s => s.active && !s.has_outrights && KEEP.test(s.key)).map(s => s.key).sort((a, b) => rank(a, free) - rank(b, free));
   // budget adaptatif : on répartit les crédits restants sur les exécutions restantes du mois (8 par jour) ; le forfait n'est jamais dépassé
-  const dNow = new Date(), dim = new Date(dNow.getFullYear(), dNow.getMonth() + 1, 0).getDate(), runsLeft = Math.max(1, (dim - dNow.getDate() + 1) * (free ? 2 : 8));
+  // le forfait se renouvelle le 11 de chaque mois (abonnement pris le 11/11) : on étale les crédits jusqu'au prochain 11
+  const dNow = new Date(), ren = new Date(Date.UTC(dNow.getUTCFullYear(), dNow.getUTCMonth() + (dNow.getUTCDate() >= 11 ? 1 : 0), 11)), joursRestants = Math.max(1, Math.ceil((ren - dNow) / 86400e3)), runsLeft = Math.max(1, joursRestants * (free ? 2 : 8));
   const rem = +sp.left, budget = isFinite(rem) ? Math.max(0, Math.min(BUDGET, Math.floor(0.9 * rem / runsLeft))) : BUDGET;
   console.log(keys.length, 'compétitions actives ; crédits restants', sp.left, '; budget de cette exécution', budget);
   if (budget < 1) { console.log('plus de crédits à dépenser : fichier précédent conservé'); return; }
+  // ---- Mode « chaud » : entre deux lectures complètes, on relit seulement les compétitions qui comptent maintenant
+  // (coup d'envoi dans les 3 h, mouvement ou valeur détectés, favori à 70 % et plus dans les 12 h). Au plus 40 % des crédits du jour.
+  const HOT = process.argv[3] === 'chaud', HOTF = 'docs/data/sharp_chaud.json';
+  let hotBudget = budget, hotState = { d: '', spent: 0 };
+  if (HOT) {
+    if (free) { console.log('mode chaud désactivé en forfait gratuit'); return; }
+    let old = [], sb = {};
+    try { old = JSON.parse(fs.readFileSync(OUT, 'utf8')).events || []; } catch (e) { }
+    try { sb = JSON.parse(fs.readFileSync('docs/data/sharp_bilan.json', 'utf8')); } catch (e) { }
+    const flag = new Set([...(sb.mouvements || []), ...(sb.a_venir || [])].map(x => x.k + '|' + x.m));
+    const watch = new Set(old.filter(e => { const t = Date.parse(e.t); if (!(t > now)) return false;
+      return t <= now + 3 * 3600e3 || flag.has(e.k + '|' + e.h + ' - ' + e.a) || (t <= now + 12 * 3600e3 && Math.max(...Object.values(e.p)) >= 0.7); }).map(e => e.k));
+    keys = keys.filter(k => watch.has(k));
+    try { hotState = JSON.parse(fs.readFileSync(HOTF, 'utf8')); } catch (e) { }
+    const jour = new Date(now).toISOString().slice(0, 10); if (hotState.d !== jour) hotState = { d: jour, spent: 0 };
+    const cap = Math.floor(0.4 * rem / joursRestants);
+    hotBudget = Math.max(0, Math.min(10, cap - hotState.spent, keys.length));
+    console.log('mode chaud :', keys.length, 'compétitions à surveiller ; plafond du jour', cap, '; déjà utilisé', hotState.spent, '; budget', hotBudget);
+    if (!keys.length || hotBudget < 1) return;
+  }
   const events = []; let spent = 0, left = sp.left, fail = 0;
   for (const k of keys) {
-    if (spent >= budget) { console.log('budget atteint, compétitions non lues :', keys.slice(keys.indexOf(k)).length); break; }
+    if (spent >= (HOT ? hotBudget : budget)) { console.log('budget atteint, compétitions non lues :', keys.slice(keys.indexOf(k)).length); break; }
     try {
       const { data, cost, left: l } = await api('/sports/' + k + '/odds?regions=eu&markets=h2h&oddsFormat=decimal&dateFormat=iso');
       spent += cost; left = l;
@@ -179,5 +200,6 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
   } catch (err) { console.log('bilan vérifié ignoré :', err.message); }
   if (!events.length) { console.log('rien à écrire : fichier précédent conservé'); return; }
   fs.mkdirSync('docs/data', { recursive: true });
+  if (HOT) { hotState.spent += spent; fs.writeFileSync(HOTF, JSON.stringify(hotState)); }
   fs.writeFileSync(OUT, JSON.stringify({ maj: new Date().toISOString(), reste: left, n: events.length, events }));
 })().catch(e => { console.log('erreur', e.message); process.exit(0); });

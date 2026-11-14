@@ -32,12 +32,12 @@ jobs:
       - name: Sports du jour
         continue-on-error: true
         run: python sports.py --budget 0
-      - name: Cotes de reference et bilan verifie (si le fichier a plus de 3 h)
+      - name: Cotes de reference : lecture complete si plus de 3 h, sinon lecture ciblee des matchs a surveiller
         continue-on-error: true
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
-          if node -e "const j=JSON.parse(require('fs').readFileSync('docs/data/sharp.json','utf8'));process.exit(Date.now()-Date.parse(j.maj)>3*3600e3?0:1)"; then node cotes_sharp.js 70; else echo "cotes de reference recentes"; fi
+          if node -e "const j=JSON.parse(require('fs').readFileSync('docs/data/sharp.json','utf8'));process.exit(Date.now()-Date.parse(j.maj)>3*3600e3?0:1)"; then node cotes_sharp.js 70; else node cotes_sharp.js 70 chaud; fi
       - name: Preparer l'appli
         run: python yanis.py publier
       - name: Notifications sur le telephone
