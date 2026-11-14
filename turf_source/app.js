@@ -285,6 +285,17 @@ function viewValue(){
     P.solides.slice(0,15).forEach(function(it){h+='<div class="card tap pn good" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Nos calculs : <b class="ok">'+E.pct(it.f.p)+'</b> de chances de gagner, le public : '+E.pct(it.f.pm)+'.</div></div>'});
     h+='<p class="mute">Vérifié sur juin–novembre : ces favoris gagnent 34,2 % au lieu des 31,9 % annoncés.</p>';
   }
+  if(VF.f!=='turf'){
+    var so=[],pi=[];(SP.data||[]).forEach(function(x,i){if(!x||!x.state||x.state.done||!x.pickT)return;var t=new Date(x.date),c=(ICON[x.sport]||'')+' '+esc(x.league||'')+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':'');
+      if(x.pick)so.push({i:i,x:x,c:c});else{var b=(x.picks||[])[0];if(b)pi.push({i:i,x:x,c:c,b:b})}});
+    so.sort(function(u,v){return v.x.pick.p-u.x.pick.p});pi.sort(function(u,v){return u.b.p-v.b.p});
+    h+='<h2>✅ Matchs solides ('+so.length+') — une formule dépasse 70 %</h2>';
+    if(!so.length)h+='<div class="card mute">'+(SP.loading||!SP.data?'Matchs en cours de chargement…':'Aucun match avec une formule à plus de 70 % pour l\'instant.')+'</div>';
+    so.slice(0,20).forEach(function(o){var p=o.x.pick;h+='<div class="card tap pn good" data-s="'+o.i+'"><div class="mute">'+o.c+'</div><div class="ttl" style="margin:4px 0">'+esc(o.x.title)+'</div><div>'+esc(p.label)+' : <b class="ok">'+E.pct(p.p)+'</b>'+(p.minOdds?' · à jouer à partir de '+String(p.minOdds.toFixed(2)).replace('.',',') :'')+'</div></div>'});
+    h+='<h2>⚠️ Matchs piégeux ('+pi.length+') — rien de sûr</h2>';
+    if(!pi.length)h+='<div class="card mute">Aucun pour l\'instant.</div>';
+    pi.slice(0,20).forEach(function(o){h+='<div class="card tap pn bad" data-s="'+o.i+'"><div class="mute">'+o.c+'</div><div class="ttl" style="margin:4px 0">'+esc(o.x.title)+'</div><div>Meilleure formule : '+esc(o.b.label)+' à <b class="ko">'+E.pct(o.b.p)+'</b> seulement. Pas de pari.</div></div>'});
+  }
   var L=valueList().filter(function(v){return VF.f==='all'||v.kind===VF.f});
   h+='<h2>💎 Cotes trop belles ('+L.length+') — la cote paie plus que la vraie chance</h2>';
   if(!L.length)h+='<div class="card mute">Aucune pour l\'instant'+(SP.loading?' (matchs en cours de chargement)':'')+'.</div>';
