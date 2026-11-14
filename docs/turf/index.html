@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v33</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v34</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2201,6 +2201,14 @@ function viewValue(){
     var so=[],pi=[];(SP.data||[]).forEach(function(x,i){if(!x||!x.state||x.state.done||!x.pickT)return;var t=new Date(x.date),c=(ICON[x.sport]||'')+' '+esc(x.league||'')+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':'');
       if(x.pick)so.push({i:i,x:x,c:c});else{var b=(x.picks||[])[0];if(b)pi.push({i:i,x:x,c:c,b:b})}});
     so.sort(function(u,v){return v.x.pick.p-u.x.pick.p});pi.sort(function(u,v){return u.b.p-v.b.p});
+    var SB=SP.shB||{},EV=(SB.a_venir||[]).filter(function(x){return Date.parse(x.t)>Date.now()}),MV=(SB.mouvements||[]).filter(function(x){return Date.parse(x.t)>Date.now()});
+    var fr2=function(x){return String(x).replace('.',',')};
+    h+='<h2>💰 Valeur pure EV+ ('+EV.length+') — la cote française paie plus que la vraie chance</h2>';
+    if(!EV.length)h+='<div class="card mute">Aucune pour l\'instant. Calcul : probabilité Pinnacle sans marge × meilleure cote française − 1. C\'est rare, c\'est normal.</div>';
+    EV.forEach(function(x){h+='<div class="card pn good"><div class="mute">'+esc(x.m)+' · '+new Date(x.t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'</div><div class="ttl" style="margin:4px 0">'+esc(x.nom)+' à '+fr2(x.cote)+' chez '+esc(x.book)+'</div><div>Vraie chance <b>'+Math.round(x.p*100)+' %</b> · cote juste '+fr2((1/x.p).toFixed(2))+' · espérance <b class="ok">+'+(x.ev*100).toFixed(1).replace('.',',')+' %</b> par euro misé.</div></div>'});
+    h+='<h2>📉 Argent sharp ('+MV.length+') — la cote de Pinnacle bouge fort</h2>';
+    if(!MV.length)h+='<div class="card mute">Aucun mouvement de 4 points ou plus depuis la dernière lecture (toutes les 3 h environ).</div>';
+    MV.forEach(function(x){h+='<div class="card pn"><div class="mute">'+esc(x.m)+' · '+new Date(x.t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'</div><div class="ttl" style="margin:4px 0">'+esc(x.nom)+' : '+Math.round(x.de*100)+' % → '+Math.round(x.a*100)+' %</div><div>En '+fr2(x.h)+' h chez '+esc(x.src)+'.'+(x.cote?' Meilleure cote française '+fr2(x.cote)+(x.ev!=null?' (valeur <b class="'+(x.ev>0?'ok':'ko')+'">'+(x.ev>0?'+':'')+(x.ev*100).toFixed(1).replace('.',',')+' %</b>)':'')+'.':'')+'</div></div>'});
     h+='<h2>✅ Matchs solides ('+so.length+') — une formule dépasse 70 %</h2>';
     if(!so.length)h+='<div class="card mute">'+(SP.loading||!SP.data?'Matchs en cours de chargement…':'Aucun match avec une formule à plus de 70 % pour l\'instant.')+'</div>';
     so.slice(0,20).forEach(function(o){var p=o.x.pick;h+='<div class="card tap pn good" data-s="'+o.i+'"><div class="mute">'+o.c+'</div><div class="ttl" style="margin:4px 0">'+esc(o.x.title)+'</div><div>'+esc(p.label)+' : <b class="ok">'+E.pct(p.p)+'</b>'+(p.minOdds?' · à jouer à partir de '+String(p.minOdds.toFixed(2)).replace('.',',') :'')+'</div></div>'});
@@ -2321,6 +2329,7 @@ function spVerif(){
   var d=String(b.depuis||'').split('-').reverse().join('/'),ln=function(nom,S){return (S.n70?'<div class="mk"><span>'+nom+' · favoris à 70 % et plus</span><b class="'+(S.w70>=S.a70-0.5?'ok':'ko')+'">'+S.w70+' / '+S.n70+'</b></div>':'')+'<div class="mk"><span>'+nom+' · tous les favoris</span><b>'+S.fav+' / '+S.n+' <span class="mute" style="font-weight:400">(attendu '+String(S.att).replace('.',',')+')</span></b></div>'};
   h+='<div class="mute" style="margin:6px 0">Depuis le '+esc(d)+' : le favori désigné par la référence de marché avant le match, comparé au résultat réel. « Attendu » = ce que les probabilités annonçaient.</div>'+ln('Tous sports',b.total);
   Object.keys(b.sports||{}).sort(function(x,y){return b.sports[y].n-b.sports[x].n}).forEach(function(k){h+=ln(esc(k),b.sports[k])});
+  var V=b.valeur;if(V&&V.paris){h+='<div class="mk" style="margin-top:8px"><span>Paris EV+ pris · CLV moyen (cote prise vs clôture)</span><b class="'+((V.clv_moy||0)>0?'ok':'ko')+'">'+((V.clv_moy||0)>0?'+':'')+((V.clv_moy||0)*100).toFixed(1).replace('.',',')+' %</b></div><div class="mk"><span>Battent la cote de clôture</span><b>'+V.clv_pos+' / '+V.paris+'</b></div>'+(V.regles?'<div class="mk"><span>Paris EV+ réglés · bilan</span><b class="'+(V.retour>=V.mise?'ok':'ko')+'">'+V.gagnes+' / '+V.regles+' · '+((V.retour/V.mise-1)*100).toFixed(1).replace('.',',')+' %</b></div>':'')}
   if((b.derniers||[]).length){h+='<div class="mute" style="margin-top:8px">Derniers favoris à 70 % et plus</div>';b.derniers.slice(0,8).forEach(function(x){h+='<div class="mk"><span>'+esc(x.m)+' <span class="mute">· '+esc(x.f)+' '+Math.round(x.p*100)+' %</span></span><b class="'+(x.ok?'ok':'ko')+'">'+(x.ok?'gagné':'raté')+(x.sc?' '+x.sc[0]+'-'+x.sc[1]:'')+'</b></div>'})}
   return h+'</div>';
 }

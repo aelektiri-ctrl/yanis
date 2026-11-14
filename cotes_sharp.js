@@ -98,6 +98,28 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
       events.push(e);
     });
   } catch (e) { }
+  // ---- Valeur pure (EV) et mouvements de cotes (argent sharp) ----
+  const MV = [], VAL = [];
+  try {
+    const old = JSON.parse(fs.readFileSync(OUT, 'utf8')).events || [], oid = e => e.k + '|' + e.h + '|' + e.a + '|' + String(e.t).slice(0, 10), om = new Map(old.map(e => [oid(e), e]));
+    for (const e of events) {
+      if (!(Date.parse(e.c) < Date.parse(e.t)) || e.c !== new Date(now).toISOString()) continue;      // seulement les cotes lues à l'instant
+      if (e.fr) {
+        e.ev = {};
+        for (const f of Object.keys(e.p)) if (e.fr[f]) { const v = e.p[f] * e.fr[f][0] - 1; e.ev[f] = +v.toFixed(4); if (v > 0.01 && e.p[f] >= 0.2) VAL.push({ k: e.k, t: e.t, m: e.h + ' - ' + e.a, f, nom: f === 'h' ? e.h : f === 'a' ? e.a : 'Nul', p: +e.p[f].toFixed(3), cote: e.fr[f][0], book: e.fr[f][1], ev: +v.toFixed(3) }); }
+      }
+      const o = om.get(oid(e));
+      if (o && o.p && e.src === o.src && e.src !== 'consensus') {
+        const dh = (now - Date.parse(o.c)) / 3600e3;
+        for (const f of Object.keys(e.p)) {
+          const d = e.p[f] - (o.p[f] || 0);
+          if (dh <= 7 && d >= 0.04) MV.push({ k: e.k, t: e.t, m: e.h + ' - ' + e.a, f, nom: f === 'h' ? e.h : f === 'a' ? e.a : 'Nul', de: +o.p[f].toFixed(3), a: +e.p[f].toFixed(3), h: +dh.toFixed(1), src: e.src, ev: e.ev ? e.ev[f] : null, cote: e.fr && e.fr[f] ? e.fr[f][0] : null });
+        }
+      }
+    }
+    MV.sort((a, b) => Math.abs(b.a - b.de) - Math.abs(a.a - a.de)); VAL.sort((a, b) => b.ev - a.ev);
+    console.log(VAL.length, 'paris à valeur positive ;', MV.length, 'mouvements de cote');
+  } catch (err) { console.log('valeur / mouvements ignorés :', err.message); }
   // ---- Bilan vérifié : chaque probabilité d'avant-match est enregistrée, puis comparée au vrai résultat (scores de The Odds API) ----
   try {
     const SUIVI = 'docs/data/sharp_suivi.json', BILAN = 'docs/data/sharp_bilan.json';
@@ -107,7 +129,11 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
     for (const e of events) {
       if (!(Date.parse(e.c) < Date.parse(e.t))) continue;
       const id = sid(e.k, e.h, e.a, e.t), o = sv.ev[id];
-      if (!o || !o.res) sv.ev[id] = { k: e.k, t: e.t, h: e.h, a: e.a, p: e.p, src: e.src };      // dernière probabilité connue avant le coup d'envoi
+      if (!o || !o.res) {
+        const n = { k: e.k, t: e.t, h: e.h, a: e.a, p: e.p, src: e.src, p0: (o && o.p0) || e.p, v: o && o.v };
+        if (!n.v && e.ev) { const f = Object.keys(e.ev).find(x => e.ev[x] > 0.01 && e.p[x] >= 0.2); if (f) n.v = { f, cote: e.fr[f][0], book: e.fr[f][1], p: e.p[f], pris: new Date(now).toISOString() }; }
+        sv.ev[id] = n;
+      }      // dernière probabilité connue avant le coup d'envoi
     }
     const pend = {};
     for (const [id, o] of Object.entries(sv.ev)) {
@@ -139,6 +165,12 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
       for (const S of [B.total, (B.sports[fam(o.k)] = B.sports[fam(o.k)] || vide())]) { S.n++; S.fav += ok; S.att += pf; if (pf >= 0.7) { S.n70++; S.w70 += ok; S.a70 += pf; } }
       if (pf >= 0.7 && B.derniers.length < 25) B.derniers.push({ t: o.t, s: fam(o.k), m: o.h + ' - ' + o.a, f: f === 'h' ? o.h : f === 'a' ? o.a : 'Nul', p: +pf.toFixed(3), ok: !!ok, sc: o.sc });
     }
+    // CLV : cote prise comparée à la probabilité de clôture (dernière lecture avant le match). Positif = on a battu le marché.
+    const VB = Object.values(sv.ev).filter(o => o.v), clv = VB.map(o => o.v.cote * o.p[o.v.f] - 1), vr = VB.filter(o => o.res && o.res !== '?');
+    B.valeur = { paris: VB.length, clv_moy: clv.length ? +(clv.reduce((a, b) => a + b, 0) / clv.length).toFixed(4) : null, clv_pos: clv.filter(x => x > 0).length,
+      regles: vr.length, gagnes: vr.filter(o => o.res === o.v.f).length, mise: vr.length, retour: +vr.reduce((a, o) => a + (o.res === o.v.f ? o.v.cote : 0), 0).toFixed(2),
+      liste: VB.sort((a, b) => Date.parse(b.t) - Date.parse(a.t)).slice(0, 20).map(o => ({ t: o.t, m: o.h + ' - ' + o.a, nom: o.v.f === 'h' ? o.h : o.v.f === 'a' ? o.a : 'Nul', cote: o.v.cote, book: o.v.book, ev: +(o.v.cote * o.v.p - 1).toFixed(3), clv: +(o.v.cote * o.p[o.v.f] - 1).toFixed(3), res: o.res ? (o.res === '?' ? '?' : o.res === o.v.f ? 'gagné' : 'perdu') : null })) };
+    B.a_venir = VAL.filter(x => Date.parse(x.t) > now).slice(0, 20); B.mouvements = MV.filter(x => Date.parse(x.t) > now).slice(0, 20);
     const arr = S => { S.att = +S.att.toFixed(1); S.a70 = +S.a70.toFixed(1); }; arr(B.total); Object.values(B.sports).forEach(arr);
     B.maj = new Date().toISOString(); B.depuis = sv.depuis; B.en_attente = Object.values(sv.ev).filter(o => !o.res).length;
     fs.mkdirSync('docs/data', { recursive: true });

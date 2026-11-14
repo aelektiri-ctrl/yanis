@@ -99,6 +99,24 @@ def main():
                        tags="gem"):
                 memo[cle] = auj
 
+    # 1 bis. sport : valeur pure (EV+) et argent sharp, une seule alerte par match
+    sb = lire("sharp_bilan.json") or {}
+    for x in (sb.get("a_venir") or [])[:5]:
+        cle = f"ev/{x['m']}/{x['t'][:10]}/{x['f']}"
+        if cle in memo:
+            continue
+        if envoyer(f"💰 Valeur +{round(x['ev']*100)} % : {x['m']}", f"{x['nom']} à {str(x['cote']).replace('.', ',')} chez {x['book']}.\nVraie chance (Pinnacle sans marge) : {round(x['p']*100)} %. Cote juste : {str(round(1/x['p'], 2)).replace('.', ',')}.", tags="moneybag"):
+            memo[cle] = auj
+    for x in (sb.get("mouvements") or [])[:5]:
+        cle = f"mv/{x['m']}/{x['t'][:10]}/{x['f']}"
+        if cle in memo or (x["a"] - x["de"]) < 0.06:
+            continue
+        txt = f"{x['nom']} passe de {round(x['de']*100)} % à {round(x['a']*100)} % chez {x['src']} en {x['h']} h."
+        if x.get("cote"):
+            txt += f"\nMeilleure cote française : {str(x['cote']).replace('.', ',')}" + (f" (valeur {'+' if x['ev'] > 0 else ''}{round(x['ev']*100)} %)." if x.get("ev") is not None else ".")
+        if envoyer(f"📉 Argent sharp : {x['m']}", txt, tags="chart_with_downwards_trend"):
+            memo[cle] = auj
+
     # 2. resume du matin
     cle_matin = f"{auj}/resume"
     if maintenant.hour >= 9 and cle_matin not in memo and jour:
