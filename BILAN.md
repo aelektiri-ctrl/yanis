@@ -1,45 +1,45 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 14/11/2026 a 20:00.
+Mis a jour le 14/11/2026 a 20:51.
 
 | | |
 |---|---|
-| Jours collectes | 2921 (dont 1 sans course) |
-| Periode | 2018-11-17 au 2026-11-15 |
-| Reunions | 19566 |
-| Courses | 133960 |
-| Partants | 1587655 |
-| Rapports | 1970584 |
-| Partants avec cote finale | 1333388 |
-| Partants avec place a l'arrivee | 1294353 |
+| Jours collectes | 2941 (dont 1 sans course) |
+| Periode | 2018-10-28 au 2026-11-15 |
+| Reunions | 19714 |
+| Courses | 135064 |
+| Partants | 1601468 |
+| Rapports | 1989655 |
+| Partants avec cote finale | 1344225 |
+| Partants avec place a l'arrivee | 1305554 |
 
 ## Courses par discipline
 
 | Discipline | Courses |
 |---|---|
-| ATTELE | 59459 |
-| PLAT | 55015 |
-| MONTE | 8504 |
-| HAIE | 6305 |
-| STEEPLECHASE | 4071 |
-| CROSS | 606 |
+| ATTELE | 59935 |
+| PLAT | 55450 |
+| MONTE | 8569 |
+| HAIE | 6372 |
+| STEEPLECHASE | 4123 |
+| CROSS | 615 |
 
 ## Drivers et jockeys qui gagnent le plus (50 courses minimum)
 
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
-| E. RAFFIN | 13168 | 2400 | 18.2 | 42.3 |
-| M. GUYON | 10401 | 1654 | 15.9 | 42.6 |
-| A. ABRIVARD | 9226 | 1587 | 17.2 | 38.5 |
-| Y. LEBOURGEOIS | 9200 | 1416 | 15.4 | 33.9 |
-| M. BARZALONA | 7695 | 1396 | 18.1 | 45.9 |
-| M. ABRIVARD | 9828 | 1302 | 13.2 | 34.0 |
-| M. MOTTIER | 8756 | 1231 | 14.1 | 33.4 |
-| B. ROCHARD | 9828 | 1191 | 12.1 | 33.7 |
-| C. DEMURO | 8658 | 1179 | 13.6 | 37.1 |
-| D. THOMAIN | 9533 | 1136 | 11.9 | 32.3 |
-| C. SOUMILLON | 5614 | 951 | 16.9 | 43.6 |
-| D. BEKAERT | 5953 | 909 | 15.3 | 39.9 |
-| F. NIVARD | 8831 | 878 | 9.9 | 31.5 |
-| F. LAGADEUC | 8114 | 878 | 10.8 | 28.3 |
-| T. BACHELOT | 7484 | 832 | 11.1 | 31.8 |
+| E. RAFFIN | 13268 | 2410 | 18.2 | 42.3 |
+| M. GUYON | 10483 | 1661 | 15.8 | 42.5 |
+| A. ABRIVARD | 9269 | 1590 | 17.2 | 38.4 |
+| Y. LEBOURGEOIS | 9309 | 1449 | 15.6 | 34.0 |
+| M. BARZALONA | 7766 | 1405 | 18.1 | 45.8 |
+| M. ABRIVARD | 9930 | 1321 | 13.3 | 34.1 |
+| M. MOTTIER | 8810 | 1235 | 14.0 | 33.3 |
+| B. ROCHARD | 9842 | 1195 | 12.1 | 33.7 |
+| C. DEMURO | 8662 | 1179 | 13.6 | 37.1 |
+| D. THOMAIN | 9610 | 1147 | 11.9 | 32.3 |
+| C. SOUMILLON | 5687 | 970 | 17.1 | 43.7 |
+| D. BEKAERT | 5977 | 913 | 15.3 | 39.9 |
+| F. NIVARD | 8912 | 886 | 9.9 | 31.6 |
+| F. LAGADEUC | 8168 | 882 | 10.8 | 28.3 |
+| T. BACHELOT | 7536 | 838 | 11.1 | 31.9 |
