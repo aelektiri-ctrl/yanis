@@ -56,10 +56,10 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -q -m "Mise a jour rapide du $(TZ=Europe/Paris date '+%d/%m/%Y %H:%M')"
           for i in 1 2 3 4 5; do if git pull --rebase -X theirs --quiet && git push --quiet; then break; fi; git rebase --abort 2>/dev/null || true; sleep 10; done
-      - name: Relancer dans 10 minutes
+      - name: Relancer dans 4 minutes
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sleep 600
+          sleep 240
           gh workflow run rapide.yml --ref main -R ${{ github.repository }} || true
