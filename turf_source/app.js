@@ -394,12 +394,14 @@ function viewEtude(){
   var d=ET.d,h='<div class="card" style="border-left:4px solid #e0a100"><div class="ttl">🧪 À l\'étude — en attente de confirmation</div><div style="margin-top:6px">Deuxième analyse, <b>séparée du pronostic officiel</b>. Elle part de la cote du marché et la corrige avec ce que le marché voit mal : père, mère, éleveur, propriétaire, driver, entraîneur, leur duo, corde par hippodrome, ferrure, œillères, forme récente. Un modèle différent pour le trot attelé, le trot monté, le plat et l\'obstacle.</div><div class="mute" style="margin-top:6px">Tant que la confirmation n\'est pas acquise : à suivre, sans argent réel.</div></div>';
   if(!d){return h+'<div class="card mute">'+(ET.err?esc(ET.err):'Chargement…')+'</div>'}
   var maj=new Date(d.maj);h+='<p class="mute">Mise à jour : '+maj.toLocaleDateString('fr-FR')+' à '+maj.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · appris sur '+(d.histoire.courses||0).toLocaleString('fr-FR')+' courses</p>';
-  var P=[];(d.courses||[]).forEach(function(c){if(c.avenir)(c.picks||[]).forEach(function(p){P.push({c:c,p:p})})});
+  var VD=function(g){var f=(d.fiabilite||{})[g];return f?f.verdict:''};
+  var P=[];(d.courses||[]).forEach(function(c){if(c.avenir)(c.picks||[]).forEach(function(p){P.push({c:c,p:p,ok:VD(c.groupe)==='confirme'})})});
+  P.sort(function(u,v){return (v.ok-u.ok)||String(u.c.depart).localeCompare(String(v.c.depart))});
   h+='<h2>🎯 Paris « valeur » à venir ('+P.length+')</h2>';
   if(!P.length)h+='<div class="card mute">Aucun pour l\'instant. '+((d.courses||[]).length)+' course(s) déjà analysée(s) ; les autres le seront dès que leurs cotes seront connues (elles arrivent au fil de la journée).</div>';
   P.forEach(function(x){var c=x.c,p=x.p;
     h+='<div class="card"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · '+etHeure(c.depart)+' · '+(ET_G[c.groupe]||c.groupe)+' · '+c.n+' partants</div>'+
-      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
+      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Discipline confirmée sur l\'historique</b>':'<span class="mute">⚪ Discipline pas encore confirmée : à suivre sans argent</span>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
       '<div>Simple gagnant. Le marché lui donne <b>'+etPct(p.pm)+'</b>, l\'étude <b class="ok">'+etPct(p.pe)+'</b> (×'+String(p.ratio).replace('.',',')+').</div>'+
       ((p.pour||[]).length?'<div style="margin-top:6px">➕ '+p.pour.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+
       ((p.contre||[]).length?'<div class="mute">➖ '+p.contre.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+'</div>'});

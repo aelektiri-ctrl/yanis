@@ -106,6 +106,7 @@ def lire_jours():
                 o["cote"] = o["cote_finale"]
                 o["win"] = 1 if str(o["num"]) == SG[k][0] else 0
                 o["sg"] = SG[k][1] if o["win"] else 0.0
+                o["spd"] = SP.get((o["r"], o["c"], str(o["num"])), 0.0)
                 fin.append(o)
             elif not fini and date >= auj and not str(c["statut"]).startswith(("FIN_COURSE", "ARRIVEE")):
                 o["cote"] = None
@@ -171,7 +172,8 @@ def preparer(df):
     dd = df.hip.astype(str) + "|" + df.disc.astype(str) + "|" + pd.cut(df.dist, [0, 1300, 1700, 2100, 2600, 3200, 9999], labels=False).astype(str)
     df["hip_disc_dist"] = dd
     df["hip_corde"] = dd + "|" + pd.cut(df.corde_rel, [0, .2, .4, .6, .8, 1.01], labels=False).astype(str)
-    df["lp"] = np.log(df.p / (1 - df.p))
+    pc = df.p.clip(1e-4, 1 - 1e-4)      # une course avec un seul partant cote donnait p = 1 et une valeur infinie qui bloquait tout le calcul
+    df["lp"] = np.log(pc / (1 - pc))
     return df
 
 
@@ -182,8 +184,9 @@ class Modele:
         for c in CAT:
             vc = tr[c].astype(str).value_counts()
             self.blocs.append((c, {k: i for i, k in enumerate(vc[vc >= 40].index)}))
-        self.mu = tr[NUM].mean()
-        self.sd = tr[NUM].std().replace(0, 1).fillna(1)
+        t = tr[NUM].replace([np.inf, -np.inf], np.nan)
+        self.mu = t.mean()
+        self.sd = t.std().replace(0, 1).fillna(1)
         self.noms = ["lp"] + ["%s=%s" % (c, k) for c, m in self.blocs for k in m] + list(NUM)
         self.m = LogisticRegression(C=C_REG, max_iter=300).fit(self.X(tr), tr.win)
 
@@ -194,7 +197,7 @@ class Modele:
             ok = ix.notna().values
             r = np.where(ok)[0]
             mats.append(sp.csr_matrix((np.ones(len(r)), (r, ix.values[ok].astype(int))), shape=(len(d), len(m))))
-        nu = ((d[NUM] - self.mu) / self.sd).fillna(0).values * 0.3
+        nu = ((d[NUM].replace([np.inf, -np.inf], np.nan) - self.mu) / self.sd).replace([np.inf, -np.inf], np.nan).fillna(0).clip(-8, 8).values * 0.3
         return sp.hstack([sp.csr_matrix(d[["lp"]].values * 6)] + mats + [sp.csr_matrix(nu)]).tocsr()
 
     def predire(self, d):
@@ -262,6 +265,15 @@ def verifier(fin, groupe):
         if len(g) >= 20:
             par_trim[q] = [len(g), round(float(g.sg.sum() / len(g) - 1), 3)]
     res["par_trimestre"] = par_trim
+    # meme selection jouee en simple place (moins de risque) : vrai rapport place
+    def sp_stats(g):
+        g = g[g.n >= 8]
+        if len(g) < 30:
+            return None
+        return {"paris": int(len(g)), "places": int((g.spd > 0).sum()), "reussite": round(float((g.spd > 0).mean()), 4), "roi": round(float(g.spd.sum() / len(g) - 1), 4), "marge": round(float(1.96 * g.spd.std() / math.sqrt(len(g))), 4)}
+    res["valeur_place"] = sp_stats(T[T.r >= SEUIL])
+    res["valeur_place_4_20"] = sp_stats(T[(T.r >= SEUIL) & (T.cote >= 4) & (T.cote < 20)])
+    res["valeur_4_20"] = stats_paris(T[(T.r >= SEUIL) & (T.cote >= 4) & (T.cote < 20)])
     v = res["valeur"]
     res["verdict"] = "confirme" if v and v["roi"] - v["marge"] > 0 else ("prometteur" if v and v["roi"] > 0 and v["paris"] >= 300 else "a_confirmer")
     return res
