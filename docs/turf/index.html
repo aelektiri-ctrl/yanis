@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v35</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v36</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2206,6 +2206,20 @@ function viewValue(){
     var so=[],pi=[];(SP.data||[]).forEach(function(x,i){if(!x||!x.state||x.state.done||!x.pickT)return;var t=new Date(x.date),c=(ICON[x.sport]||'')+' '+esc(x.league||'')+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':'');
       if(x.pick)so.push({i:i,x:x,c:c});else{var b=(x.picks||[])[0];if(b)pi.push({i:i,x:x,c:c,b:b})}});
     so.sort(function(u,v){return v.x.pick.p-u.x.pick.p});pi.sort(function(u,v){return u.b.p-v.b.p});
+    // Niches : buteurs et scores exacts, avec la cote minimale à exiger du bookmaker (cote juste = 1 / probabilité)
+    var NB=[],NS=[],cj=function(p){return String((1/p).toFixed(2)).replace('.',',')};
+    (SP.data||[]).forEach(function(x,i){if(!x||x.sport!=='foot'||!x.state||x.state.state!=='pre')return;
+      var L=[];if(x.buteursEq)x.buteursEq.forEach(function(t){(t.list||[]).forEach(function(b){L.push({n:b.name,t:t.team,p:b.p})})});else(x.buteurs||[]).forEach(function(b){L.push({n:b.name,t:b.team,p:b.p})});
+      L.forEach(function(b){if(b.p>=0.35)NB.push({i:i,x:x,b:b})});
+      if(x.scores&&x.scores[0]&&x.scores[0][1]>=0.11)NS.push({i:i,x:x,s:x.scores[0]})});
+    NB.sort(function(u,v){return v.b.p-u.b.p});NS.sort(function(u,v){return v.s[1]-u.s[1]});
+    h+='<h2>🎯 Niches : buteurs ('+NB.length+')</h2><div class="card"><div class="mute" style="margin-bottom:6px">Joueurs avec 35 % et plus de chances de marquer. Ne joue que si le bookmaker paie <b>au moins la cote mini</b> : en dessous, la marge du bookmaker te fait perdre sur la durée. Aucun buteur n\'atteint 70 % : c\'est un pari plus risqué qu\'un favori.</div>';
+    if(!NB.length)h+='<div class="mute">Aucun pour l\'instant (buteurs connus seulement pour certaines compétitions).</div>';
+    NB.slice(0,15).forEach(function(o){h+='<div class="mk tap" data-s="'+o.i+'"><span>'+esc(o.b.n)+' <span class="mute">· '+esc(o.b.t)+' · '+esc(o.x.title)+'</span></span><b>'+Math.round(o.b.p*100)+' % · cote mini '+cj(o.b.p)+'</b></div>'});
+    h+='</div><h2>🔢 Niches : scores exacts ('+NS.length+')</h2><div class="card"><div class="mute" style="margin-bottom:6px">Score le plus probable de chaque match. Même le meilleur score exact passe rarement plus de 15 % du temps : à jouer seulement si la cote dépasse nettement la cote mini, et en petite mise.</div>';
+    if(!NS.length)h+='<div class="mute">Aucun pour l\'instant.</div>';
+    NS.slice(0,15).forEach(function(o){h+='<div class="mk tap" data-s="'+o.i+'"><span>'+esc(o.x.title)+' <span class="mute">· '+esc(o.s[0])+'</span></span><b>'+Math.round(o.s[1]*100)+' % · cote mini '+cj(o.s[1])+'</b></div>'});
+    h+='</div>';
     var SB=SP.shB||{},EV=(SB.a_venir||[]).filter(function(x){return Date.parse(x.t)>Date.now()}),MV=(SB.mouvements||[]).filter(function(x){return Date.parse(x.t)>Date.now()});
     var fr2=function(x){return String(x).replace('.',',')};
     h+='<h2>💰 Valeur pure EV+ ('+EV.length+') — la cote française paie plus que la vraie chance</h2>';
