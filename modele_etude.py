@@ -57,6 +57,10 @@ LIB_NUM = {"m_D5": "disqualifications récentes", "m_p5": "places récentes", "m
            "gc_par": "gains par course", "corde_rel": "position à la corde", "age": "âge", "poids_kg": "poids porté", "alloc": "dotation", "temp": "température"}
 
 
+GARDER = ("r", "c", "num", "nom", "cote_finale", "cote_reference", "musique", "nb_courses", "nb_victoires", "nb_places", "gains_carriere", "place_corde",
+          "driver", "entraineur", "proprietaire", "eleveur", "pere", "mere", "sexe", "deferre", "oeilleres", "race", "age", "poids_kg", "incident", "place_arrivee")
+
+
 def log(*a):
     print(*a, flush=True)
 
@@ -95,6 +99,7 @@ def lire_jours():
             if not c or o["statut"] != "PARTANT":
                 continue
             h = H.get(o["r"], {})
+            o = {k: o.get(k) for k in GARDER}      # seulement les colonnes utiles : la base de 9 ans ne tient plus en memoire sinon
             o.update(dict(date=date, disc=c["discipline"], spec=c["specialite"], dist=c["distance"], terr=c["terrain"], alloc=c["allocation"], libelle=c["libelle"],
                           depart=c["depart"], hip=h.get("hippodrome_code"), hipnom=h.get("hippodrome"), pays=h.get("pays"), temp=h.get("meteo_temperature"),
                           ciel=h.get("meteo_ciel"), key="%s/%s/%s" % (date, k[0], k[1]), statut_c=c["statut"]))
@@ -428,13 +433,17 @@ def main():
             avenir = t_dep is None or t_dep > maintenant
             picks = []
             for i, (idx, h) in enumerate(g.iterrows()):
-                if h.ratio >= SEUIL and avenir and h.groupe in modeles:
+                # seules les disciplines confirmees sur l'historique donnent un pari (le plat, le monte et l'obstacle perdaient)
+                if h.ratio >= SEUIL and avenir and h.groupe in modeles and (fiab or {}).get(h.groupe, {}).get("verdict") == "confirme":
                     pos, neg = modeles[h.groupe].raisons(prog, prog.index.get_loc(idx))
                     picks.append({"num": int(h.num), "nom": h.nom, "cote": float(h.cote), "pm": round(float(h.p), 4), "pe": round(float(h.pm), 4), "ratio": round(float(h.ratio), 2), "pour": pos, "contre": neg})
             ck = key
             for pk in picks:
                 kid = "%s#%d" % (ck, pk["num"])
-                if kid not in suivi["etude"]:
+                # pari fige seulement dans les 45 dernieres minutes : la cote est alors proche de la cote finale, comme dans la verification.
+                # Fige des heures avant, le modele choisissait des chevaux que le marche abandonnait ensuite (cote +18 % en mediane).
+                proche = t_dep is not None and (t_dep - maintenant).total_seconds() <= 45 * 60
+                if proche and kid not in suivi["etude"]:
                     suivi["etude"][kid] = {"key": ck, "num": pk["num"], "nom": pk["nom"], "cote": pk["cote"], "pm": pk["pm"], "pe": pk["pe"], "groupe": f.groupe, "course": "%s R%s C%s" % (f.hipnom, f.r, f.c),
                                             "depart": depart, "prise_le": maintenant.isoformat(timespec="minutes"), "statut": "en_cours", "retour": None}
             courses.append({"key": ck, "date": f.date, "r": int(f.r), "c": int(f.c), "hippodrome": f.hipnom, "libelle": f.libelle, "depart": depart, "groupe": f.groupe, "n": int(f.n), "avenir": bool(avenir),

@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v37</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v38</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2318,7 +2318,7 @@ function viewEtude(){
   if(!P.length)h+='<div class="card mute">Aucun pour l\'instant. '+((d.courses||[]).length)+' course(s) déjà analysée(s) ; les autres le seront dès que leurs cotes seront connues (elles arrivent au fil de la journée).</div>';
   P.forEach(function(x){var c=x.c,p=x.p;
     h+='<div class="card"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · '+etHeure(c.depart)+' · '+(ET_G[c.groupe]||c.groupe)+' · '+c.n+' partants</div>'+
-      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Discipline confirmée sur l\'historique</b>':'<span class="mute">⚪ Discipline pas encore confirmée : à suivre sans argent</span>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
+      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Trot attelé confirmé sur 9 ans</b>':'<span class="mute">⚪ Pas confirmé</span>')+((Date.parse(String(c.depart).replace(' ','T'))-Date.now()>45*60000)?' · <span class="mute">⏱ provisoire : à jouer seulement s\'il est toujours là 45 min avant le départ</span>':' · <b>⏱ confirmé, cote mini '+E.fmtCote(p.cote)+'</b>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
       '<div>Simple gagnant. Le marché lui donne <b>'+etPct(p.pm)+'</b>, l\'étude <b class="ok">'+etPct(p.pe)+'</b> (×'+String(p.ratio).replace('.',',')+').</div>'+
       ((p.pour||[]).length?'<div style="margin-top:6px">➕ '+p.pour.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+
       ((p.contre||[]).length?'<div class="mute">➖ '+p.contre.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+'</div>'});

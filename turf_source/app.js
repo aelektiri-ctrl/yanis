@@ -401,7 +401,7 @@ function viewEtude(){
   if(!P.length)h+='<div class="card mute">Aucun pour l\'instant. '+((d.courses||[]).length)+' course(s) déjà analysée(s) ; les autres le seront dès que leurs cotes seront connues (elles arrivent au fil de la journée).</div>';
   P.forEach(function(x){var c=x.c,p=x.p;
     h+='<div class="card"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · '+etHeure(c.depart)+' · '+(ET_G[c.groupe]||c.groupe)+' · '+c.n+' partants</div>'+
-      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Discipline confirmée sur l\'historique</b>':'<span class="mute">⚪ Discipline pas encore confirmée : à suivre sans argent</span>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
+      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Trot attelé confirmé sur 9 ans</b>':'<span class="mute">⚪ Pas confirmé</span>')+((Date.parse(String(c.depart).replace(' ','T'))-Date.now()>45*60000)?' · <span class="mute">⏱ provisoire : à jouer seulement s\'il est toujours là 45 min avant le départ</span>':' · <b>⏱ confirmé, cote mini '+E.fmtCote(p.cote)+'</b>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
       '<div>Simple gagnant. Le marché lui donne <b>'+etPct(p.pm)+'</b>, l\'étude <b class="ok">'+etPct(p.pe)+'</b> (×'+String(p.ratio).replace('.',',')+').</div>'+
       ((p.pour||[]).length?'<div style="margin-top:6px">➕ '+p.pour.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+
       ((p.contre||[]).length?'<div class="mute">➖ '+p.contre.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+'</div>'});
