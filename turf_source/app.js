@@ -401,6 +401,8 @@ function viewEtude(){
   P.sort(function(u,v){return u.t-v.t});
   h+='<h2>🐎 Courses : outsiders à valeur ('+P.length+')</h2>';
   if(!P.length)h+='<div class="card mute">Aucun outsider à valeur pour l\'instant. '+((d.courses||[]).length)+' course(s) analysée(s) ; les autres le seront dès que leurs cotes arrivent. Certains jours il n\'y en a aucun : c\'est normal, le radar ne force jamais un pari.</div>';
+  if(P.length>3){var T3=P.slice().sort(function(u,v){return (v.p.pc||v.p.pe)-(u.p.pc||u.p.pe)}).slice(0,3);
+    h+='<div class="card"><div class="ttl">🏅 Les 3 plus fortes chances du jour</div>';T3.forEach(function(x){h+='<div class="mk"><span>n°'+x.p.num+' '+esc(x.p.nom||'')+' <span class="mute">· '+esc(x.c.hippodrome||'')+' '+etHeure(x.c.depart)+'</span></span><b>'+etPct(x.p.pc||x.p.pe,0)+' · cote '+E.fmtCote(x.p.cote)+'</b></div>'});h+='</div>'}
   P.forEach(function(x){var c=x.c,p=x.p,pc=p.pc!=null?p.pc:p.pe,ev=p.ev!=null?p.ev:(pc*p.cote-1);
     h+='<div class="card pn'+(x.pr?' good':'')+'"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · départ '+etHeure(c.depart)+' · '+c.n+' partants</div>'+
       '<div style="margin:4px 0">'+(x.pr?'<b class="ok">⏱ À jouer maintenant</b> <span class="mute">(moins de 45 min avant le départ)</span>':'<span class="mute">⏱ Provisoire : reviens 45 min avant le départ, la sélection suit les cotes</span>')+'</div>'+
