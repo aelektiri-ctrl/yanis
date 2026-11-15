@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v34</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v35</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -524,7 +524,11 @@ a{color:var(--accent)}
     // recherche de formule : la moins chère (en combinaisons) dont la probabilité dépasse 72 % (seuil interne pour afficher « plus de 70 % »)
     var PT = 0.72, KMAX = 8, bestC = null, avail = function (t) { return !!(dispo[t] || dispo['E_' + t]); };
     var cands = [];
-    function consider(c) { cands.push({ l: c.j ? c.j.label : c.make()[1], cost: c.cost, p: c.p }); if (c.p >= PT && c.cost <= KMAX && (!bestC || c.cost < bestC.cost || (c.cost === bestC.cost && c.p > bestC.p))) bestC = c; }
+    function consider(c) { cands.push({ l: c.j ? c.j.label : c.make()[1], cost: c.cost, p: c.p }); if (c.p >= PT && c.cost <= KMAX && SAFE_TURF(c) && (!bestC || c.cost < bestC.cost || (c.cost === bestC.cost && c.p > bestC.p))) bestC = c; }
+    // Règle mesurée sur 15 400 courses réelles avec les rapports officiels : seuls les simples placés sur un favori très net
+    // (cote 1,6 ou moins) sont à l'équilibre (+1 à +4 %). Le 2 sur 4 (−11 à −14 %), le trio (−30 %) et le multi (−32 à −36 %) perdent
+    // même quand ils passent souvent. On ne retient donc plus que ce simple placé ; le reste est affiché, jamais conseillé.
+    var SAFE_TURF = function (c) { var h = H[A]; return !!(c.j && c.j.type === 'SIMPLE_PLACE' && h && h.cote && h.cote <= 1.6 && c.j.p >= 0.85); };
     var spJ0 = jeux.filter(function (j) { return j.type === 'SIMPLE_PLACE'; })[0];
     if (spJ0) consider({ cost: 1, p: spJ0.p, j: spJ0 });
     if (n >= 6 && avail('DEUX_SUR_QUATRE')) for (var kk = 1; kk <= Math.min(KMAX, others4.length); kk++) (function (kk) {
@@ -563,6 +567,7 @@ a{color:var(--accent)}
     if (res.perfN) why.push('Historique course par course intégré pour ' + res.perfN + ' chevaux (réduction kilométrique, niveau des courses, fraîcheur, hippodrome, distance).');
 
     if (res.pick) why.unshift('Formule retenue : ' + main.label + (main.type === 'SIMPLE_PLACE' ? ' sur le n°' + hA.num + ' ' + hA.nom : '') + ' — ' + pct(main.p) + ' de chances de passer, pour ' + main.combos + ' combinaison' + (main.combos > 1 ? 's' : '') + ' (' + String(main.cout).replace('.', ',') + ' €). Parmi toutes les formules testées sur cette course (simple placé, 2 sur 4, trio, multi, jusqu\'à ' + KMAX + ' combinaisons), c\'est la moins chère qui dépasse 70 %. Attention : plus on joue de combinaisons, plus il faut un gros rapport pour gagner de l\'argent. Ici il faut un retour supérieur à ' + (main.cout / main.p).toFixed(2).replace('.', ',') + ' € pour ' + String(main.cout).replace('.', ',') + ' € misés, soit ' + (1 / main.p).toFixed(2).replace('.', ',') + ' fois la mise ; sur 5 680 courses testées, aucun format PMU n\'a rapporté en moyenne.');
+    else if (main && res.market) why.unshift('Pas de pari : aucune formule rentable sur cette course. Seul le simple placé sur un favori à 1,6 ou moins (85 % de chances et plus) est à l\'équilibre sur 15 400 courses réelles ; les combinaisons (2 sur 4, trio, multi) perdent de 11 à 36 % sur la durée.');
     else if (main) why.unshift('Aucune formule à ' + KMAX + ' combinaisons ou moins ne dépasse 70 % sur cette course (meilleure : ' + pct(Math.max.apply(null, jeux.map(function (j) { return j.combos <= KMAX ? j.p : 0; }))) + '). Pas de pari conseillé : course à attendre (cotes, partants) ou à laisser passer.');
     var conf = main ? main.p : 0;
     var potentiel = conf * (1 + Math.max(0, (hA.ev || 1) - 1)) * (level === 'SEC' ? 1.15 : level === 'FORT' ? 1.05 : 0.9) * (nbIned >= 2 ? 0.8 : 1) * (res.market ? 1 : 0.85);
@@ -2236,7 +2241,7 @@ function viewSel(){
   var lc=(!MODELS||LEARN.running)?learnCard(false):'';
   if(!top.length)return lc+'<div class="card">'+(S.loading?'Analyse en cours…':'Aucune course à venir avec des partants publiés pour cette date.')+'</div>'+finishedBlock();
   var picks=top.filter(function(x){return x.a.pick}),rest=top.filter(function(x){return !x.a.pick});
-  var h=lc+'<h2>'+picks.length+' course'+(picks.length>1?'s':'')+' avec une formule à plus de 70 %</h2><p class="mute" style="margin-top:-4px">Pour chaque course, l\'appli teste le simple placé, le 2 sur 4, le trio et le multi (jusqu\'à 8 combinaisons) et ne retient que la formule la moins chère qui dépasse 70 % de chances. Le pourcentage est la chance que la formule passe. Elle n\'est rentable que si le rapport dépasse le retour indiqué sur la carte.</p>';
+  var h=lc+'<h2>'+picks.length+' course'+(picks.length>1?'s':'')+' avec une formule à plus de 70 %</h2><p class="mute" style="margin-top:-4px">Seule formule retenue : le simple placé sur un favori très net (cote 1,6 ou moins, 85 % de chances et plus). C\'est le seul pari à l\'équilibre sur 15 400 courses réelles ; le 2 sur 4, le trio et le multi perdent de 11 à 36 % sur la durée, ils restent affichés mais ne sont plus conseillés. Le pourcentage est la chance que la formule passe. Elle n\'est rentable que si le rapport dépasse le retour indiqué sur la carte.</p>';
   if(!picks.length)h+='<div class="card">Aucune course n\'a pour l\'instant de formule au-dessus de 70 %. Les cotes ouvrent en général une à deux heures avant le départ : l\'analyse se met à jour toute seule.</div>';
   picks.forEach(function(x,i){
     var a=x.a,m=a.main,base=a.ranking[0];

@@ -324,7 +324,7 @@ function viewSel(){
   var lc=(!MODELS||LEARN.running)?learnCard(false):'';
   if(!top.length)return lc+'<div class="card">'+(S.loading?'Analyse en cours…':'Aucune course à venir avec des partants publiés pour cette date.')+'</div>'+finishedBlock();
   var picks=top.filter(function(x){return x.a.pick}),rest=top.filter(function(x){return !x.a.pick});
-  var h=lc+'<h2>'+picks.length+' course'+(picks.length>1?'s':'')+' avec une formule à plus de 70 %</h2><p class="mute" style="margin-top:-4px">Pour chaque course, l\'appli teste le simple placé, le 2 sur 4, le trio et le multi (jusqu\'à 8 combinaisons) et ne retient que la formule la moins chère qui dépasse 70 % de chances. Le pourcentage est la chance que la formule passe. Elle n\'est rentable que si le rapport dépasse le retour indiqué sur la carte.</p>';
+  var h=lc+'<h2>'+picks.length+' course'+(picks.length>1?'s':'')+' avec une formule à plus de 70 %</h2><p class="mute" style="margin-top:-4px">Seule formule retenue : le simple placé sur un favori très net (cote 1,6 ou moins, 85 % de chances et plus). C\'est le seul pari à l\'équilibre sur 15 400 courses réelles ; le 2 sur 4, le trio et le multi perdent de 11 à 36 % sur la durée, ils restent affichés mais ne sont plus conseillés. Le pourcentage est la chance que la formule passe. Elle n\'est rentable que si le rapport dépasse le retour indiqué sur la carte.</p>';
   if(!picks.length)h+='<div class="card">Aucune course n\'a pour l\'instant de formule au-dessus de 70 %. Les cotes ouvrent en général une à deux heures avant le départ : l\'analyse se met à jour toute seule.</div>';
   picks.forEach(function(x,i){
     var a=x.a,m=a.main,base=a.ranking[0];

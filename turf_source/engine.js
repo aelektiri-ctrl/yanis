@@ -389,7 +389,11 @@
     // recherche de formule : la moins chère (en combinaisons) dont la probabilité dépasse 72 % (seuil interne pour afficher « plus de 70 % »)
     var PT = 0.72, KMAX = 8, bestC = null, avail = function (t) { return !!(dispo[t] || dispo['E_' + t]); };
     var cands = [];
-    function consider(c) { cands.push({ l: c.j ? c.j.label : c.make()[1], cost: c.cost, p: c.p }); if (c.p >= PT && c.cost <= KMAX && (!bestC || c.cost < bestC.cost || (c.cost === bestC.cost && c.p > bestC.p))) bestC = c; }
+    function consider(c) { cands.push({ l: c.j ? c.j.label : c.make()[1], cost: c.cost, p: c.p }); if (c.p >= PT && c.cost <= KMAX && SAFE_TURF(c) && (!bestC || c.cost < bestC.cost || (c.cost === bestC.cost && c.p > bestC.p))) bestC = c; }
+    // Règle mesurée sur 15 400 courses réelles avec les rapports officiels : seuls les simples placés sur un favori très net
+    // (cote 1,6 ou moins) sont à l'équilibre (+1 à +4 %). Le 2 sur 4 (−11 à −14 %), le trio (−30 %) et le multi (−32 à −36 %) perdent
+    // même quand ils passent souvent. On ne retient donc plus que ce simple placé ; le reste est affiché, jamais conseillé.
+    var SAFE_TURF = function (c) { var h = H[A]; return !!(c.j && c.j.type === 'SIMPLE_PLACE' && h && h.cote && h.cote <= 1.6 && c.j.p >= 0.85); };
     var spJ0 = jeux.filter(function (j) { return j.type === 'SIMPLE_PLACE'; })[0];
     if (spJ0) consider({ cost: 1, p: spJ0.p, j: spJ0 });
     if (n >= 6 && avail('DEUX_SUR_QUATRE')) for (var kk = 1; kk <= Math.min(KMAX, others4.length); kk++) (function (kk) {
@@ -428,6 +432,7 @@
     if (res.perfN) why.push('Historique course par course intégré pour ' + res.perfN + ' chevaux (réduction kilométrique, niveau des courses, fraîcheur, hippodrome, distance).');
 
     if (res.pick) why.unshift('Formule retenue : ' + main.label + (main.type === 'SIMPLE_PLACE' ? ' sur le n°' + hA.num + ' ' + hA.nom : '') + ' — ' + pct(main.p) + ' de chances de passer, pour ' + main.combos + ' combinaison' + (main.combos > 1 ? 's' : '') + ' (' + String(main.cout).replace('.', ',') + ' €). Parmi toutes les formules testées sur cette course (simple placé, 2 sur 4, trio, multi, jusqu\'à ' + KMAX + ' combinaisons), c\'est la moins chère qui dépasse 70 %. Attention : plus on joue de combinaisons, plus il faut un gros rapport pour gagner de l\'argent. Ici il faut un retour supérieur à ' + (main.cout / main.p).toFixed(2).replace('.', ',') + ' € pour ' + String(main.cout).replace('.', ',') + ' € misés, soit ' + (1 / main.p).toFixed(2).replace('.', ',') + ' fois la mise ; sur 5 680 courses testées, aucun format PMU n\'a rapporté en moyenne.');
+    else if (main && res.market) why.unshift('Pas de pari : aucune formule rentable sur cette course. Seul le simple placé sur un favori à 1,6 ou moins (85 % de chances et plus) est à l\'équilibre sur 15 400 courses réelles ; les combinaisons (2 sur 4, trio, multi) perdent de 11 à 36 % sur la durée.');
     else if (main) why.unshift('Aucune formule à ' + KMAX + ' combinaisons ou moins ne dépasse 70 % sur cette course (meilleure : ' + pct(Math.max.apply(null, jeux.map(function (j) { return j.combos <= KMAX ? j.p : 0; }))) + '). Pas de pari conseillé : course à attendre (cotes, partants) ou à laisser passer.');
     var conf = main ? main.p : 0;
     var potentiel = conf * (1 + Math.max(0, (hA.ev || 1) - 1)) * (level === 'SEC' ? 1.15 : level === 'FORT' ? 1.05 : 0.9) * (nbIned >= 2 ? 0.8 : 1) * (res.market ? 1 : 0.85);
