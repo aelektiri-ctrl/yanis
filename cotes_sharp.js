@@ -191,6 +191,17 @@ const rank = (k, free) => { const L = free ? PRIO_FREE : PRIO; const i = L.findI
     B.valeur = { paris: VB.length, clv_moy: clv.length ? +(clv.reduce((a, b) => a + b, 0) / clv.length).toFixed(4) : null, clv_pos: clv.filter(x => x > 0).length,
       regles: vr.length, gagnes: vr.filter(o => o.res === o.v.f).length, mise: vr.length, retour: +vr.reduce((a, o) => a + (o.res === o.v.f ? o.v.cote : 0), 0).toFixed(2),
       liste: VB.sort((a, b) => Date.parse(b.t) - Date.parse(a.t)).slice(0, 20).map(o => ({ t: o.t, m: o.h + ' - ' + o.a, nom: o.v.f === 'h' ? o.h : o.v.f === 'a' ? o.a : 'Nul', cote: o.v.cote, book: o.v.book, ev: +(o.v.cote * o.v.p - 1).toFixed(3), clv: +(o.v.cote * o.p[o.v.f] - 1).toFixed(3), res: o.res ? (o.res === '?' ? '?' : o.res === o.v.f ? 'gagné' : 'perdu') : null })) };
+    // Radar à outsiders : toutes les issues payées 3,00 et plus par un bookmaker français, classées de la mieux payée à la moins bien payée
+    // (valeur = vraie chance × cote − 1). « mini » = la cote à partir de laquelle le pari devient rentable.
+    try {
+      const OUTS = [];
+      for (const e of events) {
+        const t = Date.parse(e.t); if (!(t > now) || !e.fr || !(Date.parse(e.c) < t)) continue;
+        for (const f of Object.keys(e.p)) { const c = e.fr[f]; if (!c || c[0] < 3 || e.p[f] < 0.08) continue;
+          OUTS.push({ k: e.k, t: e.t, m: e.h + ' - ' + e.a, nom: f === 'h' ? e.h : f === 'a' ? e.a : 'Match nul', p: +e.p[f].toFixed(3), cote: c[0], book: c[1], mini: +(1 / e.p[f]).toFixed(2), ev: +(e.p[f] * c[0] - 1).toFixed(3), src: e.src }); }
+      }
+      OUTS.sort((a, b) => b.ev - a.ev); B.outsiders = OUTS.slice(0, 30); B.outsiders_n = OUTS.length;
+    } catch (err) { B.outsiders = []; }
     B.a_venir = VAL.filter(x => Date.parse(x.t) > now).slice(0, 20); B.mouvements = MV.filter(x => Date.parse(x.t) > now).slice(0, 20);
     const arr = S => { S.att = +S.att.toFixed(1); S.a70 = +S.a70.toFixed(1); }; arr(B.total); Object.values(B.sports).forEach(arr);
     B.maj = new Date().toISOString(); B.depuis = sv.depuis; B.en_attente = Object.values(sv.ev).filter(o => !o.res).length;

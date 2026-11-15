@@ -379,50 +379,62 @@ function viewProg(){
   return h||'<div class="card">Aucune réunion.</div>';
 }
 
-/* ---------- Onglet « À l'étude » : modèle en attente de confirmation, comparé au pronostic actuel ---------- */
-var ET={d:null,t:0,err:null,loading:false};
+/* ---------- Onglet « Outsiders » : cotes hautes dont la chance mesurée dépasse ce que la cote paie (courses + sport) ---------- */
+var ET={d:null,sb:null,t:0,err:null,loading:false};
 async function loadEtude(){
-  if(ET.loading||(ET.d&&Date.now()-ET.t<5*60000))return;ET.loading=true;
-  try{ET.d=await yFetch('etude.json');ET.err=null;ET.t=Date.now()}catch(e){ET.err='Données de l\'étude pas encore disponibles (premier calcul en cours).'}
+  if(ET.loading||(ET.d&&Date.now()-ET.t<3*60000))return;ET.loading=true;
+  try{ET.d=await yFetch('etude.json');ET.err=null;ET.t=Date.now()}catch(e){ET.err='Données pas encore disponibles (premier calcul en cours).'}
+  try{ET.sb=await yFetch('sharp_bilan.json')}catch(e){}
   ET.loading=false;if(S.mode==='etude')render();
 }
 function etPct(x,d){return x==null?'–':(x*100).toFixed(d==null?1:d).replace('.',',')+' %'}
 function etRoi(x){return x==null?'–':(x>0?'+':'')+(x*100).toFixed(1).replace('.',',')+' %'}
 function etHeure(s){return s?String(s).slice(11,16).replace(':','h'):''}
+function etC(x){return String((+x).toFixed(2)).replace('.',',')}
 var ET_G={ATTELE:'Trot attelé',MONTE:'Trot monté',PLAT:'Galop plat',OBSTACLE:'Obstacle'};
 function viewEtude(){
-  var d=ET.d,h='<div class="card" style="border-left:4px solid #e0a100"><div class="ttl">🧪 À l\'étude — en attente de confirmation</div><div style="margin-top:6px">Deuxième analyse, <b>séparée du pronostic officiel</b>. Elle part de la cote du marché et la corrige avec ce que le marché voit mal : père, mère, éleveur, propriétaire, driver, entraîneur, leur duo, corde par hippodrome, ferrure, œillères, forme récente. Un modèle différent pour le trot attelé, le trot monté, le plat et l\'obstacle.</div><div class="mute" style="margin-top:6px">Tant que la confirmation n\'est pas acquise : à suivre, sans argent réel.</div></div>';
+  var d=ET.d,h='<div class="card" style="border-left:4px solid #e0a100"><div class="ttl">🎯 Radar à outsiders</div><div style="margin-top:6px">Ici, pas de favoris : uniquement des <b>cotes hautes dont la chance réelle, mesurée, dépasse ce que la cote paie</b>. Courses : trot attelé, la seule discipline où le modèle bat le marché sur 9 ans de courses rejouées. Sport : cotes de 3,00 et plus comparées au prix juste de Pinnacle.</div><div class="mute" style="margin-top:6px">Un outsider gagne rarement : mise petite et toujours la même (1 à 2 % du budget), jamais de rattrapage après une perte.</div></div>';
   if(!d){return h+'<div class="card mute">'+(ET.err?esc(ET.err):'Chargement…')+'</div>'}
-  var maj=new Date(d.maj);h+='<p class="mute">Mise à jour : '+maj.toLocaleDateString('fr-FR')+' à '+maj.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · appris sur '+(d.histoire.courses||0).toLocaleString('fr-FR')+' courses</p>';
-  var VD=function(g){var f=(d.fiabilite||{})[g];return f?f.verdict:''};
-  var P=[];(d.courses||[]).forEach(function(c){if(c.avenir)(c.picks||[]).forEach(function(p){P.push({c:c,p:p,ok:VD(c.groupe)==='confirme'})})});
-  P.sort(function(u,v){return (v.ok-u.ok)||String(u.c.depart).localeCompare(String(v.c.depart))});
-  h+='<h2>🎯 Paris « valeur » à venir ('+P.length+')</h2>';
-  if(!P.length)h+='<div class="card mute">Aucun pour l\'instant. '+((d.courses||[]).length)+' course(s) déjà analysée(s) ; les autres le seront dès que leurs cotes seront connues (elles arrivent au fil de la journée).</div>';
-  P.forEach(function(x){var c=x.c,p=x.p;
-    h+='<div class="card"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · '+etHeure(c.depart)+' · '+(ET_G[c.groupe]||c.groupe)+' · '+c.n+' partants</div>'+
-      '<div style="margin:4px 0">'+(x.ok?'<b class="ok">✅ Trot attelé confirmé sur 9 ans</b>':'<span class="mute">⚪ Pas confirmé</span>')+((Date.parse(String(c.depart).replace(' ','T'))-Date.now()>45*60000)?' · <span class="mute">⏱ provisoire : à jouer seulement s\'il est toujours là 45 min avant le départ</span>':' · <b>⏱ confirmé, cote mini '+E.fmtCote(p.cote)+'</b>')+'</div>'+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
-      '<div>Simple gagnant. Le marché lui donne <b>'+etPct(p.pm)+'</b>, l\'étude <b class="ok">'+etPct(p.pe)+'</b> (×'+String(p.ratio).replace('.',',')+').</div>'+
+  var maj=new Date(d.maj);h+='<p class="mute">Mise à jour : '+maj.toLocaleDateString('fr-FR')+' à '+maj.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · modèle appris sur '+(d.histoire.courses||0).toLocaleString('fr-FR')+' courses</p>';
+  /* ---- courses ---- */
+  var now=Date.now(),P=[];(d.courses||[]).forEach(function(c){var t=Date.parse(String(c.depart).replace(' ','T'));if(isNaN(t)||t<now)return;(c.picks||[]).forEach(function(p){P.push({c:c,p:p,t:t,pr:(t-now)<=45*60000})})});
+  P.sort(function(u,v){return u.t-v.t});
+  h+='<h2>🐎 Courses : outsiders à valeur ('+P.length+')</h2>';
+  if(!P.length)h+='<div class="card mute">Aucun outsider à valeur pour l\'instant. '+((d.courses||[]).length)+' course(s) analysée(s) ; les autres le seront dès que leurs cotes arrivent. Certains jours il n\'y en a aucun : c\'est normal, le radar ne force jamais un pari.</div>';
+  P.forEach(function(x){var c=x.c,p=x.p,pc=p.pc!=null?p.pc:p.pe,ev=p.ev!=null?p.ev:(pc*p.cote-1);
+    h+='<div class="card pn'+(x.pr?' good':'')+'"><div class="mute">'+esc(c.hippodrome||'')+' · R'+c.r+' C'+c.c+' · départ '+etHeure(c.depart)+' · '+c.n+' partants</div>'+
+      '<div style="margin:4px 0">'+(x.pr?'<b class="ok">⏱ À jouer maintenant</b> <span class="mute">(moins de 45 min avant le départ)</span>':'<span class="mute">⏱ Provisoire : reviens 45 min avant le départ, la sélection suit les cotes</span>')+'</div>'+
+      '<div class="ttl" style="margin:4px 0">n°'+p.num+' '+esc(p.nom||'')+' · cote '+E.fmtCote(p.cote)+'</div>'+
+      '<div>Simple gagnant. Chance estimée <b class="ok">'+etPct(pc)+'</b> <span class="mute">(le marché : '+etPct(p.pm)+')</span> · espérance <b class="'+(ev>0?'ok':'ko')+'">'+etRoi(ev)+'</b> par euro misé.</div>'+
       ((p.pour||[]).length?'<div style="margin-top:6px">➕ '+p.pour.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+
       ((p.contre||[]).length?'<div class="mute">➖ '+p.contre.map(function(r){return esc(r.t)}).join(' · ')+'</div>':'')+'</div>'});
-  var s=d.suivi||{},se=s.etude||{},sa=s.actuel||{};
-  h+='<h2>⚖️ Comparaison en direct (depuis le '+esc(d.depuis||'')+')</h2><div class="card"><div class="mute">Chaque pari est figé avant le départ, puis réglé avec le vrai rapport simple gagnant, 1 € par pari.</div>'+
-    '<table style="width:100%;border-collapse:collapse;margin-top:8px"><tr class="mute"><td></td><td style="text-align:right">Paris</td><td style="text-align:right">Gagnés</td><td style="text-align:right">Bilan</td></tr>'+
-    '<tr><td><b>Étude</b> (paris valeur)</td><td style="text-align:right">'+(se.paris||0)+'</td><td style="text-align:right">'+(se.gagnes||0)+'</td><td style="text-align:right"><b class="'+((se.roi||0)>0?'ok':'ko')+'">'+etRoi(se.roi)+'</b></td></tr>'+
-    '<tr><td><b>Pronostic actuel</b> (n°1 de chaque course)</td><td style="text-align:right">'+(sa.paris||0)+'</td><td style="text-align:right">'+(sa.gagnes||0)+'</td><td style="text-align:right"><b class="'+((sa.roi||0)>0?'ok':'ko')+'">'+etRoi(sa.roi)+'</b></td></tr></table>'+
-    '<div class="mute" style="margin-top:6px">En cours : '+(se.en_cours||0)+' pour l\'étude, '+(sa.en_cours||0)+' pour le pronostic actuel.'+(((se.paris||0)<300)?' Il faut plusieurs centaines de paris avant de conclure.':'')+'</div></div>';
-  h+='<h2>🔬 Ce que disent les courses passées, par discipline</h2><p class="mute">Test « marche en avant » : le modèle apprend sur le passé et joue le trimestre suivant, qu\'il n\'a jamais vu.</p>';
-  ['ATTELE','MONTE','PLAT','OBSTACLE'].forEach(function(g){var f=(d.fiabilite||{})[g],gr=(d.groupes||{})[g];if(!f&&!gr)return;var v=f&&f.valeur;
-    var lab=!f?'pas assez de courses':f.verdict==='confirme'?'✅ Confirmé':f.verdict==='prometteur'?'🟡 Prometteur, pas encore confirmé':'⚪ À confirmer';
-    var q=f?Object.keys(f.par_trimestre||{}):[],qp=q.filter(function(k){return f.par_trimestre[k][1]>0}).length;
-    h+='<div class="card"><div class="ttl">'+(ET_G[g]||g)+' <span class="mute" style="font-weight:400">· '+lab+'</span></div>'+
-      (v?'<div style="margin-top:6px">'+v.paris.toLocaleString('fr-FR')+' paris valeur : gagnés <b>'+etPct(v.reussite)+'</b> (le marché annonçait '+etPct(v.annonce_marche)+'). Bilan <b class="'+(v.roi>0?'ok':'ko')+'">'+etRoi(v.roi)+'</b> ± '+(v.marge*100).toFixed(0)+' points.</div><div class="mute">Trimestres gagnants : '+qp+' sur '+q.length+' · cote moyenne '+String(v.cote_moy).replace('.',',')+'</div>':'<div class="mute" style="margin-top:6px">Pas assez de paris pour mesurer.</div>')+
-      (gr?'<div class="mute" style="margin-top:6px">Sur '+gr.courses.toLocaleString('fr-FR')+' courses : le favori gagne '+etPct(gr.favori_gagne,0)+(gr.favori_disqualifie>0.01?' et il est disqualifié pour faute '+etPct(gr.favori_disqualifie,0)+' du temps (tous partants : '+etPct(gr.disqualifies,0)+')':gr.favori_incident>0.01?' ; il tombe ou est arrêté '+etPct(gr.favori_incident,0)+' du temps':'')+'.</div>':'')+'</div>'});
-  var L=(se.derniers||[]);
-  if(L.length){h+='<h2>🧾 Derniers paris de l\'étude</h2><div class="card">';
+  /* ---- sport ---- */
+  var O=((ET.sb&&ET.sb.outsiders)||[]).filter(function(x){return Date.parse(x.t)>now}),OK=O.filter(function(x){return x.ev>=0}),KO=O.filter(function(x){return x.ev<0});
+  h+='<h2>⚽ Sport : outsiders à 3,00 et plus ('+OK.length+' rentable'+(OK.length>1?'s':'')+')</h2>';
+  OK.forEach(function(x){h+='<div class="card pn good"><div class="mute">'+esc(x.m)+' · '+new Date(x.t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'</div><div class="ttl" style="margin:4px 0">'+esc(x.nom)+' à '+etC(x.cote)+' chez '+esc(x.book)+'</div><div>Vraie chance <b>'+etPct(x.p,0)+'</b> · rentable dès '+etC(x.mini)+' · espérance <b class="ok">'+etRoi(x.ev)+'</b> par euro misé.</div></div>'});
+  if(!OK.length)h+='<div class="card mute">Aucun outsider rentable en ce moment chez les bookmakers français : leurs cotes hautes paient en moyenne 10 % de moins que la vraie chance. Le radar relit les cotes toute la journée et t\'alerte dès qu\'une passe au-dessus.</div>';
+  if(KO.length){h+='<div class="card"><div class="ttl">Les mieux payés du moment</div><div class="mute" style="margin:4px 0 6px">Pas encore rentables. Si ton bookmaker affiche une cote (ou une cote boostée) <b>au-dessus de « rentable dès »</b>, le pari devient une valeur.</div>';
+    KO.slice(0,10).forEach(function(x){h+='<div class="mk"><span>'+esc(x.nom)+' <span class="mute">· '+esc(x.m)+' · '+etPct(x.p,0)+'</span></span><b>'+etC(x.cote)+' <span class="mute" style="font-weight:400">→ rentable dès</span> '+etC(x.mini)+'</b></div>'});
+    h+='</div>'}
+  /* ---- bilan en direct ---- */
+  var s=d.suivi||{},s2=s.etude2||{},se=s.etude||{};
+  h+='<h2>📒 Bilan en direct des outsiders courses</h2><div class="card"><div class="mute">Chaque pari est figé 45 min au plus avant le départ, puis réglé avec le vrai rapport simple gagnant, 1 € par pari.</div>'+
+    '<div class="mk" style="margin-top:8px"><span>Règles actuelles (trot attelé seul'+(s.regle2_depuis?', depuis le '+esc(s.regle2_depuis):'')+')</span><b class="'+((s2.roi||0)>0?'ok':(s2.paris?'ko':''))+'">'+(s2.paris?s2.gagnes+' / '+s2.paris+' · '+etRoi(s2.roi):'pas encore de pari réglé')+'</b></div>'+
+    (se.paris?'<div class="mk"><span class="mute">Avant correction (toutes disciplines, paris pris trop tôt)</span><span class="mute">'+se.gagnes+' / '+se.paris+' · '+etRoi(se.roi)+'</span></div>':'')+
+    '<div class="mute" style="margin-top:6px">'+(s2.en_cours?s2.en_cours+' pari(s) en cours. ':'')+'À ces cotes, il faut 200 à 300 paris pour juger : une série de 20 perdants d\'affilée est normale.</div></div>';
+  var L=(s2.derniers||[]);
+  if(L.length){h+='<div class="card">';
     L.slice(0,25).forEach(function(e){var st=e.statut==='gagne'?'<b class="ok">gagné · '+String(e.retour).replace('.',',')+' €</b>':e.statut==='perdu'?'<span class="ko">perdu</span>':e.statut==='rembourse'?'remboursé':'<span class="mute">en cours</span>';
       h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(128,128,128,.18)"><div><b>n°'+e.num+' '+esc(e.nom||'')+'</b><div class="mute">'+esc(e.course||'')+' · '+esc(String(e.depart||'').slice(8,10)+'/'+String(e.depart||'').slice(5,7))+' '+etHeure(e.depart)+' · cote '+E.fmtCote(e.cote)+'</div></div><div style="text-align:right;white-space:nowrap">'+st+'</div></div>'});
     h+='</div>'}
+  /* ---- preuves ---- */
+  h+='<h2>🔬 La preuve : 9 ans de courses rejouées</h2><p class="mute">Test « marche en avant » : le modèle apprend sur le passé puis joue le trimestre suivant, qu\'il n\'a jamais vu.</p>';
+  ['ATTELE','MONTE','PLAT','OBSTACLE'].forEach(function(g){var f=(d.fiabilite||{})[g];if(!f)return;var v=f.valeur,m=f.matin;
+    var lab=f.verdict==='confirme'?'✅ Confirmé, joué':f.verdict==='prometteur'?'🟡 Pas confirmé, non joué':'⚪ Perdant ou incertain, non joué';
+    var q=Object.keys(f.par_trimestre||{}),qp=q.filter(function(k){return f.par_trimestre[k][1]>0}).length;
+    h+='<div class="card"><div class="ttl">'+(ET_G[g]||g)+' <span class="mute" style="font-weight:400">· '+lab+'</span></div>'+
+      (v?'<div style="margin-top:6px">'+v.paris.toLocaleString('fr-FR')+' outsiders joués : gagnés <b>'+etPct(v.reussite)+'</b> (le marché annonçait '+etPct(v.annonce_marche)+'), cote moyenne '+String(v.cote_moy).replace('.',',')+'. Bilan <b class="'+(v.roi>0?'ok':'ko')+'">'+etRoi(v.roi)+'</b> ± '+(v.marge*100).toFixed(0)+' points · trimestres gagnants : '+qp+' sur '+q.length+'.</div>':'<div class="mute" style="margin-top:6px">Pas assez de paris pour mesurer.</div>')+
+      (m?'<div class="mute" style="margin-top:6px">Version prudente (chevaux choisis avec la cote du matin, payés à la cote finale) : '+etRoi(m.roi)+' ± '+(m.marge*100).toFixed(0)+' points sur '+m.paris.toLocaleString('fr-FR')+' paris. Le résultat réel se situe entre les deux.</div>':'')+'</div>'});
   return h;
 }
 
@@ -515,7 +527,7 @@ function render(){
 $('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'))});
 document.querySelectorAll('#navTurf button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navTurf button').forEach(function(x){x.classList.toggle('on',x===b)});S.tab=b.dataset.t;render();window.scrollTo(0,0)}});
 document.querySelectorAll('#navSport button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navSport button').forEach(function(x){x.classList.toggle('on',x===b)});SP.tab=b.dataset.t;render();window.scrollTo(0,0)}});
-document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';$('navEtude').hidden=S.mode!=='etude';if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='etude'?'Modèle à l\'étude':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
+document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';$('navEtude').hidden=S.mode!=='etude';if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};

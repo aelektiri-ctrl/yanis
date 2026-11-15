@@ -29,10 +29,15 @@ jobs:
         run: |
           pip install --quiet pandas scikit-learn
           python modele_hippique.py --banc-si-ancien
+      - name: Radar a outsiders (courses) - paris figes 45 min avant le depart
+        continue-on-error: true
+        run: |
+          pip install --quiet scipy
+          python modele_etude.py
       - name: Sports du jour
         continue-on-error: true
         run: python sports.py --budget 0
-      - name: Cotes de reference : lecture complete si plus de 3 h, sinon lecture ciblee des matchs a surveiller
+      - name: "Cotes de reference - lecture complete si plus de 3 h, sinon lecture ciblee des matchs a surveiller"
         continue-on-error: true
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}

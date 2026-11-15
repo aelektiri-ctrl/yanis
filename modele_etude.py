@@ -38,12 +38,14 @@ PARIS = ZoneInfo("Europe/Paris")
 _SORTIE_DIR = os.environ.get("ETUDE_DIR") or os.path.join(DOS, "docs", "data")      # variables d'essai : rejouer une journee deja courue sans toucher aux vrais fichiers
 SORTIE = os.path.join(_SORTIE_DIR, "etude.json")
 SUIVI = os.path.join(_SORTIE_DIR, "etude_suivi.json")
+FIAB = os.path.join(_SORTIE_DIR, "etude_fiabilite.json")
 
 
 def maintenant_paris():
     v = os.environ.get("ETUDE_MAINTENANT")
     return dt.datetime.fromisoformat(v).replace(tzinfo=PARIS) if v else dt.datetime.now(PARIS)
 SEUIL = 1.3                      # le modele voit le cheval au moins 30 % plus gagnant que le marche
+COTE_MIN = 4.0                   # radar a outsiders : on ne retient que les cotes de 4 et plus (pas de favoris)
 C_REG = 0.03                     # regularisation (forte : un effet rare doit etre confirme par beaucoup de courses)
 MIN_TRAIN = {"ATTELE": 25000, "PLAT": 25000, "MONTE": 6000, "OBSTACLE": 8000}
 MIN_TEST = {"ATTELE": 1500, "PLAT": 1500, "MONTE": 500, "OBSTACLE": 600}
@@ -155,10 +157,8 @@ def preparer(df):
     df = df.copy()
     df["groupe"] = df.disc.map(GROUPES)
     df = df[df.groupe.notna() & (df.cote > 1)].copy()
-    df["q"] = 1 / df.cote
-    df["p"] = df.q / df.groupby("key").q.transform("sum")
     df["n"] = df.groupby("key").num.transform("count")
-    df["rk"] = df.groupby("key").cote.rank(method="first")
+    df = marche(df)
     mm = df.musique.map(musique)
     df["m_D5"] = [x[0] for x in mm]
     df["m_p5"] = [x[1] for x in mm]
@@ -177,6 +177,14 @@ def preparer(df):
     dd = df.hip.astype(str) + "|" + df.disc.astype(str) + "|" + pd.cut(df.dist, [0, 1300, 1700, 2100, 2600, 3200, 9999], labels=False).astype(str)
     df["hip_disc_dist"] = dd
     df["hip_corde"] = dd + "|" + pd.cut(df.corde_rel, [0, .2, .4, .6, .8, 1.01], labels=False).astype(str)
+    return df
+
+
+def marche(df):
+    """Tout ce qui depend de la cote : probabilite du marche, rang, logit. Rappelable avec une autre cote (cote du matin)."""
+    df["q"] = 1 / df.cote
+    df["p"] = df.q / df.groupby("key").q.transform("sum")
+    df["rk"] = df.groupby("key").cote.rank(method="first")
     pc = df.p.clip(1e-4, 1 - 1e-4)      # une course avec un seul partant cote donnait p = 1 et une valeur infinie qui bloquait tout le calcul
     df["lp"] = np.log(pc / (1 - pc))
     return df
@@ -250,23 +258,31 @@ def verifier(fin, groupe):
     """Marche en avant, trimestre par trimestre, pour une famille."""
     d = fin[fin.groupe == groupe].copy()
     d["trim"] = pd.PeriodIndex(d.date.str[:7], freq="M").asfreq("Q").astype(str)
-    out = []
+    out, matin = [], []
     for q in sorted(d.trim.unique()):
         tr, te = d[d.trim < q], d[d.trim == q]
         if len(tr) < MIN_TRAIN[groupe] or len(te) < MIN_TEST[groupe]:
             continue
         te = te.copy()
-        te["pm"] = Modele(tr).predire(te)
+        mod = Modele(tr)
+        te["pm"] = mod.predire(te)
         out.append(te)
+        # version prudente : memes chevaux juges avec la cote du matin (ce qu'on voit des heures avant), payes au rapport final
+        tm = te[pd.to_numeric(te.cote_reference, errors="coerce") > 1].copy()
+        if len(tm) >= 200:
+            tm["cote"] = pd.to_numeric(tm.cote_reference, errors="coerce")
+            tm = marche(tm)
+            tm["pm"] = mod.predire(tm)
+            matin.append(tm)
     if not out:
         return None
     T = pd.concat(out)
     T["r"] = T.pm / T.p
     res = {"courses": int(T.key.nunique()), "partants": int(len(T)),
            "logloss_marche": round(float(log_loss(T.win, T.p.clip(1e-4, 1 - 1e-4))), 5), "logloss_etude": round(float(log_loss(T.win, T.pm.clip(1e-4, 1 - 1e-4))), 5),
-           "valeur": stats_paris(T[T.r >= SEUIL]), "valeur_1_5": stats_paris(T[T.r >= 1.5]), "tous": stats_paris(T)}
+           "valeur": stats_paris(T[(T.r >= SEUIL) & (T.cote >= COTE_MIN)]), "valeur_toutes_cotes": stats_paris(T[T.r >= SEUIL]), "valeur_1_5": stats_paris(T[(T.r >= 1.5) & (T.cote >= COTE_MIN)]), "tous": stats_paris(T)}
     par_trim = {}
-    for q, g in T[T.r >= SEUIL].groupby("trim"):
+    for q, g in T[(T.r >= SEUIL) & (T.cote >= COTE_MIN)].groupby("trim"):
         if len(g) >= 20:
             par_trim[q] = [len(g), round(float(g.sg.sum() / len(g) - 1), 3)]
     res["par_trimestre"] = par_trim
@@ -279,6 +295,13 @@ def verifier(fin, groupe):
     res["valeur_place"] = sp_stats(T[T.r >= SEUIL])
     res["valeur_place_4_20"] = sp_stats(T[(T.r >= SEUIL) & (T.cote >= 4) & (T.cote < 20)])
     res["valeur_4_20"] = stats_paris(T[(T.r >= SEUIL) & (T.cote >= 4) & (T.cote < 20)])
+    if matin:
+        Tm = pd.concat(matin)
+        res["matin"] = stats_paris(Tm[(Tm.pm / Tm.p >= SEUIL) & (Tm.cote >= COTE_MIN)])
+    # calibrage : part de l'ecart modele-marche qui se realise vraiment chez les chevaux retenus (sert a afficher une chance honnete)
+    g = T[(T.r >= SEUIL) & (T.cote >= COTE_MIN)]
+    if len(g) >= 200 and g.pm.mean() > g.p.mean():
+        res["calib"] = round(float(min(1.0, max(0.0, (g.win.mean() - g.p.mean()) / (g.pm.mean() - g.p.mean())))), 3)
     v = res["valeur"]
     res["verdict"] = "confirme" if v and v["roi"] - v["marge"] > 0 else ("prometteur" if v and v["roi"] > 0 and v["paris"] >= 300 else "a_confirmer")
     return res
@@ -343,14 +366,17 @@ def regler(suivi, fin_idx, fins_cles, ref_noms):
 
 def resume_suivi(suivi):
     out = {}
-    for src in ("etude", "actuel"):
-        L = [e for e in suivi[src].values() if e["statut"] in ("gagne", "perdu", "rembourse")]
+    for src in ("etude", "actuel", "etude2"):
+        base = suivi["etude"] if src == "etude2" else suivi[src]
+        tous = [e for e in base.values() if (e.get("regle") == 2) == (src == "etude2")] if src != "actuel" else list(base.values())
+        L = [e for e in tous if e["statut"] in ("gagne", "perdu", "rembourse")]
         mise = sum(1 for e in L)
         ret = sum(e["retour"] for e in L)
         n_g = sum(1 for e in L if e["statut"] == "gagne")
-        cours = sorted(suivi[src].values(), key=lambda e: e["prise_le"], reverse=True)[:60]
+        cours = sorted(tous, key=lambda e: e["prise_le"], reverse=True)[:60]
         out[src] = {"paris": len(L), "gagnes": n_g, "mise": mise, "retour": round(ret, 2), "roi": round(ret / mise - 1, 4) if mise else None,
-                    "en_cours": sum(1 for e in suivi[src].values() if e["statut"] == "en_cours"), "derniers": cours}
+                    "en_cours": sum(1 for e in tous if e["statut"] == "en_cours"), "derniers": cours}
+    out["regle2_depuis"] = suivi.get("regle2_depuis")
     return out
 
 
@@ -362,31 +388,34 @@ def main():
     log("courses terminees : %d partants ; courses a venir : %d partants (%.0f s)" % (len(fin), len(prog), time.time() - t0))
     fin = preparer(fin)
     prof = profil_groupes(fin)
-    # fiabilite : recalculee au plus une fois par 20 h
+    # fiabilite : calculee a part (option --verifier, environ 15 min sur 9 ans) et rangee dans etude_fiabilite.json.
+    # Le passage normal (toutes les 10 a 20 min) ne fait que la relire : il reste rapide et il est le seul a ecrire le journal.
     ancien = {}
     try:
         with open(SORTIE, encoding="utf-8") as fh:
             ancien = json.load(fh)
     except Exception:
         pass
-    fiab = ancien.get("fiabilite")
-    fiab_maj = ancien.get("fiabilite_maj")
-    vieux = True
-    if fiab and fiab_maj:
-        try:
-            vieux = (maintenant - dt.datetime.fromisoformat(fiab_maj)).total_seconds() > 20 * 3600
-        except Exception:
-            pass
-    if vieux or "--verifier" in sys.argv:
+    try:
+        with open(FIAB, encoding="utf-8") as fh:
+            ff = json.load(fh)
+        fiab, fiab_maj = ff.get("fiabilite"), ff.get("maj")
+    except Exception:
+        fiab, fiab_maj = ancien.get("fiabilite"), ancien.get("fiabilite_maj")
+    if "--verifier" in sys.argv:
         fiab = {}
-        for g in GROUPES.values():
-            if g in fiab:
-                continue
+        for g in ("ATTELE", "MONTE", "PLAT", "OBSTACLE"):
             r = verifier(fin, g)
             if r:
                 fiab[g] = r
-                log(g, "verifie :", r["valeur"], r["verdict"], "(%.0f s)" % (time.time() - t0))
+                log(g, "verifie :", r["valeur"], "| matin :", r.get("matin"), "| calibrage", r.get("calib"), r["verdict"], "(%.0f s)" % (time.time() - t0))
         fiab_maj = maintenant.isoformat(timespec="seconds")
+        os.makedirs(os.path.dirname(FIAB), exist_ok=True)
+        with open(FIAB, "w", encoding="utf-8") as fh:
+            json.dump({"maj": fiab_maj, "fiabilite": fiab}, fh, ensure_ascii=False)
+        log("etude_fiabilite.json ecrit (%.0f s)" % (time.time() - t0))
+        return
+    confirmes = {g for g, v in (fiab or {}).items() if v.get("verdict") == "confirme"}
 
     # journal : regler les paris deja faits
     suivi = charger_suivi()
@@ -413,6 +442,8 @@ def main():
     if len(prog):
         prog["pm"] = np.nan
         for g in prog.groupe.unique():
+            if g not in confirmes:
+                continue      # on n'apprend (et on ne joue) que les disciplines confirmees
             d = fin[fin.groupe == g]
             if len(d) < MIN_TRAIN[g]:
                 continue
@@ -434,9 +465,12 @@ def main():
             picks = []
             for i, (idx, h) in enumerate(g.iterrows()):
                 # seules les disciplines confirmees sur l'historique donnent un pari (le plat, le monte et l'obstacle perdaient)
-                if h.ratio >= SEUIL and avenir and h.groupe in modeles and (fiab or {}).get(h.groupe, {}).get("verdict") == "confirme":
+                if h.ratio >= SEUIL and h.cote >= COTE_MIN and avenir and h.groupe in modeles and h.groupe in confirmes:
                     pos, neg = modeles[h.groupe].raisons(prog, prog.index.get_loc(idx))
-                    picks.append({"num": int(h.num), "nom": h.nom, "cote": float(h.cote), "pm": round(float(h.p), 4), "pe": round(float(h.pm), 4), "ratio": round(float(h.ratio), 2), "pour": pos, "contre": neg})
+                    k = (fiab or {}).get(h.groupe, {}).get("calib", 0.6)
+                    pc = float(h.p + k * (h.pm - h.p))      # chance honnete : seule la part de l'ecart qui se realise dans la verification
+                    picks.append({"num": int(h.num), "nom": h.nom, "cote": float(h.cote), "pm": round(float(h.p), 4), "pe": round(float(h.pm), 4), "pc": round(pc, 4), "ev": round(pc * float(h.cote) - 1, 3),
+                                  "ratio": round(float(h.ratio), 2), "pour": pos, "contre": neg})
             ck = key
             for pk in picks:
                 kid = "%s#%d" % (ck, pk["num"])
@@ -444,8 +478,9 @@ def main():
                 # Fige des heures avant, le modele choisissait des chevaux que le marche abandonnait ensuite (cote +18 % en mediane).
                 proche = t_dep is not None and (t_dep - maintenant).total_seconds() <= 45 * 60
                 if proche and kid not in suivi["etude"]:
-                    suivi["etude"][kid] = {"key": ck, "num": pk["num"], "nom": pk["nom"], "cote": pk["cote"], "pm": pk["pm"], "pe": pk["pe"], "groupe": f.groupe, "course": "%s R%s C%s" % (f.hipnom, f.r, f.c),
-                                            "depart": depart, "prise_le": maintenant.isoformat(timespec="minutes"), "statut": "en_cours", "retour": None}
+                    suivi.setdefault("regle2_depuis", maintenant.strftime("%d/%m/%Y"))
+                    suivi["etude"][kid] = {"key": ck, "num": pk["num"], "nom": pk["nom"], "cote": pk["cote"], "pm": pk["pm"], "pe": pk["pe"], "pc": pk["pc"], "ev": pk["ev"], "regle": 2, "groupe": f.groupe,
+                                            "course": "%s R%s C%s" % (f.hipnom, f.r, f.c), "depart": depart, "prise_le": maintenant.isoformat(timespec="minutes"), "statut": "en_cours", "retour": None}
             courses.append({"key": ck, "date": f.date, "r": int(f.r), "c": int(f.c), "hippodrome": f.hipnom, "libelle": f.libelle, "depart": depart, "groupe": f.groupe, "n": int(f.n), "avenir": bool(avenir),
                             "top": [{"num": int(h.num), "nom": h.nom, "cote": float(h.cote), "pm": round(float(h.p), 4), "pe": round(float(h.pm), 4)} for h in g.head(3).itertuples(index=False) if not pd.isna(h.pm)],
                             "picks": picks})

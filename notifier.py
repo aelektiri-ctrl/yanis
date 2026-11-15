@@ -99,6 +99,26 @@ def main():
                        tags="gem"):
                 memo[cle] = auj
 
+    # 1 ter. radar a outsiders (courses) : alerte quand un outsider a valeur est fige, moins de 45 min avant le depart
+    sv = lire("etude_suivi.json") or {}
+    for kid, e in (sv.get("etude") or {}).items():
+        if e.get("regle") != 2 or e.get("statut") != "en_cours":
+            continue
+        cle = f"out/{kid}"
+        if cle in memo:
+            continue
+        try:
+            dep = dt.datetime.strptime(e["depart"], "%Y-%m-%d %H:%M")
+            if dep < maintenant.replace(tzinfo=None):
+                continue
+        except Exception:
+            continue
+        pc = e.get("pc") or e.get("pe") or 0
+        txt = (f"{e['course']}, départ {e['depart'][11:].replace(':', 'h')}.\nSimple gagnant, cote autour de {str(e['cote']).replace('.', ',')}.\n"
+               f"Chance estimée {round(pc*100)} % (le marché : {round((e.get('pm') or 0)*100)} %).\nMise petite et fixe.")
+        if envoyer(f"🎯 Outsider : n°{e['num']} {e['nom']}", txt, priorite="high", tags="dart"):
+            memo[cle] = auj
+
     # 1 bis. sport : valeur pure (EV+) et argent sharp, une seule alerte par match
     sb = lire("sharp_bilan.json") or {}
     for x in (sb.get("a_venir") or [])[:5]:
