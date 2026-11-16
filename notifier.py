@@ -72,7 +72,7 @@ def main():
         if not (5 <= minutes <= 45):
             continue
         for cns in course["conseils"]:
-            if not (cns.get("validee") or cns.get("prometteur")):
+            if not cns.get("validee"):      # seulement les strategies prouvees sur les rapports reels (plus d'alerte « prometteur »)
                 continue
             cle = f"{auj}/R{course['r']}C{course['c']}/{cns['texte']}"
             if cle in memo:
@@ -85,7 +85,7 @@ def main():
                 memo[cle] = auj
 
     # 1 bis. alerte avant le depart de chaque pepite du jour
-    for pep in (v2 or {}).get("pepite") or []:
+    for pep in []:      # pepite desactivee : jamais prouvee rentable (remplacee par le radar a outsiders, verifie sur 9 ans)
         if pep.get("date") != auj:
             continue
         depart, hippo, arrivee = heures.get((pep["r"], pep["c"]), (None, None, None))
@@ -145,9 +145,8 @@ def main():
         pro = sum(1 for c in (v2 or {}).get("courses", []) if c["date"] == auj for x in c["conseils"] if x.get("prometteur"))
         peps = [x for x in ((v2 or {}).get("pepite") or []) if x.get("date") == auj]
         texte = (f"{len(jour['reunions'])} réunions, {nb_courses} courses analysées.\n"
-                 + (f"💎 Pépite : R{peps[0]['r']}C{peps[0]['c']} n°{peps[0]['num']} {peps[0]['nom']} (cote {peps[0]['cote']}).\n" if peps else "")
-                 + f"Paris validés : {val} · prometteurs : {pro}.\n"
-                 + ("Tu seras prévenu 15 à 45 min avant chaque départ concerné." if val + pro else "Rien ne mérite ta mise aujourd'hui : Yanis passe son tour."))
+                 + f"Paris validés : {val}.\n"
+                 + ("Tu seras prévenu 15 à 45 min avant chaque départ concerné." if val else "Rien ne mérite ta mise aujourd'hui : Yanis passe son tour."))
         if envoyer("Yanis – le programme du jour", texte, tags="sunrise"):
             memo[cle_matin] = auj
 

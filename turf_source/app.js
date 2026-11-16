@@ -221,7 +221,7 @@ function allCourses(){
   S.prog.reunions.forEach(function(r){r.courses.forEach(function(c){out.push({r:r,c:c,a:S.an[key(r.numOfficiel,c.numOrdre)]})})});
   return out;
 }
-function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+' · dans les 3 : '+E.pct(w.pPlace)+' (outsider moyen '+E.pct(w.pBase)+')'+(w.strong?' → '+(a.loupMode||'3 bases + 5'):'')+'</div>'}
+function wolf(a){if(!a||!a.watch)return '';var w=a.watch;return '<div class="wolf'+(w.strong?' strong':'')+'">🐺 '+(w.strong?'LOUP':'À surveiller')+' : n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+' · dans les 3 : '+E.pct(w.pPlace)+' (outsider moyen '+E.pct(w.pBase)+')'+' <span class="mute">(information, pas un conseil de jeu)</span></div>'}
 function badge(a){if(!a||!a.ok)return '<span class="badge NA">EN ATTENTE</span>';return (a.loup?'<span class="badge LOUP">LOUP</span> ':'')+(a.avoid?'<span class="badge NA">À ÉVITER</span>':'<span class="badge '+a.level+'">'+LVL[a.level]+'</span>')}
 function resultTag(a){if(!a||!a.arrivee||!a.main)return '';return a.main.gagne?' <span class="ok">✓ gagnant</span>':' <span class="ko">✗ perdu</span>'}
 
@@ -259,13 +259,13 @@ function money(a){var m=a.main;if(!m||!a.arrivee)return '';if(m.rapportOk)return
 /* ===== onglet Value : la cote paie plus que le risque ===== */
 var VF={f:'all'};
 function valueList(){
+  // Seules les sources dont la rentabilité est mesurée : outsiders du trot attelé (9 ans rejoués) et EV+ sport face à Pinnacle.
+  // L'ancien calcul « modèle maison contre cote » est retiré : le modèle seul ne bat pas le marché, il signalait de fausses bonnes cotes.
   var out=[],now=Date.now();
-  allCourses().forEach(function(x){var a=x.a,c=x.c;if(!a||!a.ok||a.arrivee||!c.heureDepart||c.heureDepart<now)return;
-    a.ranking.forEach(function(h){if(!h.cote||h.cote<4||h.p<0.05||!h.ev||h.ev<1.10)return;
-      out.push({kind:'turf',k:key(x.r.numOfficiel,x.c.numOrdre),when:c.heureDepart,ctx:'🏇 R'+x.r.numOfficiel+'C'+x.c.numOrdre+' · '+x.r.hippodrome.libelleCourt+' · '+hhmm(c.heureDepart),title:'n°'+h.num+' '+h.nom,pari:'Simple gagnant',p:h.p,dec:h.cote,ev:h.ev,place:h.top[2],extra:h.loupFlag})});
-  });
-  (SP.data||[]).forEach(function(x,i){SportEngine.valueBets(x).forEach(function(v){if(v.dec<1.8||v.ev<1.05||v.p<0.12)return;
-    var t=new Date(x.date);out.push({kind:'sport',s:i,when:t.getTime(),ctx:(ICON[x.sport]||'')+' '+x.league+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(x.state.state==='in'?' · EN DIRECT':''),title:x.title,pari:v.label,p:v.p,dec:v.dec,ev:v.ev})})});
+  if(ET.d)(ET.d.courses||[]).forEach(function(c){var t=Date.parse(String(c.depart).replace(' ','T'));if(isNaN(t)||t<now)return;(c.picks||[]).forEach(function(p){var pc=p.pc!=null?p.pc:p.pe;
+    out.push({kind:'turf',k:'R'+c.r+'C'+c.c,when:t,ctx:'🏇 R'+c.r+'C'+c.c+' · '+(c.hippodrome||'')+' · '+etHeure(c.depart),title:'n°'+p.num+' '+p.nom,pari:'Simple gagnant',p:pc,dec:p.cote,ev:1+(p.ev!=null?p.ev:pc*p.cote-1)})})});
+  ((SP.shB&&SP.shB.a_venir)||[]).forEach(function(v){var t=Date.parse(v.t);if(t<now)return;
+    out.push({kind:'sport',when:t,ctx:'⚽ '+new Date(t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+' · '+v.book,title:v.m,pari:v.nom,p:v.p,dec:v.cote,ev:1+v.ev})});
   return out.filter(function(v){return VF.f==='all'||v.kind===VF.f}).sort(function(a,b){return b.ev-a.ev});
 }
 function pointsTurf(){
@@ -332,7 +332,7 @@ function viewValue(){
   h+='<h2>💎 Cotes trop belles ('+L.length+') — la cote paie plus que la vraie chance</h2>';
   if(!L.length)h+='<div class="card mute">Aucune pour l\'instant'+(SP.loading?' (matchs en cours de chargement)':'')+'.</div>';
   L.forEach(function(v){
-    h+='<div class="card tap vcard" '+(v.kind==='turf'?'data-k="'+v.k+'"':'data-s="'+v.s+'"')+'><div class="mute">'+esc(v.ctx)+'</div>'+
+    h+='<div class="card tap vcard" '+(v.kind==='turf'?'data-k="'+v.k+'"':(v.s!=null?'data-s="'+v.s+'"':''))+'><div class="mute">'+esc(v.ctx)+'</div>'+
       '<div class="ttl" style="font-size:16px;margin:4px 0">'+esc(v.title)+'</div><div>🎯 '+esc(v.pari)+'</div>'+
       '<div class="vgrid"><div><span>Cote</span><b class="cote">'+String(Math.round(v.dec*100)/100).replace('.',',')+'</b></div><div class="win"><span>Chance de gagner</span><b class="ok">'+E.pct(v.p)+'</b></div><div class="lose"><span>Si ça passe</span><b>1 € → '+String((Math.round(v.dec*100)/100).toFixed(2)).replace('.',',')+' €</b></div></div>'+
       '<div class="ev">La cote juste serait '+fair(v.p)+' : elle est payée '+String((Math.round(v.dec*100)/100).toFixed(2)).replace('.',',')+'.'+(v.place!=null?' Dans les 3 premiers : '+E.pct(v.place)+'.':'')+'</div></div>';
@@ -583,7 +583,7 @@ function render(){
 $('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'))});
 document.querySelectorAll('#navTurf button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navTurf button').forEach(function(x){x.classList.toggle('on',x===b)});S.tab=b.dataset.t;render();window.scrollTo(0,0)}});
 document.querySelectorAll('#navSport button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navSport button').forEach(function(x){x.classList.toggle('on',x===b)});SP.tab=b.dataset.t;render();window.scrollTo(0,0)}});
-document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';$('navEtude').hidden=S.mode!=='etude';$('navQuinte').hidden=S.mode!=='quinte';if(S.mode==='quinte')loadEtude();if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='quinte'?'Quinté et Pick 5':S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&S.mode!=='quinte'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
+document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';if(S.mode==='value')loadEtude();$('navEtude').hidden=S.mode!=='etude';$('navQuinte').hidden=S.mode!=='quinte';if(S.mode==='quinte')loadEtude();if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='quinte'?'Quinté et Pick 5':S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&S.mode!=='quinte'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};
