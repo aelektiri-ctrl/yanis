@@ -744,6 +744,7 @@
   // seuils internes (marge de sécurité par rapport aux 70 % affichés), mesurés sur ~70 jours de matchs passés prédits à l'aveugle :
   // foot 72 % -> 76,7 % réel ; NBA 75 % -> 75,0 % ; NFL 75 % -> 73,6 % ; NHL 74 % -> ~72 %. WNBA, MLB, rugby : pas assez fiables, aucune formule publiée.
   var PICK_T = { foot: 0.72, nba: 0.75, nfl: 0.75, nhl: 0.74, tennis: 0.72, mma: 0.72 };
+  var P_MAX = 0.77;      // cote minimale d'un pronostic : 1,30
   // meilleure cote d'un bookmaker agréé en France pour un pari « victoire » (cotes de victoire seulement : les handicaps et les buts ne sont pas dans ce flux)
   function frBook(x, c, favSide) {
     if (!x.fr || !c) return;
@@ -754,7 +755,8 @@
     var T = PICK_T[x.sport];
     x.pick = null; x.picks = list.slice().sort(function (a, b) { return b.p - a.p; }); x.pickT = T || null;
     if (!T) return;
-    var c = list.filter(function (q) { return q.p >= T; }).sort(function (a, b) { return a.p - b.p; })[0];
+    // plafond : une formule à plus de 77 % se joue à moins de 1,30 (ex. « moins de 4,5 buts » à 1,07) : aucun intérêt, on ne la propose plus
+    var c = list.filter(function (q) { return q.p >= T && q.p <= P_MAX; }).sort(function (a, b) { return a.p - b.p; })[0];
     if (c) { x.pick = c; c.minOdds = Math.ceil(100 / c.p) / 100; if (c.side) frBook(x, c, c.side); }
     x.pickWon = undefined;
     if (c && x.state && x.state.done && c.ok) {
