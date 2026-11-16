@@ -461,6 +461,47 @@ function spVerif(){
   if((b.derniers||[]).length){h+='<div class="mute" style="margin-top:8px">Derniers favoris à 70 % et plus</div>';b.derniers.slice(0,8).forEach(function(x){h+='<div class="mk"><span>'+esc(x.m)+' <span class="mute">· '+esc(x.f)+' '+Math.round(x.p*100)+' %</span></span><b class="'+(x.ok?'ok':'ko')+'">'+(x.ok?'gagné':'raté')+(x.sc?' '+x.sc[0]+'-'+x.sc[1]:'')+'</b></div>'})}
   return h+'</div>';
 }
+
+/* ---------- Onglet « Quinté » : le même travail que sur le reste, appliqué aux quintés et aux Pick 5 ---------- */
+// Résultats réels sur 10 ans (rapports officiels, chevaux pris dans l'ordre des favoris) : sert de repère honnête
+var Q_HIST={q:[['1 base + 5',5,4.9,-53],['2 bases + 5',10,8.2,-53],['3 bases + 5',10,8.0,-52],['2 bases + 6',20,12.4,-51],['3 bases + 7',21,12.3,-49],['2 bases + 8',56,21.7,-51]],
+  p:[['5 chevaux',1,1.8,-48],['6 chevaux',6,6.5,-47],['7 chevaux',21,15.8,-34],['8 chevaux',56,27.7,-34],['9 chevaux',126,40.8,-37],['10 chevaux',252,55.0,-36]],nq:3444,np:8427};
+function qComb(n,k){var r=1;for(var i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)}
+function viewQuinte(){
+  var h='<div class="card" style="border-left:4px solid #6c5ce7"><div class="ttl">🏇 Quinté+ et Pick 5 du jour</div><div style="margin-top:6px">Même moteur que le reste de l\'appli : 20 000 courses simulées à partir des cotes, de la forme, du driver et de l\'entraîneur. Les chevaux sont classés selon leur chance de finir <b>dans les 5 premiers</b>.</div><div class="mute" style="margin-top:6px">Repère honnête : sur 10 ans de rapports officiels, le Quinté+ rend en moyenne la moitié des mises et le Pick 5 environ les deux tiers. À jouer petit, en connaissance de cause.</div></div>';
+  var L=allCourses().filter(function(x){return (x.c.paris||[]).some(function(p){return /QUINTE|PICK5/.test(p.typePari)})});
+  if(!L.length)return h+'<div class="card mute">'+(S.loading?'Chargement des courses…':'Pas de Quinté+ ni de Pick 5 au programme de ce jour. Utilise les flèches en haut pour passer au lendemain.')+'</div>';
+  L.sort(function(u,v){return u.c.heureDepart-v.c.heureDepart});
+  L.forEach(function(x){
+    var c=x.c,r=x.r,a=x.a,isQ=(c.paris||[]).some(function(p){return /QUINTE/.test(p.typePari)}),k=key(r.numOfficiel,c.numOrdre);
+    h+='<h2>'+(isQ?'Quinté+':'Pick 5')+' · R'+r.numOfficiel+'C'+c.numOrdre+' · '+hhmm(c.heureDepart)+' · '+esc(r.hippodrome.libelleCourt)+'</h2>';
+    h+='<div class="card"><div class="mute">'+esc(c.libelle)+' · '+(SPEC[c.specialite]||esc(c.discipline||''))+' · '+(c.distance||'')+' m'+(a&&a.n?' · '+a.n+' partants':'')+'</div>'+(a&&a.ok?liveStrip(c,a):'');
+    if(!a||!a.ok){h+='<div style="margin-top:8px">'+esc(a&&a.message||'Analyse en attente.')+'</div></div>';return}
+    if(!a.market)h+='<div class="mute" style="margin-top:6px">⏳ Cotes pas encore ouvertes : classement provisoire, recalculé automatiquement à l\'ouverture.</div>';
+    var R=a.ranking.slice().sort(function(u,v){return (v.top[4]||0)-(u.top[4]||0)});
+    h+='<div class="mk" style="margin-top:8px"><span class="mute">Cheval</span><b class="mute" style="font-weight:400">cote · gagne · dans les 5</b></div>';
+    R.forEach(function(hh,i){var st=i<2?'🔵 ':i<3?'🟣 ':i<8?'':'<span class="mute">';h+='<div class="mk"><span>'+(i<2?'<b>':'')+st+'n°'+hh.num+' '+esc(hh.nom||'')+(i<2?'</b>':'')+(i>=8?'</span>':'')+'</span><span>'+(hh.cote?E.fmtCote(hh.cote):'–')+' · '+E.pct(hh.p)+' · <b>'+E.pct(hh.top[4]||0)+'</b></span></div>'});
+    var N=R.map(function(z){return z.num});
+    h+='<div style="margin-top:10px"><b>Tickets construits sur ce classement</b></div>';
+    if(isQ){
+      h+='<div class="mk"><span>2 bases '+N.slice(0,2).join('-')+' + '+N.slice(2,8).join('-')+'</span><b>'+qComb(6,3)+' combinaisons</b></div>';
+      h+='<div class="mk"><span>3 bases '+N.slice(0,3).join('-')+' + '+N.slice(3,8).join('-')+'</span><b>'+qComb(5,2)+' combinaisons</b></div>';
+      h+='<div class="mk"><span>1 base '+N[0]+' + '+N.slice(1,8).join('-')+'</span><b>'+qComb(7,4)+' combinaisons</b></div>';
+      var jq=(a.jeux||[]).filter(function(j){return j.type==='QUINTE_PLUS'})[0];
+      if(jq)h+='<div class="mute" style="margin-top:4px">Ticket du moteur : '+esc(jq.detail)+' → trouve les 5 premiers dans '+E.pct(jq.p)+' des courses simulées ('+jq.combos+' combinaisons).</div>';
+    }else{
+      h+='<div class="mk"><span>8 chevaux : '+N.slice(0,8).join('-')+'</span><b>'+qComb(8,5)+' combinaisons</b></div>';
+      h+='<div class="mk"><span>7 chevaux : '+N.slice(0,7).join('-')+'</span><b>'+qComb(7,5)+' combinaisons</b></div>';
+    }
+    h+=wolf(a);
+    var od=ET.d&&(ET.d.courses||[]).filter(function(z){return z.r===r.numOfficiel&&z.c===c.numOrdre})[0];
+    if(od&&(od.picks||[]).length)h+='<div style="margin-top:6px">🎯 Outsider à valeur (onglet Outsiders) : '+od.picks.map(function(p){return 'n°'+p.num+' '+esc(p.nom)+' (cote '+E.fmtCote(p.cote)+')'}).join(', ')+'</div>';
+    h+='<div class="row" style="margin-top:8px"><button class="tap" data-k="'+k+'">Voir la fiche complète</button></div></div>';
+  });
+  var tb=function(t,rows,n){var s='<div class="card"><div class="ttl">'+t+'</div><div class="mute" style="margin:4px 0 6px">Sur '+n.toLocaleString('fr-FR')+' courses réelles, chevaux pris dans l\'ordre des favoris</div>';rows.forEach(function(x){s+='<div class="mk"><span>'+x[0]+' <span class="mute">· '+x[1]+' comb.</span></span><span>5 premiers trouvés '+String(x[2]).replace('.',',')+' % · <b class="ko">'+x[3]+' %</b></span></div>'});return s+'</div>'};
+  h+='<h2>📊 Ce que ces formules ont rendu sur 10 ans</h2>'+tb('Quinté+ (désordre + bonus)',Q_HIST.q,Q_HIST.nq)+tb('Pick 5',Q_HIST.p,Q_HIST.np);
+  return h;
+}
 function viewBilan(){
   if(!S.prog)return intro();
   var lc=learnCard(true);
@@ -532,7 +573,7 @@ function closeSheet(){if(!S.open)return;S.open=null;$('sheet').classList.remove(
 window.addEventListener('popstate',closeSheet);
 
 function render(){
-  var v=S.mode==='etude'?viewEtude():S.mode==='value'?viewValue():S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
+  var v=S.mode==='quinte'?viewQuinte():S.mode==='etude'?viewEtude():S.mode==='value'?viewValue():S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
   var dl=S.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   $('view').innerHTML=clean('<div class="mute" style="margin-bottom:8px;text-transform:capitalize">'+dl+'</div>'+v+'<p class="foot">Jeu responsable : fixe ton budget à l\'avance. Joueurs Info Service 09 74 75 13 13.</p>');
   document.querySelectorAll('[data-vf]').forEach(function(b){b.onclick=function(){VF.f=b.dataset.vf;render()}});
@@ -542,7 +583,7 @@ function render(){
 $('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'))});
 document.querySelectorAll('#navTurf button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navTurf button').forEach(function(x){x.classList.toggle('on',x===b)});S.tab=b.dataset.t;render();window.scrollTo(0,0)}});
 document.querySelectorAll('#navSport button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navSport button').forEach(function(x){x.classList.toggle('on',x===b)});SP.tab=b.dataset.t;render();window.scrollTo(0,0)}});
-document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';$('navEtude').hidden=S.mode!=='etude';if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
+document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';$('navEtude').hidden=S.mode!=='etude';$('navQuinte').hidden=S.mode!=='quinte';if(S.mode==='quinte')loadEtude();if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='quinte'?'Quinté et Pick 5':S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&S.mode!=='quinte'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};
