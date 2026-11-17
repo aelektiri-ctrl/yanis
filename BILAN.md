@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 17/11/2026 a 16:31.
+Mis a jour le 17/11/2026 a 16:46.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 17/11/2026 a 16:31.
 | Reunions | 24662 |
 | Courses | 169206 |
 | Partants | 2020316 |
-| Rapports | 2596977 |
-| Partants avec cote finale | 1708402 |
-| Partants avec place a l'arrivee | 1639285 |
+| Rapports | 2596996 |
+| Partants avec cote finale | 1708403 |
+| Partants avec place a l'arrivee | 1639300 |
 
 ## Courses par discipline
 
@@ -29,17 +29,17 @@ Mis a jour le 17/11/2026 a 16:31.
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
 | E. RAFFIN | 16367 | 2838 | 17.3 | 41.0 |
-| M. GUYON | 12559 | 1972 | 15.7 | 42.2 |
+| M. GUYON | 12560 | 1973 | 15.7 | 42.3 |
 | A. ABRIVARD | 11222 | 1835 | 16.4 | 37.1 |
 | Y. LEBOURGEOIS | 11419 | 1812 | 15.9 | 34.2 |
 | M. ABRIVARD | 12645 | 1640 | 13.0 | 33.8 |
 | M. BARZALONA | 9252 | 1616 | 17.5 | 44.5 |
 | M. MOTTIER | 10573 | 1424 | 13.5 | 32.5 |
-| C. SOUMILLON | 8207 | 1410 | 17.2 | 44.6 |
+| C. SOUMILLON | 8208 | 1410 | 17.2 | 44.6 |
 | D. THOMAIN | 11800 | 1408 | 11.9 | 32.0 |
 | C. DEMURO | 10283 | 1375 | 13.4 | 36.4 |
 | F. NIVARD | 11660 | 1274 | 10.9 | 32.8 |
 | B. ROCHARD | 10408 | 1233 | 11.8 | 33.3 |
 | J. M. BAZIRE | 4412 | 1104 | 25.0 | 46.2 |
-| PC. BOUDOT | 5700 | 1025 | 18.0 | 44.1 |
+| PC. BOUDOT | 5701 | 1025 | 18.0 | 44.1 |
 | D. BEKAERT | 6885 | 1021 | 14.8 | 38.8 |
