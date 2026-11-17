@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 17/11/2026 a 12:39.
+Mis a jour le 17/11/2026 a 12:55.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 17/11/2026 a 12:39.
 | Reunions | 24662 |
 | Courses | 169206 |
 | Partants | 2020316 |
-| Rapports | 2596642 |
+| Rapports | 2596660 |
 | Partants avec cote finale | 1708401 |
-| Partants avec place a l'arrivee | 1639113 |
+| Partants avec place a l'arrivee | 1639124 |
 
 ## Courses par discipline
 
@@ -29,7 +29,7 @@ Mis a jour le 17/11/2026 a 12:39.
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
 | E. RAFFIN | 16365 | 2838 | 17.3 | 41.0 |
-| M. GUYON | 12554 | 1972 | 15.7 | 42.3 |
+| M. GUYON | 12555 | 1972 | 15.7 | 42.3 |
 | A. ABRIVARD | 11220 | 1834 | 16.3 | 37.1 |
 | Y. LEBOURGEOIS | 11419 | 1812 | 15.9 | 34.2 |
 | M. ABRIVARD | 12644 | 1640 | 13.0 | 33.9 |
