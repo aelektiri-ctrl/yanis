@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 17/11/2026 a 14:34.
+Mis a jour le 17/11/2026 a 14:50.
 
 | | |
 |---|---|
@@ -10,8 +10,8 @@ Mis a jour le 17/11/2026 a 14:34.
 | Courses | 169206 |
 | Partants | 2020316 |
 | Rapports | 2596774 |
-| Partants avec cote finale | 1708403 |
-| Partants avec place a l'arrivee | 1639187 |
+| Partants avec cote finale | 1708402 |
+| Partants avec place a l'arrivee | 1639196 |
 
 ## Courses par discipline
 
@@ -41,5 +41,5 @@ Mis a jour le 17/11/2026 a 14:34.
 | F. NIVARD | 11660 | 1274 | 10.9 | 32.8 |
 | B. ROCHARD | 10405 | 1233 | 11.9 | 33.3 |
 | J. M. BAZIRE | 4412 | 1104 | 25.0 | 46.2 |
-| PC. BOUDOT | 5697 | 1024 | 18.0 | 44.1 |
+| PC. BOUDOT | 5698 | 1024 | 18.0 | 44.1 |
 | D. BEKAERT | 6885 | 1021 | 14.8 | 38.8 |
