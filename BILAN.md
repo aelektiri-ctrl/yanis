@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 17/11/2026 a 15:22.
+Mis a jour le 17/11/2026 a 15:37.
 
 | | |
 |---|---|
@@ -9,9 +9,9 @@ Mis a jour le 17/11/2026 a 15:22.
 | Reunions | 24662 |
 | Courses | 169206 |
 | Partants | 2020316 |
-| Rapports | 2596838 |
+| Rapports | 2596857 |
 | Partants avec cote finale | 1708402 |
-| Partants avec place a l'arrivee | 1639221 |
+| Partants avec place a l'arrivee | 1639240 |
 
 ## Courses par discipline
 
@@ -29,7 +29,7 @@ Mis a jour le 17/11/2026 a 15:22.
 | Nom | Courses | Victoires | % gagnant | % podium |
 |---|---|---|---|---|
 | E. RAFFIN | 16366 | 2838 | 17.3 | 41.0 |
-| M. GUYON | 12557 | 1972 | 15.7 | 42.3 |
+| M. GUYON | 12558 | 1972 | 15.7 | 42.3 |
 | A. ABRIVARD | 11221 | 1834 | 16.3 | 37.1 |
 | Y. LEBOURGEOIS | 11419 | 1812 | 15.9 | 34.2 |
 | M. ABRIVARD | 12645 | 1640 | 13.0 | 33.8 |
@@ -41,5 +41,5 @@ Mis a jour le 17/11/2026 a 15:22.
 | F. NIVARD | 11660 | 1274 | 10.9 | 32.8 |
 | B. ROCHARD | 10406 | 1233 | 11.8 | 33.3 |
 | J. M. BAZIRE | 4412 | 1104 | 25.0 | 46.2 |
-| PC. BOUDOT | 5698 | 1024 | 18.0 | 44.1 |
+| PC. BOUDOT | 5699 | 1024 | 18.0 | 44.1 |
 | D. BEKAERT | 6885 | 1021 | 14.8 | 38.8 |
