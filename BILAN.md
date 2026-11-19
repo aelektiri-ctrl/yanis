@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 19/11/2026 a 15:13.
+Mis a jour le 19/11/2026 a 15:15.
 
 | | |
 |---|---|
@@ -41,5 +41,5 @@ Mis a jour le 19/11/2026 a 15:13.
 | F. NIVARD | 11660 | 1274 | 10.9 | 32.8 |
 | B. ROCHARD | 10416 | 1234 | 11.8 | 33.3 |
 | J. M. BAZIRE | 4412 | 1104 | 25.0 | 46.2 |
-| PC. BOUDOT | 5703 | 1025 | 18.0 | 44.1 |
+| PC. BOUDOT | 5704 | 1025 | 18.0 | 44.1 |
 | D. BEKAERT | 6888 | 1021 | 14.8 | 38.9 |
