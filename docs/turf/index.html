@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v50</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v51</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2350,6 +2350,7 @@ var ET={d:null,sb:null,t:0,err:null,loading:false};
 async function loadEtude(){
   if(ET.loading||(ET.d&&Date.now()-ET.t<3*60000))return;ET.loading=true;
   try{ET.d=await yFetch('etude.json');ET.err=null;ET.t=Date.now()}catch(e){ET.err='Données pas encore disponibles (premier calcul en cours).'}
+  try{var shx=await yFetch('sharp.json');ET.nulB=(shx.events||[]).filter(function(e){return e.k==='soccer_italy_serie_b'&&e.p&&e.p.d>=0.30&&Date.parse(e.t)>Date.now()}).sort(function(u,v){return Date.parse(u.t)-Date.parse(v.t)})}catch(e){ET.nulB=[]}
   try{ET.sb=await yFetch('sharp_bilan.json')}catch(e){}
   ET.loading=false;if(S.mode==='etude')render();
 }
@@ -2365,6 +2366,11 @@ function viewEtude(){
   /* ---- courses ---- */
   var now=Date.now(),P=[];(d.courses||[]).forEach(function(c){var t=Date.parse(String(c.depart).replace(' ','T'));if(isNaN(t)||t<now)return;(c.picks||[]).forEach(function(p){P.push({c:c,p:p,t:t,pr:(t-now)<=45*60000})})});
   P.sort(function(u,v){return u.t-v.t});
+  var SB=ET.nulB||[];
+  h+='<h2>⚽ Match nul en Serie B italienne ('+SB.length+')</h2><div class="card"><div class="mute">Seule piste sport qui tient sur 7 saisons (2019-2026) parmi 609 stratégies testées : parier le <b>nul en Serie B</b> quand Pinnacle lui donne 30 % ou plus. Résultat : <b class="ok">+8,5 %</b> sur 1 163 paris, 6 saisons positives sur 7 (encore +5 % avec des cotes françaises plus basses). Petite mise fixe, sur la durée : un nul sur trois environ passe.</div>';
+  if(!SB.length)h+='<div class="mute" style="margin-top:6px">Aucun match qualifié pour l\'instant.</div>';
+  SB.forEach(function(e){var c=e.fr&&e.fr.d?e.fr.d:null;h+='<div class="mk"><span>'+esc(e.h)+' - '+esc(e.a)+'<br><span class="mute">'+new Date(e.t).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span></span><b>Nul '+Math.round(e.p.d*100)+' %'+(c?' · cote '+String(c[0]).replace('.',',')+' ('+esc(c[1])+')':'')+'</b></div>'});
+  h+='</div>';
   h+='<h2>🐎 Courses : outsiders à valeur ('+P.length+')</h2>';
   if(!P.length)h+='<div class="card mute">Aucun outsider à valeur pour l\'instant. '+((d.courses||[]).length)+' course(s) analysée(s) ; les autres le seront dès que leurs cotes arrivent. Certains jours il n\'y en a aucun : c\'est normal, le radar ne force jamais un pari.</div>';
   if(P.length>3){var T3=P.slice().sort(function(u,v){return (v.p.pc||v.p.pe)-(u.p.pc||u.p.pe)}).slice(0,3);
