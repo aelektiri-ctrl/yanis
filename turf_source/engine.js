@@ -236,7 +236,9 @@
   function simulate(H, seed, N) {
     N = N || 20000;
     var n = H.length, rnd = mulberry32(seed), p1 = H.map(function (h) { return h.p; });
-    var EXPO = [1, 0.70, 0.55, 0.40, 0.40]; // calés sur 8 791 arrivées réelles
+    // calés sur les arrivées réelles. Grands pelotons (10 partants et plus, quintés) : recalés sur 5 907 Quinté+/Pick 5 —
+    // l'ancien réglage sous-estimait les favoris dans les 5 (« 5 premiers dans les 8 favoris » annoncé 13 %, réel 21 %)
+    var EXPO = n >= 10 ? [1, 0.85, 0.60, 0.60, 0.60] : [1, 0.70, 0.55, 0.40, 0.40];
     var plk = EXPO.map(function (e) { return normalize(p1.map(function (x) { return Math.pow(x, e); })); });
     var orders = new Array(N), idx = new Array(n);
     for (var s = 0; s < N; s++) {
