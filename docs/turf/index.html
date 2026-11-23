@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v47</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v48</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -504,17 +504,19 @@ a{color:var(--accent)}
     if (level === 'DOUTE' && n >= 6) add('DEUX_SUR_QUATRE', '2 sur 4 champ réduit — 1 base + ' + s4.length, 'Base ' + N(A) + ' / avec ' + nums(s4), s4.length, p2sur4base, function (a) { var t = a.slice(0, 4); return t.indexOf(N(A)) >= 0 && s4.some(function (i) { return t.indexOf(N(i)) >= 0; }); }, !B3, s4.map(function (x) { return [N(A), N(x)]; }));
     // trio : 2 bases + 4 ou 5
     add('TRIO', 'Trio champ réduit — 2 bases + ' + o3.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o3), o3.length, pChamp(B2, o3, 3, 1), hitChamp(B2, o3, 3, 1), level !== 'SEC' && level !== 'DOUTE' && !B3 && !dispo.MULTI, champ(B2, o3, 3));
-    // multi (en 4) : 2 bases + 5, ou 3 bases + 5 s'il y a un loup
+    // Multi en 4, Quinté+ et Pick 5 : toujours 3 bases au minimum (4 bases en Quinté+ et Pick 5), bases = les plus sûrs d'être dans les k premiers
+    var basesK = function (k, nb) { return byTop(k, []).slice(0, nb); };
     if (n >= 8 && MM) {
-      var mmN = MM === 'MULTI' ? 'Multi' : 'Mini multi';
-      if (B3) add(MM, mmN + ' en 4 champ réduit — 3 bases + ' + o4L.length + ' 🐺', 'Bases ' + nums(B3) + ' / avec ' + nums(o4L), o4L.length, pChamp(B3, o4L, 4, 1), hitChamp(B3, o4L, 4, 1), M3, champ(B3, o4L, 4), /en 4/i);
-      add(MM, mmN + ' en 4 champ réduit — 2 bases + ' + o4.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o4), comb(o4.length, 2), pChamp(B2, o4, 4, 2), hitChamp(B2, o4, 4, 2), false, champ(B2, o4, 4), /en 4/i);
+      var mmN = MM === 'MULTI' ? 'Multi' : 'Mini multi', mb = basesK(4, 3), mo = byTop(4, mb).slice(0, Math.min(5, n - 3));
+      add(MM, mmN + ' en 4 champ réduit — 3 bases + ' + mo.length, 'Bases ' + nums(mb) + ' / avec ' + nums(mo), mo.length, pChamp(mb, mo, 4, 1), hitChamp(mb, mo, 4, 1), false, champ(mb, mo, 4), /en 4/i);
     }
-    // quinté+ (désordre) : 2 bases + 5, ou 3 bases + 5
-    if (dispo.QUINTE_PLUS && n >= 8) {
-      var qb = B3 || B2, qo = B3 ? o5L : o5, need = 5 - qb.length;
-      add('QUINTE_PLUS', 'Quinté+ champ réduit — ' + qb.length + ' bases + ' + qo.length + (B3 ? ' 🐺' : '') + ' (désordre)', 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), /sordre/i);
-    }
+    [['QUINTE_PLUS', 'Quinté+', /sordre/i], ['SUPER_PICK5', 'Pick 5', null]].forEach(function (Q) {
+      if (!(dispo[Q[0]] || dispo['E_' + Q[0]]) || n < 8) return;
+      [[3, 5], [4, 4]].forEach(function (cfg) {
+        var qb = basesK(5, cfg[0]), qo = byTop(5, qb).slice(0, Math.min(cfg[1], n - cfg[0])), need = 5 - qb.length;
+        add(Q[0], Q[1] + ' champ réduit — ' + qb.length + ' bases + ' + qo.length + (Q[0] === 'QUINTE_PLUS' ? ' (désordre)' : ''), 'Bases ' + nums(qb) + ' / avec ' + nums(qo), comb(qo.length, need), pChamp(qb, qo, 5, need), hitChamp(qb, qo, 5, need), false, champ(qb, qo, 5), Q[2]);
+      });
+    });
     // jeu principal choisi d'après la rentabilité mesurée sur 5 902 courses réelles (juin-nov. 2026)
     jeux.forEach(function (j) { j.main = false; });
     var ORDER = level === 'SEC' ? ['COUPLE_GAGNANT', 'DEUX_SUR_QUATRE', 'COUPLE_PLACE', 'SIMPLE_GAGNANT', 'TRIO', 'MULTI'] : ['DEUX_SUR_QUATRE', 'COUPLE_PLACE', 'COUPLE_GAGNANT', 'SIMPLE_GAGNANT', 'TRIO', 'MULTI'];
@@ -542,10 +544,10 @@ a{color:var(--accent)}
       var st = others3.slice(0, kt);
       consider({ cost: kt, p: pChamp(B2, st, 3, 1), make: function () { return ['TRIO', 'Trio champ réduit — 2 bases + ' + kt, 'Bases ' + nums(B2) + ' / avec ' + nums(st), kt, pChamp(B2, st, 3, 1), hitChamp(B2, st, 3, 1), true, champ(B2, st, 3), null]; } });
     })(kt);
-    if (n >= 8 && MM) for (var km = 3; km <= 5 && km <= others4.length; km++) (function (km) {
-      var sm = others4.slice(0, km), cm = comb(km, 2);
-      consider({ cost: cm, p: pChamp(B2, sm, 4, 2), make: function () { return [MM, (MM === 'MULTI' ? 'Multi' : 'Mini multi') + ' en 4 champ réduit — 2 bases + ' + km, 'Bases ' + nums(B2) + ' / avec ' + nums(sm), cm, pChamp(B2, sm, 4, 2), hitChamp(B2, sm, 4, 2), true, champ(B2, sm, 4), /en 4/i]; } });
-    })(km);
+    if (n >= 8 && MM) { var MB3 = basesK(4, 3), oth4b = byTop(4, MB3); for (var km = 3; km <= 6 && km <= oth4b.length; km++) (function (km) {
+      var sm = oth4b.slice(0, km);
+      consider({ cost: km, p: pChamp(MB3, sm, 4, 1), make: function () { return [MM, (MM === 'MULTI' ? 'Multi' : 'Mini multi') + ' en 4 champ réduit — 3 bases + ' + km, 'Bases ' + nums(MB3) + ' / avec ' + nums(sm), km, pChamp(MB3, sm, 4, 1), hitChamp(MB3, sm, 4, 1), true, champ(MB3, sm, 4), /en 4/i]; } });
+    })(km); }
     res.cands = cands; res.pick = null;
     if (bestC && res.market) {   // aucune formule validée tant que les cotes ne sont pas ouvertes : la forme seule ne suffit pas
       jeux.forEach(function (j) { j.main = false; });
@@ -2411,17 +2413,11 @@ function viewQuinte(){
     h+='<div class="mk" style="margin-top:8px"><span class="mute">Cheval</span><b class="mute" style="font-weight:400">cote · gagne · dans les 5</b></div>';
     R.forEach(function(hh,i){var st=i<2?'🔵 ':i<3?'🟣 ':i<8?'':'<span class="mute">';h+='<div class="mk"><span>'+(i<2?'<b>':'')+st+'n°'+hh.num+' '+esc(hh.nom||'')+(i<2?'</b>':'')+(i>=8?'</span>':'')+'</span><span>'+(hh.cote?E.fmtCote(hh.cote):'–')+' · '+E.pct(hh.p)+' · <b>'+E.pct(hh.top[4]||0)+'</b></span></div>'});
     var N=R.map(function(z){return z.num});
-    h+='<div style="margin-top:10px"><b>Tickets construits sur ce classement</b></div>';
-    if(isQ){
-      h+='<div class="mk"><span>2 bases '+N.slice(0,2).join('-')+' + '+N.slice(2,8).join('-')+'</span><b>'+qComb(6,3)+' combinaisons</b></div>';
-      h+='<div class="mk"><span>3 bases '+N.slice(0,3).join('-')+' + '+N.slice(3,8).join('-')+'</span><b>'+qComb(5,2)+' combinaisons</b></div>';
-      h+='<div class="mk"><span>1 base '+N[0]+' + '+N.slice(1,8).join('-')+'</span><b>'+qComb(7,4)+' combinaisons</b></div>';
-      var jq=(a.jeux||[]).filter(function(j){return j.type==='QUINTE_PLUS'})[0];
-      if(jq)h+='<div class="mute" style="margin-top:4px">Ticket du moteur : '+esc(jq.detail)+' → trouve les 5 premiers dans '+E.pct(jq.p)+' des courses simulées ('+jq.combos+' combinaisons).</div>';
-    }else{
-      h+='<div class="mk"><span>8 chevaux : '+N.slice(0,8).join('-')+'</span><b>'+qComb(8,5)+' combinaisons</b></div>';
-      h+='<div class="mk"><span>7 chevaux : '+N.slice(0,7).join('-')+'</span><b>'+qComb(7,5)+' combinaisons</b></div>';
-    }
+    var TJ=(a.jeux||[]).filter(function(j){return /QUINTE_PLUS|PICK5|MULTI/.test(j.type)});
+    h+='<div style="margin-top:10px"><b>Tickets champ réduit (3 ou 4 bases)</b></div>';
+    if(!TJ.length)h+='<div class="mute">Pas de ticket calculé pour cette course.</div>';
+    TJ.forEach(function(j){h+='<div class="mk"><span>'+esc(j.label)+'<br><span class="mute">'+esc(j.detail)+'</span></span><b>'+j.combos+' comb. · '+E.pct(j.p)+'</b></div>'});
+    h+='<div class="mute" style="margin-top:4px">Le pourcentage = part des 20 000 courses simulées où le ticket passe. Exemple : 20 % = le ticket passe environ 1 fois sur 5.</div>';
     h+=wolf(a);
     var od=ET.d&&(ET.d.courses||[]).filter(function(z){return z.r===r.numOfficiel&&z.c===c.numOrdre})[0];
     if(od&&(od.picks||[]).length)h+='<div style="margin-top:6px">🎯 Outsider à valeur (onglet Outsiders) : '+od.picks.map(function(p){return 'n°'+p.num+' '+esc(p.nom)+' (cote '+E.fmtCote(p.cote)+')'}).join(', ')+'</div>';
