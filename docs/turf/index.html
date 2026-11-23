@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v49</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v50</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -505,10 +505,10 @@ a{color:var(--accent)}
     // trio : 2 bases + 4 ou 5
     add('TRIO', 'Trio champ réduit — 2 bases + ' + o3.length, 'Bases ' + nums(B2) + ' / avec ' + nums(o3), o3.length, pChamp(B2, o3, 3, 1), hitChamp(B2, o3, 3, 1), level !== 'SEC' && level !== 'DOUTE' && !B3 && !dispo.MULTI, champ(B2, o3, 3));
     // Multi en 4, Quinté+ et Pick 5 — méthode « bases sûres » :
-    // base = cheval à 70 % ou plus (probabilité réelle, recalibrée v47) d'être dans les k premiers ; il en faut 2 au moins.
+    // base = cheval à 60 % ou plus (probabilité réelle, recalibrée v47) d'être dans les k premiers ; il en faut 2 au moins.
     // surprise = outsider (cote ≥ 8) qui sort du lot, proposé en 3e base au choix du joueur.
     // chevaux derrière = l'ensemble de 4 ou 5 chevaux qui maximise la réussite du ticket (recherche par échanges, pas un simple tri).
-    var SEUIL_BASE = 0.70;
+    var SEUIL_BASE = 0.60;
     function bestCompl(bases, k, size, need) {
       var pool = byTop(k, bases), cur = pool.slice(0, size), rest = pool.slice(size, size + 8), best = pChamp(bases, cur, k, need), moved = true, it = 0;
       while (moved && it++ < 6) { moved = false;
@@ -520,6 +520,8 @@ a{color:var(--accent)}
       return { o: cur, p: best };
     }
     var pc = function (x) { return Math.round(x * 100) + ' %'; };
+    var BT = { MULTI: { 4: '−30 %', 5: '−27 %', 6: '−22 %', s: '−29 %', n: 7398 }, SUPER_PICK5: { 4: '−36 %', 5: '−28 %', 6: '−34 %', s: '−30 %', n: 2635 }, QUINTE_PLUS: { 4: '−36 %', 5: '−39 %', 6: '−34 %', s: '−39 %', n: 38 } };
+    var btTxt = function (t, sz) { var b = BT[t === 'MINI_MULTI' ? 'MULTI' : t]; return b ? ' · Testé sur ' + b.n + ' courses réelles : rendement ' + b[sz] + ', aucun rapport de 400 € ou plus attrapé.' : ''; };
     var basesInfo = {};
     [[MM, 4, MM === 'MULTI' ? 'Multi en 4' : 'Mini multi en 4', /en 4/i], ['QUINTE_PLUS', 5, 'Quinté+', /sordre/i], ['SUPER_PICK5', 5, 'Pick 5', null]].forEach(function (Q) {
       if (!Q[0] || !(dispo[Q[0]] || dispo['E_' + Q[0]]) || n < 8) return;
@@ -533,14 +535,14 @@ a{color:var(--accent)}
         add(Q[0], Q[2] + ' — PAS DE TICKET CONSEILLÉ', 'Il faut 2 chevaux à ' + pc(SEUIL_BASE) + ' ou plus d\'être dans les ' + k + ' premiers. Ici ' + (sure.length ? 'un seul : ' + desc(sure) : 'aucun') + '. Meilleurs : ' + desc(b2) + '. Ticket à titre d\'info : bases ' + nums(b2) + ' / avec ' + nums(c0.o), comb(c0.o.length, k - 2), c0.p, hitChamp(b2, c0.o, k, k - 2), false, champ(b2, c0.o, k), Q[3]);
         return;
       }
-      var sizes = [4, 5];
+      var sizes = [4, 5, 6];
       sizes.forEach(function (sz) {
         var need = k - sure.length, c = bestCompl(sure, k, sz, need);
-        add(Q[0], Q[2] + ' — ' + sure.length + ' bases sûres + ' + sz + (Q[0] === 'QUINTE_PLUS' ? ' (désordre)' : ''), 'Bases ' + desc(sure) + ' / avec ' + nums(c.o) + ' — les ' + sz + ' qui couvrent le mieux les ' + need + ' places restantes', comb(sz, need), c.p, hitChamp(sure, c.o, k, need), true, champ(sure, c.o, k), Q[3]);
+        add(Q[0], Q[2] + ' — ' + sure.length + ' bases sûres + ' + sz + (Q[0] === 'QUINTE_PLUS' ? ' (désordre)' : ''), 'Bases ' + desc(sure) + ' / avec ' + nums(c.o) + ' — les ' + sz + ' qui couvrent le mieux les ' + need + ' places restantes' + btTxt(Q[0], sz), comb(sz, need), c.p, hitChamp(sure, c.o, k, need), true, champ(sure, c.o, k), Q[3]);
       });
       if (sur != null && sure.length < k - 1) {
         var b3 = sure.concat([sur]), need3 = k - b3.length, c3 = bestCompl(b3, k, 4, need3);
-        add(Q[0], Q[2] + ' — (AU CHOIX) + n°' + N(sur) + ' en base surprise', 'Si tu crois à la surprise n°' + N(sur) + ' (cote ' + H[sur].cote + ', ' + pc(H[sur].top[k - 1]) + ' d\'être dans les ' + k + ') : bases ' + nums(b3) + ' / avec ' + nums(c3.o) + '. Moins cher, mais ne passe que si la surprise arrive.', comb(4, need3), c3.p, hitChamp(b3, c3.o, k, need3), false, champ(b3, c3.o, k), Q[3]);
+        add(Q[0], Q[2] + ' — (AU CHOIX) + n°' + N(sur) + ' en base surprise', 'Si tu crois à la surprise n°' + N(sur) + ' (cote ' + H[sur].cote + ', ' + pc(H[sur].top[k - 1]) + ' d\'être dans les ' + k + ') : bases ' + nums(b3) + ' / avec ' + nums(c3.o) + '. Moins cher, mais ne passe que si la surprise arrive.' + btTxt(Q[0], 's'), comb(4, need3), c3.p, hitChamp(b3, c3.o, k, need3), false, champ(b3, c3.o, k), Q[3]);
       }
     });
     // jeu principal choisi d'après la rentabilité mesurée sur 5 902 courses réelles (juin-nov. 2026)
@@ -2437,7 +2439,7 @@ function viewQuinte(){
     R.forEach(function(hh,i){var st=i<2?'🔵 ':i<3?'🟣 ':i<8?'':'<span class="mute">';h+='<div class="mk"><span>'+(i<2?'<b>':'')+st+'n°'+hh.num+' '+esc(hh.nom||'')+(i<2?'</b>':'')+(i>=8?'</span>':'')+'</span><span>'+(hh.cote?E.fmtCote(hh.cote):'–')+' · '+E.pct(hh.p)+' · <b>'+E.pct(hh.top[4]||0)+'</b></span></div>'});
     var N=R.map(function(z){return z.num});
     var TJ=(a.jeux||[]).filter(function(j){return /QUINTE_PLUS|PICK5|MULTI/.test(j.type)});
-    h+='<div style="margin-top:10px"><b>Tickets champ réduit (bases sûres à 70 % et plus)</b></div>';
+    h+='<div style="margin-top:10px"><b>Tickets champ réduit (bases sûres à 60 % et plus)</b></div>';
     if(!TJ.length)h+='<div class="mute">Pas de ticket calculé pour cette course.</div>';
     TJ.forEach(function(j){h+='<div class="mk"><span>'+esc(j.label)+'<br><span class="mute">'+esc(j.detail)+'</span></span><b>'+j.combos+' comb. · '+E.pct(j.p)+'</b></div>'});
     h+='<div class="mute" style="margin-top:4px">Le pourcentage = part des 20 000 courses simulées où le ticket passe. Exemple : 20 % = le ticket passe environ 1 fois sur 5.</div>';
