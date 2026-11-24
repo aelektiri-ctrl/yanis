@@ -16,39 +16,50 @@ concurrency:
 jobs:
   rapide:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Courses du jour et de demain (toutes les reunions, France et etranger)
+        timeout-minutes: 12
+        continue-on-error: true
         run: python yanis.py collecte --budget 0 --monde
       - name: Pronostics du jour (modele v2)
+        timeout-minutes: 6
         continue-on-error: true
         run: |
           pip install --quiet pandas scikit-learn
           python modele_hippique.py --banc-si-ancien
       - name: Radar a outsiders (courses) - paris figes 45 min avant le depart
+        timeout-minutes: 6
         continue-on-error: true
         run: |
           pip install --quiet scipy
           python modele_etude.py
       - name: Sports du jour
+        timeout-minutes: 6
         continue-on-error: true
         run: python sports.py --budget 0
       - name: "Cotes de reference - lecture complete si plus de 3 h, sinon lecture ciblee des matchs a surveiller"
+        timeout-minutes: 6
         continue-on-error: true
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           if node -e "const j=JSON.parse(require('fs').readFileSync('docs/data/sharp.json','utf8'));process.exit(Date.now()-Date.parse(j.maj)>3*3600e3?0:1)"; then node cotes_sharp.js 70; else node cotes_sharp.js 70 chaud; fi
       - name: Preparer l'appli
+        timeout-minutes: 6
+        continue-on-error: true
         run: python yanis.py publier
       - name: Notifications sur le telephone
+        timeout-minutes: 6
         continue-on-error: true
         run: python notifier.py
       - name: Enregistrer
+        timeout-minutes: 4
+        continue-on-error: true
         run: |
           git config user.name "Yanis"
           git config user.email "yanis@users.noreply.github.com"

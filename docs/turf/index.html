@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v58</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v59</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2115,6 +2115,19 @@ async function loadDayY(full){
             if(q.statut&&/NON_PARTANT/.test(q.statut)&&!/NON_PARTANT/.test(p.statut||'')){p.statut=q.statut;nNP++}
             var cd=q.dernierRapportDirect&&q.dernierRapportDirect.rapport;if(cd)p.dernierRapportDirect={rapport:cd}});
           c._live=Date.now();if(nNP)c._npLive=nNP}catch(e){}}))}
+    // Courses parties depuis plus de 4 min sans arrivée dans les données du robot : on lit l'arrivée et les rapports directement au PMU.
+    if(want===ymdDash(new Date())){var fin=[];P.reunions.forEach(function(r){r.courses.forEach(function(c){var dt=Date.now()-c.heureDepart;if(dt>4*60000&&dt<12*3600e3&&!c.arriveeTxt)fin.push([r,c])})});
+      fin.sort(function(u,v){return v[1].heureDepart-u[1].heureDepart});
+      if(fin.length)setStatus('Lecture des arrivées au PMU ('+Math.min(fin.length,16)+')…');
+      await Promise.all(fin.slice(0,16).map(async function(it){var r=it[0],c=it[1],base=ddmmyyyy(S.date)+'/R'+r.numOfficiel+'/C'+c.numOrdre;
+        try{var pj=await getJSON(base+'/participants');var L=pj&&(pj.participants||pj);if(!Array.isArray(L))return;var pl={};
+          L.forEach(function(p){var o=+p.ordreArrivee;if(o>0)pl[p.numPmu]=o});var ks=Object.keys(pl);if(!ks.length)return;
+          c._parts.forEach(function(p){if(pl[p.numPmu])p.ordreArrivee=pl[p.numPmu]});
+          c.arriveeTxt=ks.sort(function(x,y){return pl[x]-pl[y]}).join('-');c._arrLive=1;
+          try{var rj=await getJSON(base+'/rapports-definitifs');var B=Array.isArray(rj)?rj:((rj&&rj.rapports)||[]),R=[];
+            B.forEach(function(b){(b.rapports||[]).forEach(function(x){if(typeof x.dividendePourUnEuro==='number')R.push({pari:b.typePari,libelle:x.libelle||'',combinaison:String(x.combinaison||''),rapport:x.dividendePourUnEuro/100})})});
+            if(R.length)c.rapports=R}catch(e){}
+        }catch(e){}}))}
     var tot=0,done=0;P.reunions.forEach(function(r){tot+=r.courses.length});
     P.reunions.forEach(function(r){r.courses.forEach(function(c){
       var k=key(r.numOfficiel,c.numOrdre),oa=S.an[k];
