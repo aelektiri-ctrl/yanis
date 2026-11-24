@@ -119,7 +119,7 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v52</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v53</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2367,18 +2367,6 @@ function viewEtude(){
   /* ---- courses ---- */
   var now=Date.now(),P=[];(d.courses||[]).forEach(function(c){var t=Date.parse(String(c.depart).replace(' ','T'));if(isNaN(t)||t<now)return;(c.picks||[]).forEach(function(p){P.push({c:c,p:p,t:t,pr:(t-now)<=45*60000})})});
   P.sort(function(u,v){return u.t-v.t});
-  var SB=ET.nulB||[];
-  h+='<h2>⚽ Match nul en Serie B italienne ('+SB.length+')</h2><div class="card"><div class="mute">Seule piste sport qui tient sur 7 saisons (2019-2026) parmi 609 stratégies testées : parier le <b>nul en Serie B</b> quand Pinnacle lui donne 30 % ou plus. Résultat : <b class="ok">+8,5 %</b> sur 1 163 paris, 6 saisons positives sur 7 (encore +5 % avec des cotes françaises plus basses). Petite mise fixe, sur la durée : un nul sur trois environ passe.</div>';
-  if(!SB.length)h+='<div class="mute" style="margin-top:6px">Aucun match qualifié pour l\'instant.</div>';
-  SB.forEach(function(e){var c=e.fr&&e.fr.d?e.fr.d:null;h+='<div class="mk"><span>'+esc(e.h)+' - '+esc(e.a)+'<br><span class="mute">'+new Date(e.t).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span></span><b>Nul '+Math.round(e.p.d*100)+' %'+(c?' · cote '+String(c[0]).replace('.',',')+' ('+esc(c[1])+')':'')+'</b></div>'});
-  h+='</div>';
-  var DT=ET.det,ML={btts:'Les deux équipes marquent',h2h_h1:'Vainqueur 1re mi-temps',totals_h1:'Buts en 1re mi-temps',totals:'Total de points',spreads:'Handicap',player_points:'Points',player_rebounds:'Rebonds',player_assists:'Passes'};
-  var tr=function(s){return String(s).replace(/^Over/,'Plus de').replace(/^Under/,'Moins de').replace(/^Yes$/,'Oui').replace(/^No$/,'Non').replace(/^Draw$/,'Nul').replace('.',',')};
-  var DL=DT?(DT.lignes||[]).filter(function(x){return Date.parse(x.t)>Date.now()&&x.p>=0.55&&x.p<=0.9}).sort(function(u,v){return v.p-u.p}).slice(0,30):[];
-  h+='<h2>🔬 Paris détaillés — en test ('+DL.length+')</h2><div class="card"><div class="mute">Chances calculées sans la marge, d\'après Pinnacle ou le consensus des bookmakers américains (paris joueurs NBA). <b>Rentable dès</b> = cote minimum à trouver chez ton bookmaker pour que le pari vaille le coup. Pas encore de bilan : tout est enregistré, verdict dans 4 à 6 semaines.</div>';
-  if(!DL.length)h+='<div class="mute" style="margin-top:6px">Rien pour l\'instant (relevé à 11 h 40 et 18 h 40).</div>';
-  DL.forEach(function(x){h+='<div class="mk"><span>'+esc(x.m)+' · '+new Date(x.t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'<br><span class="mute">'+esc(ML[x.marche]||x.marche)+(x.joueur?' · '+esc(x.joueur):'')+' : <b>'+esc(tr(x.issue))+'</b></span></span><b>'+Math.round(x.p*100)+' % · rentable dès '+String(x.rentable).replace('.',',')+(x.cote?' · '+esc(x.book)+' '+String(x.cote).replace('.',','):'')+'</b></div>'});
-  h+='</div>';
   h+='<h2>🐎 Courses : outsiders à valeur ('+P.length+')</h2>';
   if(!P.length)h+='<div class="card mute">Aucun outsider à valeur pour l\'instant. '+((d.courses||[]).length)+' course(s) analysée(s) ; les autres le seront dès que leurs cotes arrivent. Certains jours il n\'y en a aucun : c\'est normal, le radar ne force jamais un pari.</div>';
   if(P.length>3){var T3=P.slice().sort(function(u,v){return (v.p.pc||v.p.pe)-(u.p.pc||u.p.pe)}).slice(0,3);
@@ -2417,6 +2405,18 @@ function viewEtude(){
     h+='<div class="card"><div class="ttl">'+(ET_G[g]||g)+' <span class="mute" style="font-weight:400">· '+lab+'</span></div>'+
       (v?'<div style="margin-top:6px">'+v.paris.toLocaleString('fr-FR')+' outsiders joués : gagnés <b>'+etPct(v.reussite)+'</b> (le marché annonçait '+etPct(v.annonce_marche)+'), cote moyenne '+String(v.cote_moy).replace('.',',')+'. Bilan <b class="'+(v.roi>0?'ok':'ko')+'">'+etRoi(v.roi)+'</b> ± '+(v.marge*100).toFixed(0)+' points · trimestres gagnants : '+qp+' sur '+q.length+'.</div>':'<div class="mute" style="margin-top:6px">Pas assez de paris pour mesurer.</div>')+
       (m?'<div class="mute" style="margin-top:6px">Version prudente (chevaux choisis avec la cote du matin, payés à la cote finale) : '+etRoi(m.roi)+' ± '+(m.marge*100).toFixed(0)+' points sur '+m.paris.toLocaleString('fr-FR')+' paris. Le résultat réel se situe entre les deux.</div>':'')+'</div>'});
+  var SB=ET.nulB||[];
+  h+='<h2>⚽ Match nul en Serie B italienne ('+SB.length+')</h2><div class="card"><div class="mute">Seule piste sport qui tient sur 7 saisons (2019-2026) parmi 609 stratégies testées : parier le <b>nul en Serie B</b> quand Pinnacle lui donne 30 % ou plus. Résultat : <b class="ok">+8,5 %</b> sur 1 163 paris, 6 saisons positives sur 7 (encore +5 % avec des cotes françaises plus basses). Petite mise fixe, sur la durée : un nul sur trois environ passe.</div>';
+  if(!SB.length)h+='<div class="mute" style="margin-top:6px">Aucun match qualifié pour l\'instant.</div>';
+  SB.forEach(function(e){var c=e.fr&&e.fr.d?e.fr.d:null;h+='<div class="mk"><span>'+esc(e.h)+' - '+esc(e.a)+'<br><span class="mute">'+new Date(e.t).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span></span><b>Nul '+Math.round(e.p.d*100)+' %'+(c?' · cote '+String(c[0]).replace('.',',')+' ('+esc(c[1])+')':'')+'</b></div>'});
+  h+='</div>';
+  var DT=ET.det,ML={btts:'Les deux équipes marquent',h2h_h1:'Vainqueur 1re mi-temps',totals_h1:'Buts en 1re mi-temps',totals:'Total de points',spreads:'Handicap',player_points:'Points',player_rebounds:'Rebonds',player_assists:'Passes'};
+  var tr=function(s){return String(s).replace(/^Over/,'Plus de').replace(/^Under/,'Moins de').replace(/^Yes$/,'Oui').replace(/^No$/,'Non').replace(/^Draw$/,'Nul').replace('.',',')};
+  var DL=DT?(DT.lignes||[]).filter(function(x){return Date.parse(x.t)>Date.now()&&x.p>=0.55&&x.p<=0.9}).sort(function(u,v){return v.p-u.p}).slice(0,30):[];
+  h+='<h2>🔬 Paris détaillés — en test ('+DL.length+')</h2><div class="card"><div class="mute">Chances calculées sans la marge, d\'après Pinnacle ou le consensus des bookmakers américains (paris joueurs NBA). <b>Rentable dès</b> = cote minimum à trouver chez ton bookmaker pour que le pari vaille le coup. Pas encore de bilan : tout est enregistré, verdict dans 4 à 6 semaines.</div>';
+  if(!DL.length)h+='<div class="mute" style="margin-top:6px">Rien pour l\'instant (relevé à 11 h 40 et 18 h 40).</div>';
+  DL.forEach(function(x){h+='<div class="mk"><span>'+esc(x.m)+' · '+new Date(x.t).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'<br><span class="mute">'+esc(ML[x.marche]||x.marche)+(x.joueur?' · '+esc(x.joueur):'')+' : <b>'+esc(tr(x.issue))+'</b></span></span><b>'+Math.round(x.p*100)+' % · rentable dès '+String(x.rentable).replace('.',',')+(x.cote?' · '+esc(x.book)+' '+String(x.cote).replace('.',','):'')+'</b></div>'});
+  h+='</div>';
   return h;
 }
 
@@ -2640,7 +2640,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
   items:function(){return (SP.data||[]).filter(function(x){return SP.filter==='all'||x.sport===SP.filter})},
   chips:function(){
     var have={};(SP.data||[]).forEach(function(x){have[x.sport]=(have[x.sport]||0)+1});
-    return '<div class="chips">'+['all','foot','rugby','nba','wnba','nfl','nhl','mlb','tennis','mma'].filter(function(k){return k==='all'||have[k]}).map(function(k){return '<button data-f="'+k+'" class="'+(SP.filter===k?'on':'')+'">'+(ICON[k]||'')+' '+SNAME[k]+(k!=='all'?' '+have[k]:'')+'</button>'}).join('')+'</div>';
+    return '<div class="chips">'+['all','foot','rugby','nba','wnba','nfl','nhl','mlb','tennis','mma'].filter(function(k){return k==='all'||have[k]||/^(foot|nba|nhl|tennis|mma)$/.test(k)}).map(function(k){return '<button data-f="'+k+'" class="'+(SP.filter===k?'on':'')+'">'+(ICON[k]||'')+' '+SNAME[k]+(k!=='all'?' '+(have[k]||0):'')+'</button>'}).join('')+'</div>';
   },
   bookLine:function(c){
     if(!c)return '';
