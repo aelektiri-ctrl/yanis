@@ -1,6 +1,6 @@
 # Bilan de la bibliotheque de Yanis
 
-Mis a jour le 24/11/2026 a 19:41.
+Mis a jour le 24/11/2026 a 19:50.
 
 | | |
 |---|---|
@@ -9,8 +9,8 @@ Mis a jour le 24/11/2026 a 19:41.
 | Reunions | 24721 |
 | Courses | 169647 |
 | Partants | 2025379 |
-| Rapports | 2603019 |
-| Partants avec cote finale | 1712264 |
+| Rapports | 2603025 |
+| Partants avec cote finale | 1712263 |
 | Partants avec place a l'arrivee | 1643647 |
 
 ## Courses par discipline
