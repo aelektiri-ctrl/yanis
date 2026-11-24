@@ -119,12 +119,12 @@ a{color:var(--accent)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v53</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v54</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
   <div class="bar"><i id="prog"></i></div>
-  <div class="modes"><button data-m="turf" class="on">Turf</button><button data-m="sport">Sport</button><button data-m="value">Points noirs</button><button data-m="etude">Outsiders</button><button data-m="quinte">Quinté</button></div>
+  <div class="modes"><button data-m="jour">Aujourd'hui</button><button data-m="turf" class="on">Turf</button><button data-m="sport">Sport</button><button data-m="value">Points noirs</button><button data-m="etude">Outsiders</button><button data-m="quinte">Quinté</button><button data-m="poker">Coup de poker</button></div>
   <nav id="navTurf"><button data-t="sel" class="on">Sélections</button><button data-t="prog">Programme</button><button data-t="bilan">Bilan</button></nav>
   <nav id="navQuinte" hidden><button class="on">Quinté+ · Pick 5 · classement dans les 5</button></nav>
   <nav id="navEtude" hidden><button class="on">Cotes hautes à valeur mesurée</button></nav>
@@ -638,6 +638,30 @@ a{color:var(--accent)}
     if (!res.market) why.unshift('Cotes pas encore ouvertes : classement provisoire sur la forme seule. Aucune formule n\'est validée avant l\'ouverture des cotes ; tout est recalculé dès qu\'elles arrivent.');
     if (res.avoid) why.unshift('Course très ouverte : même le n°' + hA.num + ' ne finit placé que ' + pct(conf) + ' du temps. À éviter.');
     res.watch = loup ? { h: H[L], why: loup.why, strong: true, pPlace: loup.pPlace, pBase: loup.pBase } : watch && watch.sc >= 1.08 && watch.pPlace - watch.pBase >= 0.03 ? { h: H[watch.i], why: watch.why, strong: false, pPlace: watch.pPlace, pBase: watch.pBase } : null;
+    // ---- Coup de poker : tocard de la course + tickets Quinté+ à gros potentiel ----
+    var favI = byTop(4, [])[0];
+    var toc = H.map(function (h, i) { return i; }).filter(function (i) { return i !== favI && (H[i].cote || 0) >= 10; }).sort(function (a, b) { return H[b].top[3] - H[a].top[3]; })[0];
+    if (toc != null && n >= 6) res.tocard = { num: H[toc].num, nom: H[toc].nom, cote: H[toc].cote, p4: H[toc].top[3], fav: { num: H[favI].num, nom: H[favI].nom, cote: H[favI].cote, p4: H[favI].top[3] },
+      p2sur4: freq(orders, function (o) { return inTop(o, favI, 4) && inTop(o, toc, 4); }) };
+    var rap5 = function (set) { var s = 0; for (var i = 0; i < set.length; i++) { if (!(H[set[i]].cote > 1)) return null; s += Math.log(H[set[i]].cote); } return 2 * Math.exp(-6.2945 + 0.9303 * s); };   // rapport estimé pour 2 € (ajusté sur 3 597 Quinté+ réels)
+    if ((dispo.QUINTE_PLUS || dispo.E_QUINTE_PLUS) && n >= 10 && res.market) {
+      var pool = byTop(5, []).slice(0, 10), cnt = {};
+      orders.forEach(function (o) { var k = o.slice(0, 5).slice().sort(function (a, b) { return a - b; }).join(','); cnt[k] = (cnt[k] || 0) + 1; });
+      var uni = [];
+      kOf(pool, 5).forEach(function (st) {
+        if (!st.some(function (i) { return H[i].cote >= 10; })) return;
+        var k = st.slice().sort(function (a, b) { return a - b; }).join(','), p = (cnt[k] || 0) / orders.length, r = rap5(st);
+        if (!r || p < 0.002) return;
+        uni.push({ nums: st.map(N).sort(function (a, b) { return a - b; }), p: p, rap: r, esp: p * r });
+      });
+      uni.sort(function (a, b) { return b.esp - a.esp; });
+      var cr = null;
+      if (res.tocard) {
+        var tb = [favI, toc], ot = byTop(5, tb).slice(0, 4), combs = kOf(ot, 3), rs = combs.map(function (c) { return rap5(tb.concat(c)) || 0; }).sort(function (a, b) { return a - b; });
+        cr = { bases: [H[favI].num, H[toc].num], avec: ot.map(N), combos: combs.length, cout: 2 * combs.length, p: pChamp(tb, ot, 5, 3), rap: rs[Math.floor(rs.length / 2)] };
+      }
+      res.poker = { unit: uni.slice(0, 3), champ: cr };
+    }
     res.level = level; res.jeux = jeux; res.main = main; res.conf = conf; res.potentiel = potentiel;
     res.why = why; res.order = order; res.A = A; res.B = B;
     res.ranking = order.map(function (i) { return H[i]; });
@@ -2536,18 +2560,66 @@ function sheetOpen(h){S.open=true;$('sheetIn').innerHTML=clean(h);$('sheet').cla
 function closeSheet(){if(!S.open)return;S.open=null;$('sheet').classList.remove('open')}
 window.addEventListener('popstate',closeSheet);
 
+/* ===== Aujourd'hui : tableau de bord ===== */
+function viewJour(){
+  var now=Date.now(),h='<div class="card" style="border-left:4px solid #2e7d32"><div class="ttl">📊 Aujourd\'hui</div><div class="mute" style="margin-top:4px">Les meilleurs paris du jour, sport par sport. Chaque chance est mesurée (pas devinée) et la fiabilité vient du bilan réel. Touche une carte pour le détail.</div></div>';
+  var T=(SP.shB&&SP.shB.total)||null;
+  if(T)h+='<div class="card"><div class="ttl">Fiabilité réelle depuis le '+new Date(SP.shB.depuis).toLocaleDateString('fr-FR')+'</div><div class="mk"><span>Favoris annoncés à 70 % et plus</span><b>'+T.w70+' gagnés sur '+T.n70+' (attendus '+Math.round(T.a70)+')</b></div><div class="mk"><span>Tous les favoris</span><b>'+T.fav+' sur '+T.n+' (attendus '+Math.round(T.att)+')</b></div></div>';
+  // courses
+  var P=pointsTurf();h+='<h2>🏇 Courses</h2>';
+  if(!allCourses().length)h+='<div class="card mute">Programme des courses en chargement…</div>';
+  else{
+    if(!P.solides.length&&!P.loups.length)h+='<div class="card mute">Pas de favori solide ni de loup pour les courses à venir.</div>';
+    P.solides.slice(0,3).forEach(function(it){h+='<div class="card tap pn good" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">✅ n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Favori solide : gagne <b class="ok">'+E.pct(it.f.p)+'</b> (la cote annonce '+E.pct(it.f.pm)+')</div></div>'});
+    P.loups.slice(0,2).forEach(function(it){var w=it.a.watch;h+='<div class="card tap pn wolfc" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">🐺 n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+'</div><div>Dans les 3 premiers : <b class="ok">'+E.pct(w.pPlace)+'</b></div></div>'});
+    h+='<div class="card tap" id="goPoker"><b>🃏 Coup de poker du Quinté+ et tocards du jour →</b></div>';
+  }
+  // sports
+  var SPT=[['foot','Football'],['tennis','Tennis'],['nba','NBA'],['nhl','NHL'],['nfl','NFL'],['mma','MMA'],['rugby','Rugby']],by={};
+  (SP.data||[]).forEach(function(x,i){if(!x||!x.state||x.state.done||!x.pick)return;(by[x.sport]=by[x.sport]||[]).push({x:x,i:i})});
+  if(!SP.data)h+='<div class="card mute">'+(SP.loading?'Chargement des matchs…':(SP.err?esc(SP.err):'Matchs pas encore chargés.'))+'</div>';
+  else SPT.forEach(function(s){
+    var L=(by[s[0]]||[]).sort(function(u,v){return v.x.pick.p-u.x.pick.p}),f=(SP.shB&&SP.shB.sports||{})[s[1]];
+    h+='<h2>'+(ICON[s[0]]||'')+' '+s[1]+' ('+L.length+')</h2>';
+    if(f&&f.n70)h+='<div class="mute" style="margin:-4px 0 6px">Fiabilité réelle : '+f.w70+' favoris à 70 %+ gagnés sur '+f.n70+' (attendus '+Math.round(f.a70)+')</div>';
+    if(!L.length){h+='<div class="card mute">Aucun pari conseillé aujourd\'hui.</div>';return}
+    L.slice(0,3).forEach(function(o){var p=o.x.pick,t=new Date(o.x.date);h+='<div class="card tap pn good" data-s="'+o.i+'"><div class="mute">'+esc(o.x.league||'')+' · '+(isNaN(t)?'':t.toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'}))+(o.x.state.state==='in'?' · EN DIRECT':'')+'</div><div class="ttl" style="margin:4px 0">'+esc(o.x.title)+'</div><div>'+esc(p.label)+' : <b class="ok">'+E.pct(p.p)+'</b>'+(p.minOdds?' · à jouer à partir de '+String(p.minOdds.toFixed(2)).replace('.',','):'')+'</div></div>'});
+  });
+  return h;
+}
+/* ===== Coup de poker ===== */
+function viewPoker(){
+  var now=Date.now(),eu=function(x){return Math.round(x).toLocaleString('fr-FR')+' €'},fois=function(p){return p>0?'1 fois sur '+Math.max(2,Math.round(1/p)):'—'};
+  var h='<div class="card" style="border-left:4px solid #c62828"><div class="ttl">🃏 Coup de poker</div><div class="mute" style="margin-top:4px">Gros risque, gros rapport. La plupart des jours, ça ne rentre pas ; le jour où ça rentre, ça paie très cher. Petite mise, toujours la même. Rapports estimés d\'après 3 597 Quinté+ réels : un ordre de grandeur (souvent 2 à 3 fois plus ou moins).</div></div>';
+  var Q=allCourses().filter(function(x){return x.a&&x.a.poker});
+  h+='<h2>Quinté+ du jour ('+Q.length+')</h2>';
+  if(!Q.length)h+='<div class="card mute">Pas de Quinté+ analysé pour ce jour (ou cotes pas encore ouvertes).</div>';
+  Q.forEach(function(x){var a=x.a,pk=a.poker,k=key(x.r.numOfficiel,x.c.numOrdre);
+    h+='<div class="card"><div class="mute tap" data-k="'+k+'">🏇 R'+x.r.numOfficiel+'C'+x.c.numOrdre+' · '+esc(x.r.hippodrome.libelleCourt)+' · '+hhmm(x.c.heureDepart)+' · '+esc(x.c.libelle||'')+'</div>';
+    if(pk.champ){var c=pk.champ;h+='<div class="ttl" style="margin-top:8px">Champ réduit favori + tocard</div><div class="mk"><span>Bases '+c.bases.join(' - ')+' / avec '+c.avec.join(' - ')+'<br><span class="mute">'+c.combos+' combinaisons à 2 € = '+c.cout+' €</span></span><b>'+fois(c.p)+' · ≈ '+eu(c.rap)+'</b></div>'}
+    h+='<div class="ttl" style="margin-top:8px">Tickets simples à 2 € (meilleur potentiel)</div>';
+    if(!pk.unit.length)h+='<div class="mute">Aucun ticket à potentiel crédible sur cette course.</div>';
+    pk.unit.forEach(function(u,i){h+='<div class="mk"><span>Ticket '+(i+1)+' : <b>'+u.nums.join(' - ')+'</b></span><b>'+fois(u.p)+' · ≈ '+eu(u.rap)+'</b></div>'});
+    h+='</div>';
+  });
+  var T=allCourses().filter(function(x){return x.a&&x.a.tocard&&x.c.heureDepart&&x.c.heureDepart>now-5*60000&&!x.a.arrivee}).sort(function(u,v){return u.c.heureDepart-v.c.heureDepart});
+  h+='<h2>🎯 Tocard de chaque course ('+T.length+')</h2><div class="mute" style="margin:-4px 0 6px">Le cheval à cote 10 ou plus qui a le plus de chances de finir dans les 4. À associer au favori en 2 sur 4, ou en base avec lui.</div>';
+  if(!T.length)h+='<div class="card mute">Aucune course à venir avec un tocard repéré.</div>';
+  T.forEach(function(x){var t=x.a.tocard,k=key(x.r.numOfficiel,x.c.numOrdre);h+='<div class="card tap" data-k="'+k+'"><div class="mute">🏇 R'+x.r.numOfficiel+'C'+x.c.numOrdre+' · '+esc(x.r.hippodrome.libelleCourt)+' · '+hhmm(x.c.heureDepart)+'</div><div class="ttl" style="margin:4px 0">n°'+t.num+' '+esc(t.nom||'')+' · cote '+E.fmtCote(t.cote)+' · dans les 4 : '+E.pct(t.p4)+'</div><div>Avec le favori n°'+t.fav.num+' (dans les 4 : '+E.pct(t.fav.p4)+') → 2 sur 4 : <b>'+E.pct(t.p2sur4)+'</b></div></div>'});
+  return h;
+}
 function render(){
-  var v=S.mode==='quinte'?viewQuinte():S.mode==='etude'?viewEtude():S.mode==='value'?viewValue():S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
+  var v=S.mode==='jour'?viewJour():S.mode==='poker'?viewPoker():S.mode==='quinte'?viewQuinte():S.mode==='etude'?viewEtude():S.mode==='value'?viewValue():S.mode==='sport'?SP.view():S.tab==='sel'?viewSel():S.tab==='prog'?viewProg():viewBilan();
   var dl=S.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   $('view').innerHTML=clean('<div class="mute" style="margin-bottom:8px;text-transform:capitalize">'+dl+'</div>'+v+'<p class="foot">Jeu responsable : fixe ton budget à l\'avance. Joueurs Info Service 09 74 75 13 13.</p>');
   document.querySelectorAll('[data-vf]').forEach(function(b){b.onclick=function(){VF.f=b.dataset.vf;render()}});
   var lb=$('learnBtn');if(lb)lb.onclick=function(){runLearn(false)};
   var rb=$('retry');if(rb)rb.onclick=function(){S.mode==='sport'?SP.load(true):loadDay(true)};SP.bind();
 }
-$('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'))});
+$('view').addEventListener('click',function(e){var t=e.target.closest('[data-k]');if(t)sheet(t.getAttribute('data-k'));var u=e.target.closest('[data-s]');if(u)SP.sheet(u.getAttribute('data-s'));if(e.target.closest('#goPoker')){var pb=document.querySelector('.modes button[data-m=poker]');pb&&pb.click()}});
 document.querySelectorAll('#navTurf button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navTurf button').forEach(function(x){x.classList.toggle('on',x===b)});S.tab=b.dataset.t;render();window.scrollTo(0,0)}});
 document.querySelectorAll('#navSport button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#navSport button').forEach(function(x){x.classList.toggle('on',x===b)});SP.tab=b.dataset.t;render();window.scrollTo(0,0)}});
-document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';if(S.mode==='value')loadEtude();$('navEtude').hidden=S.mode!=='etude';$('navQuinte').hidden=S.mode!=='quinte';if(S.mode==='quinte')loadEtude();if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='sport'?(SP.st||'Prêt'):S.mode==='quinte'?'Quinté et Pick 5':S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&S.mode!=='quinte'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
+document.querySelectorAll('.modes button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.modes button').forEach(function(x){x.classList.toggle('on',x===b)});S.mode=b.dataset.m;$('navTurf').hidden=S.mode!=='turf';$('navSport').hidden=S.mode!=='sport';$('navValue').hidden=S.mode!=='value';if(S.mode==='value')loadEtude();$('navEtude').hidden=S.mode!=='etude';$('navQuinte').hidden=S.mode!=='quinte';if(S.mode==='quinte')loadEtude();if(S.mode==='etude')loadEtude();try{localStorage.setItem('turf.mode',S.mode)}catch(e){}$('st').textContent=S.mode==='jour'?'Tableau de bord':S.mode==='poker'?'Coup de poker':S.mode==='sport'?(SP.st||'Prêt'):S.mode==='quinte'?'Quinté et Pick 5':S.mode==='etude'?'Radar à outsiders':(S.stTurf||'Prêt');if(S.mode!=='turf'&&S.mode!=='etude'&&S.mode!=='quinte'&&S.mode!=='poker'&&!SP.data&&!SP.loading)SP.load(true);render();window.scrollTo(0,0)}});
 function shift(n){S.date=new Date(S.date.getFullYear(),S.date.getMonth(),S.date.getDate()+n);S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)}
 $('prev').onclick=function(){shift(-1)};$('next').onclick=function(){shift(1)};
 $('today').onclick=function(){S.date=new Date();S.prog=null;S.an={};S.perf={};SP.data=null;SP.cache={};render();loadDay(true);if(S.mode==='sport')SP.load(true)};
@@ -2635,7 +2707,7 @@ var SP={hist:{},nsim:function(x){return (x.sim&&x.sim.n||20000).toLocaleString('
       });
       SP.setSt(res.items.length+' matchs analysés · '+res.info.games+' matchs d\'historique');
     }catch(e){SP.err=e.message;SP.setSt('Erreur : '+e.message)}
-    setProg(0);SP.loading=false;if(S.mode==='value')render();if(S.mode==='sport'){render();$('upd').textContent=SP.last?'MAJ '+SP.last.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}
+    setProg(0);SP.loading=false;if(S.mode==='value'||S.mode==='jour')render();if(S.mode==='sport'){render();$('upd').textContent=SP.last?'MAJ '+SP.last.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}
   },
   items:function(){return (SP.data||[]).filter(function(x){return SP.filter==='all'||x.sport===SP.filter})},
   chips:function(){
