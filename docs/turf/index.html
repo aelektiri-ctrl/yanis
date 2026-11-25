@@ -2609,6 +2609,10 @@ function sheet(k){
   h+='<div class="mute">'+hhmm(c.heureDepart)+' · '+esc(r.hippodrome.libelleCourt)+' · '+(SPEC[c.specialite]||esc(c.discipline))+' · '+c.distance+' m · '+(c.montantPrix||0).toLocaleString('fr-FR')+' €</div>';
   if(c.conditions)h+='<div class="mute" style="margin-top:4px">'+esc(c.conditions)+'</div>';
   if(!a||!a.ok){sheetOpen(h+'<div class="card" style="margin-top:12px">'+esc(a&&a.message||'Analyse en attente.')+'</div>');return}
+  if(a.arrivee&&a.arrivee.length){var pr=a.ranking.slice(0,5).map(function(hh){return hh.num}),ar=a.arrivee.slice(0,5);
+    h+='<div class="card" style="margin-top:10px;padding:10px 12px"><div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:4px 10px;align-items:center;font-size:14px"><span></span><b class="mute" style="font-size:11px;letter-spacing:.6px">PRONOSTIC</b><b class="mute" style="font-size:11px;letter-spacing:.6px">ARRIVÉE OFFICIELLE</b>';
+    for(var ii=0;ii<5;ii++){var pn=pr[ii],an=ar[ii],ok=ar.indexOf(pn)>=0;h+='<span class="mute">'+(ii+1)+'</span><span><span class="hn'+(ok?' b':'')+'" style="width:26px;height:26px">'+(pn!=null?pn:'')+'</span>'+(pn!=null?(pn===an?'<b class="ok">✓ bonne place</b>':ok?'<span class="ok">✓ dans les 5</span>':'<span class="ko">✗</span>'):'')+'</span><span><span class="hn b" style="width:26px;height:26px">'+(an!=null?an:'')+'</span>'+(pr.indexOf(an)>=0?'':'<span class="mute">non prévu</span>')+'</span>'}
+    h+='</div><div class="mute" style="margin-top:6px">'+pr.filter(function(n){return ar.indexOf(n)>=0}).length+' de nos 5 dans les 5 premiers.</div></div>'}
   h+='<div style="margin-top:10px">'+liveStrip(c,a)+'</div>';
   h+=wolf(a);if(a.watch&&!a.watch.strong&&a.watch.why.length)h+='<div class="mute" style="margin-top:4px">Pourquoi le surveiller : '+esc(a.watch.why.join(', '))+'. Écart trop faible avec un outsider ordinaire pour passer à 3 bases : à ajouter si tu veux élargir.</div>';
   h+='<a class="btn-eq" href="'+equidiaUrl(c,r)+'" target="_blank" rel="noopener">▶ Regarder sur Equidia (direct et replay)</a>';
