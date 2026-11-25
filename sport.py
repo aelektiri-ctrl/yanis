@@ -295,10 +295,16 @@ MARCHES_COTES = {"1": ("c1", "m1", "k1"), "N": ("cN", "mN", "kN"), "2": ("c2", "
                  "+2.5": ("cP", "mP", "kP"), "-2.5": ("cM", "mM", "kM")}
 
 
+# « Plus de 2,5 buts » retiré le 25/11/2026 : -5 % sur 834 paris au banc d'essai, 0 sur 2 en réel.
+MARCHES_EXCLUS = {"+2.5"}
+
+
 def selections(m, p):
     """Le double filtre : proba > 50 % et value positive sur la cote moyenne du marche."""
     out = []
     for marche, (cm, cx, _) in MARCHES_COTES.items():
+        if marche in MARCHES_EXCLUS:
+            continue
         cote = m.get(cm)
         if not cote:
             continue

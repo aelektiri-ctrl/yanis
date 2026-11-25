@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Turf Analyste</title>
-<meta name="theme-color" content="#0b0f14" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b3d2a" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#0b3d2a" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4"><link rel="icon" href="icon-192.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -114,12 +114,36 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mute)
 a{color:var(--accent)}
 .card.fin{padding:10px 14px}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+/* ===== Thème clair « pro » (v60) ===== */
+:root{--bg:#f3f6f4;--surface:#ffffff;--surface2:#f6f8f7;--raise:#e9f3ee;--line:#e3e9e6;--line2:#cfdad4;--ink:#0f1f19;--ink2:#2a3b34;--mute:#62736b;
+--accent:#0f7a4f;--accent-ink:#ffffff;--accent-soft:rgba(15,122,79,.09);--good:#0f8a55;--good-soft:rgba(15,138,85,.09);--bad:#c8323a;--bad-soft:rgba(200,50,58,.08);--warn:#b7791f;--warn-soft:rgba(214,158,46,.12);
+--sec:#0f8a55;--fort:#0f7a4f;--doute:#62736b;--chip:#eef3f0;--r:14px;--gold:#d9a520}
+header{background:linear-gradient(135deg,#0b3d2a 0%,#0f6a45 60%,#13804f 100%);border-bottom:0;box-shadow:0 2px 12px rgba(11,61,42,.25);color:#fff}
+header h1,header h1 span,header h1 small{color:#fff!important}header h1 small{opacity:.75}
+header .status,header #upd{color:rgba(255,255,255,.8)}
+header button{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
+.modes{background:rgba(255,255,255,.12);border:0;border-radius:12px;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+.modes button{color:rgba(255,255,255,.8);flex:1 0 auto;padding:8px 10px}.modes button.on{background:#fff;color:#0b3d2a;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+nav button{color:rgba(255,255,255,.75)}nav button.on{color:#fff;border-color:var(--gold)}
+.bar{background:rgba(255,255,255,.15)}.bar i{background:var(--gold)}
+.card{border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,40,30,.04),0 4px 14px rgba(16,40,30,.05);padding:14px 16px;margin-bottom:10px}
+.card.pn.good{box-shadow:inset 4px 0 0 var(--good),0 4px 14px rgba(16,40,30,.05)}.card.pn.bad{box-shadow:inset 4px 0 0 var(--bad),0 4px 14px rgba(16,40,30,.05)}
+.card.pn.wolfc,.card.vcard{box-shadow:inset 4px 0 0 var(--gold),0 4px 14px rgba(16,40,30,.05)}
+h2{color:#0b3d2a;font-size:12px;letter-spacing:.9px;margin:22px 0 10px}
+.ttl{color:var(--ink)}.big{color:#0b3d2a}
+.chips button{background:#fff;border-color:var(--line)}.chips button.on{background:#0f7a4f;color:#fff;border-color:#0f7a4f}
+.hn.b{background:#0f7a4f;color:#fff;border-color:#0f7a4f}
+.jeu.main{border-color:var(--accent)}
+#sheet{background:var(--bg)}
+.kpis div{box-shadow:0 4px 14px rgba(16,40,30,.05)}.kpis b{color:#0b3d2a}
+button.primary{background:#0f7a4f;border-color:#0f7a4f}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v59</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v60</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -1447,6 +1471,9 @@ a{color:var(--accent)}
   }
   function setPicks(x, list) {
     var T = PICK_T[x.sport];
+    // recalibrage mesuré sur le bilan réel (11/11 → 25/11) : NBA, favoris annoncés à 80 % gagnés à 69 % → on rapproche de 50 % (×0,8)
+    var CAL = { nba: 0.8 }[x.sport];
+    if (CAL && !x._cal) { list.forEach(function (q) { if (q.p > 0 && q.p < 1) q.p = 0.5 + (q.p - 0.5) * CAL; }); x._cal = 1; }
     x.pick = null; x.picks = list.slice().sort(function (a, b) { return b.p - a.p; }); x.pickT = T || null;
     if (!T) return;
     // plafond : une formule à plus de 77 % se joue à moins de 1,30 (ex. « moins de 4,5 buts » à 1,07) : aucun intérêt, on ne la propose plus
@@ -2352,9 +2379,9 @@ function viewSel(){
       '<div class="kv"><span>La formule passe</span><b class="conf">'+E.pct(a.conf)+'</b></div><div class="meter"><i style="width:'+Math.round(a.conf*100)+'%"></i></div>'+(m.combos?'<div class="mute">'+m.combos+' combinaison'+(m.combos>1?'s':'')+' · '+euros(m.cout)+' (1 € par combinaison) · rentable si le retour dépasse '+euros(m.cout/m.p)+'</div>':'')+'</div>';
   });
   if(rest.length){
-    h+='<h2>Sous 70 % : pas de pari ('+rest.length+')</h2><p class="mute" style="margin-top:-4px">Aucune formule à 8 combinaisons ou moins ne dépasse 70 % sur ces courses. Beaucoup n\'ont pas encore leurs cotes : elles sont réanalysées à l\'ouverture.</p>';
+    h+='<h2>Pas de pari conseillé ('+rest.length+')</h2><p class="mute" style="margin-top:-4px">Le seul pari retenu est le simple placé sur un favori à cote 1,6 ou moins et 85 % ou plus. Sur ces courses, aucun cheval ne remplit les deux conditions, même si un simple placé dépasse 70 % (il ne rapporterait pas assez). Les courses sans cotes sont réanalysées à l\'ouverture.</p>';
     rest.forEach(function(x){var a=x.a;
-      h+='<div class="card tap" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'"><div class="row"><span class="mute">'+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span><span class="badge NA">'+(a.market?'SOUS 70 %':'COTES FERMÉES')+'</span></div><div class="mute">Meilleur jeu : '+esc(a.main.label)+' à '+E.pct(a.conf)+(a.market?'':' (forme seule, à revoir à l\'ouverture des cotes)')+'</div></div>';});
+      h+='<div class="card tap" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'"><div class="row"><span class="mute">'+hhmm(x.c.heureDepart)+' · R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+esc(x.r.hippodrome.libelleCourt)+'</span><span class="badge NA">'+(a.market?'PAS DE PARI':'COTES FERMÉES')+'</span></div><div class="mute">Le plus probable : '+esc(a.main.label)+' à '+E.pct(a.conf)+(a.market?' (rapporte trop peu)':' (forme seule, à revoir à l\'ouverture des cotes)')+'</div></div>';});
   }
   h+='<p class="mute">Les pourcentages viennent de 20 000 arrivées simulées. Le bilan réel des formules retenues (prévu contre réussi) est dans l\'onglet Bilan.</p>';
   return h+finishedBlock();
