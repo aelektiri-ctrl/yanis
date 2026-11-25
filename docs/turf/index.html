@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Turf Analyste</title>
-<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0d10" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#0c0d10" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4"><link rel="icon" href="icon-192.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -156,12 +156,31 @@ h2{font-family:"Playfair Display",Didot,Georgia,serif!important;text-transform:n
 .ttl{font-weight:600;color:#141a26}.ok{color:#2f6f4f!important}
 .chips button.on,.hn.b,button.primary{background:#0f1b33!important;border-color:#0f1b33!important;color:#e9d7ae!important}
 .bar i{background:#a8874f!important}
+
+/* ===== Thème « Banque privée » (v64) : noir de jais, or, ivoire ===== */
+:root{--bg:#0c0d10;--surface:#14161b;--surface2:#191c22;--raise:#1f232a;--line:#2a2a26;--line2:#3a372e;--ink:#efe8d8;--ink2:#d6cfbf;--mute:#9a927f;
+--accent:#c9a961;--accent-ink:#0c0d10;--accent-soft:rgba(201,169,97,.10);--good:#c9a961;--good-soft:rgba(201,169,97,.10);--bad:#c0574f;--gold:#c9a961;--sec:#c9a961;--fort:#c9a961;--chip:#191c22}
+body{background:radial-gradient(1200px 600px at 50% -200px,#1a1b20 0%,#0c0d10 60%) fixed!important}
+header{background:linear-gradient(180deg,#0c0d10 0%,#111216 100%)!important;box-shadow:0 1px 0 rgba(201,169,97,.55)!important}
+header h1{color:#e7d3a1!important;letter-spacing:1.5px;text-transform:uppercase;font-size:16px}header h1 small{color:#8f8670!important}
+header button{background:transparent!important;border-color:rgba(201,169,97,.35)!important;color:#e7d3a1!important}
+.modes{border-top:1px solid rgba(201,169,97,.18)!important}
+.modes button{color:#8f8670!important}.modes button.on{color:#e7d3a1!important;border-bottom-color:#c9a961!important}
+.card{background:linear-gradient(180deg,#16181d,#121419)!important;border:1px solid rgba(201,169,97,.18)!important;box-shadow:0 10px 30px rgba(0,0,0,.35)!important;color:var(--ink)}
+.card.pn.good,.card.pn.wolfc,.card.vcard{box-shadow:inset 2px 0 0 #c9a961,0 10px 30px rgba(0,0,0,.35)!important}
+h2{color:#e7d3a1!important;border-bottom:1px solid rgba(201,169,97,.25)!important;font-weight:500!important;letter-spacing:.6px!important}
+.ttl,.big{color:#f3ecdc!important}.ok{color:#d9bb72!important}.ko{color:#c0574f!important}.mute{color:#9a927f!important}
+.chips button{background:transparent!important;border-color:rgba(201,169,97,.3)!important;color:#d6cfbf!important}
+.chips button.on,.hn.b,button.primary{background:#c9a961!important;border-color:#c9a961!important;color:#0c0d10!important}
+button{background:#14161b;color:#d6cfbf;border-color:rgba(201,169,97,.25)}
+#sheet{background:#0c0d10!important}.jeu{background:#16181d!important;border-color:rgba(201,169,97,.2)!important}
+.mk b,b{color:inherit}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v63</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v64</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
