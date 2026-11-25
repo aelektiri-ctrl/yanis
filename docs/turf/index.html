@@ -143,7 +143,7 @@ button.primary{background:#1d3557;border-color:#1d3557}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v61</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v62</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2612,7 +2612,7 @@ function viewJour(){
   if(!allCourses().length)h+='<div class="card mute">Programme des courses en chargement…</div>';
   else{
     if(!P.solides.length&&!P.loups.length)h+='<div class="card mute">Pas de favori solide ni de loup pour les courses à venir.</div>';
-    P.solides.slice(0,3).forEach(function(it){h+='<div class="card tap pn good" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">✅ n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Favori solide : gagne <b class="ok">'+E.pct(it.f.p)+'</b> (la cote annonce '+E.pct(it.f.pm)+')</div></div>'});
+    P.solides.slice(0,3).forEach(function(it){h+='<div class="card tap pn good" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">✅ n°'+it.f.num+' '+esc(it.f.nom)+' · cote '+E.fmtCote(it.f.cote)+'</div><div>Gagne <b class="ok">'+E.pct(it.f.p)+'</b> du temps, la cote ne lui donne que '+E.pct(it.f.pm)+' : il perd quand même '+Math.round(100-100*it.f.p)+' fois sur 100. Petite mise en simple gagnant uniquement.</div></div>'});
     P.loups.slice(0,2).forEach(function(it){var w=it.a.watch;h+='<div class="card tap pn wolfc" data-k="'+it.k+'"><div class="mute">'+ctxLine(it)+'</div><div class="ttl" style="margin:4px 0">🐺 n°'+w.h.num+' '+esc(w.h.nom)+' · cote '+E.fmtCote(w.h.cote)+'</div><div>Dans les 3 premiers : <b class="ok">'+E.pct(w.pPlace)+'</b></div></div>'});
     h+='<div class="card tap" id="goPoker"><b>🃏 Coup de poker du Quinté+ et tocards du jour →</b></div>';
   }
