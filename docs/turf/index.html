@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Turf Analyste</title>
-<meta name="theme-color" content="#0b3d2a" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#0b3d2a" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4"><link rel="icon" href="icon-192.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -116,34 +116,34 @@ a{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 
 /* ===== Thème clair « pro » (v60) ===== */
-:root{--bg:#f3f6f4;--surface:#ffffff;--surface2:#f6f8f7;--raise:#e9f3ee;--line:#e3e9e6;--line2:#cfdad4;--ink:#0f1f19;--ink2:#2a3b34;--mute:#62736b;
---accent:#0f7a4f;--accent-ink:#ffffff;--accent-soft:rgba(15,122,79,.09);--good:#0f8a55;--good-soft:rgba(15,138,85,.09);--bad:#c8323a;--bad-soft:rgba(200,50,58,.08);--warn:#b7791f;--warn-soft:rgba(214,158,46,.12);
---sec:#0f8a55;--fort:#0f7a4f;--doute:#62736b;--chip:#eef3f0;--r:14px;--gold:#d9a520}
-header{background:linear-gradient(135deg,#0b3d2a 0%,#0f6a45 60%,#13804f 100%);border-bottom:0;box-shadow:0 2px 12px rgba(11,61,42,.25);color:#fff}
+:root{--bg:#f5f6f8;--surface:#ffffff;--surface2:#f8f9fb;--raise:#eef1f6;--line:#e4e7ec;--line2:#d0d5dd;--ink:#111827;--ink2:#344054;--mute:#667085;
+--accent:#1d3557;--accent-ink:#ffffff;--accent-soft:rgba(29,53,87,.07);--good:#1a7f5a;--good-soft:rgba(26,127,90,.08);--bad:#c8323a;--bad-soft:rgba(200,50,58,.08);--warn:#b7791f;--warn-soft:rgba(214,158,46,.12);
+--sec:#1a7f5a;--fort:#1d3557;--doute:#667085;--chip:#eef1f6;--r:14px;--gold:#b8955a}
+header{background:linear-gradient(135deg,#0b1220 0%,#14213d 55%,#1d3557 100%);border-bottom:0;box-shadow:0 2px 12px rgba(11,18,32,.35);color:#fff}
 header h1,header h1 span,header h1 small{color:#fff!important}header h1 small{opacity:.75}
 header .status,header #upd{color:rgba(255,255,255,.8)}
 header button{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
 .modes{background:rgba(255,255,255,.12);border:0;border-radius:12px;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
-.modes button{color:rgba(255,255,255,.8);flex:1 0 auto;padding:8px 10px}.modes button.on{background:#fff;color:#0b3d2a;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.modes button{color:rgba(255,255,255,.8);flex:1 0 auto;padding:8px 10px}.modes button.on{background:#fff;color:#14213d;box-shadow:0 1px 4px rgba(0,0,0,.15)}
 nav button{color:rgba(255,255,255,.75)}nav button.on{color:#fff;border-color:var(--gold)}
 .bar{background:rgba(255,255,255,.15)}.bar i{background:var(--gold)}
-.card{border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,40,30,.04),0 4px 14px rgba(16,40,30,.05);padding:14px 16px;margin-bottom:10px}
-.card.pn.good{box-shadow:inset 4px 0 0 var(--good),0 4px 14px rgba(16,40,30,.05)}.card.pn.bad{box-shadow:inset 4px 0 0 var(--bad),0 4px 14px rgba(16,40,30,.05)}
-.card.pn.wolfc,.card.vcard{box-shadow:inset 4px 0 0 var(--gold),0 4px 14px rgba(16,40,30,.05)}
-h2{color:#0b3d2a;font-size:12px;letter-spacing:.9px;margin:22px 0 10px}
-.ttl{color:var(--ink)}.big{color:#0b3d2a}
-.chips button{background:#fff;border-color:var(--line)}.chips button.on{background:#0f7a4f;color:#fff;border-color:#0f7a4f}
-.hn.b{background:#0f7a4f;color:#fff;border-color:#0f7a4f}
+.card{border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.05);padding:14px 16px;margin-bottom:10px}
+.card.pn.good{box-shadow:inset 4px 0 0 var(--gold),0 4px 14px rgba(16,24,40,.05)}.card.pn.bad{box-shadow:inset 4px 0 0 var(--bad),0 4px 14px rgba(16,24,40,.05)}
+.card.pn.wolfc,.card.vcard{box-shadow:inset 4px 0 0 var(--gold),0 4px 14px rgba(16,24,40,.05)}
+h2{color:#14213d;font-size:12px;letter-spacing:.9px;margin:22px 0 10px}
+.ttl{color:var(--ink)}.big{color:#14213d}
+.chips button{background:#fff;border-color:var(--line)}.chips button.on{background:#1d3557;color:#fff;border-color:#1d3557}
+.hn.b{background:#1d3557;color:#fff;border-color:#1d3557}
 .jeu.main{border-color:var(--accent)}
 #sheet{background:var(--bg)}
-.kpis div{box-shadow:0 4px 14px rgba(16,40,30,.05)}.kpis b{color:#0b3d2a}
-button.primary{background:#0f7a4f;border-color:#0f7a4f}
+.kpis div{box-shadow:0 4px 14px rgba(16,24,40,.05)}.kpis b{color:#14213d}
+button.primary{background:#1d3557;border-color:#1d3557}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v60</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v61</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2604,7 +2604,7 @@ function cpBtn(t){t=String(t).replace(/ \(\d+ %\)/g,'');return ' <button class="
 function courseTxt(x){return 'R'+x.r.numOfficiel+'C'+x.c.numOrdre+' '+x.r.hippodrome.libelleCourt+' '+hhmm(x.c.heureDepart)}
 /* ===== Aujourd'hui : tableau de bord ===== */
 function viewJour(){
-  var now=Date.now(),h='<div class="card" style="border-left:4px solid #2e7d32"><div class="ttl">📊 Aujourd\'hui</div><div class="mute" style="margin-top:4px">Les meilleurs paris du jour, sport par sport. Chaque chance est mesurée (pas devinée) et la fiabilité vient du bilan réel. Touche une carte pour le détail.</div></div>';
+  var now=Date.now(),h='<div class="card" style="border-left:4px solid #b8955a"><div class="ttl">📊 Aujourd\'hui</div><div class="mute" style="margin-top:4px">Les meilleurs paris du jour, sport par sport. Chaque chance est mesurée (pas devinée) et la fiabilité vient du bilan réel. Touche une carte pour le détail.</div></div>';
   var T=(SP.shB&&SP.shB.total)||null;
   if(T)h+='<div class="card"><div class="ttl">Fiabilité réelle depuis le '+new Date(SP.shB.depuis).toLocaleDateString('fr-FR')+'</div><div class="mk"><span>Favoris annoncés à 70 % et plus</span><b>'+T.w70+' gagnés sur '+T.n70+' (attendus '+Math.round(T.a70)+')</b></div><div class="mk"><span>Tous les favoris</span><b>'+T.fav+' sur '+T.n+' (attendus '+Math.round(T.att)+')</b></div></div>';
   // courses
