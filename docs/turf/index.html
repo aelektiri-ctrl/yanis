@@ -180,7 +180,7 @@ button{background:#14161b;color:#d6cfbf;border-color:rgba(201,169,97,.25)}
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v64</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v65</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
@@ -2585,7 +2585,7 @@ function viewBilan(){
   h+='</div>';
   if(nR){var net=ret-mise;h+='<div class="card money '+(net>=0?'up':'down')+'"><div class="mute">Bilan réel avec les rapports PMU (1 € par combinaison, jeux principaux)</div><div class="big">'+(net>=0?'+':'')+euros(net)+'</div><div class="mute">Mis : '+euros(mise)+' · Rapporté : '+euros(ret)+'</div></div>'}
   h+='<p class="mute">Si la réussite réelle reste proche de la réussite prévue sur plusieurs semaines, le modèle est bien calibré.</p><h2>Courses terminées</h2>';
-  fin.forEach(function(x){h+='<div class="card tap" data-k="'+key(x.r.numOfficiel,x.c.numOrdre)+'"><div class="row"><span class="mute">R'+x.r.numOfficiel+'C'+x.c.numOrdre+' · '+esc(x.r.hippodrome.libelleCourt)+'</span>'+badge(x.a)+'</div><div>'+esc(x.a.main.label)+' : '+esc(x.a.main.detail)+money(x.a)+'</div><div class="mute">Arrivée : '+x.a.arrivee.slice(0,5).join(' - ')+'</div>'+(rapportsMini(x.c)||'<div class="mute">Rapports PMU pas encore publiés.</div>')+'</div>'});
+  fin.forEach(function(x){h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px"><div><div class="mute" style="font-size:11px">PRONOSTIC</div><b>'+x.a.ranking.slice(0,5).map(function(hh){return x.a.arrivee.slice(0,5).indexOf(hh.num)>=0?'<span class="ok">'+hh.num+'</span>':hh.num}).join(' - ')+'</b></div><div><div class="mute" style="font-size:11px">ARRIVÉE</div><b>'+x.a.arrivee.slice(0,5).join(' - ')+'</b></div></div>'+(rapportsMini(x.c)||'<div class="mute">Rapports PMU pas encore publiés.</div>')+'</div>'});
   return h;
 }
 function intro(){
