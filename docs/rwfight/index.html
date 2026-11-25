@@ -1,0 +1,2190 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#090B10"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="icon-192.png">
+  <title>RW FIGHT — QG Viral, Sourcing & Financement</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Oswald -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    if (window.tailwind) tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Oswald', 'sans-serif'],
+          },
+          colors: {
+            obsidian: '#090B10',
+            carbon: '#121620',
+            carbonLight: '#181E2C',
+            combatRed: '#EF4444',
+            combatGold: '#F59E0B',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Styles de base et utilitaires mobiles */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      background-color: #090B10;
+      color: #F3F4F6;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    /* Masquer les barres de défilement sur les onglets horizontaux */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Style des curseurs (range sliders) tactiles */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1E2536;
+      height: 8px;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #EF4444;
+      border: 2px solid #F59E0B;
+      cursor: pointer;
+    }
+    /* Styles d'impression pour exporter les Conventions & CERFA en PDF propre */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #FFFFFF !important;
+        color: #111827 !important;
+        padding: 24px !important;
+        font-size: 12pt !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-obsidian text-gray-100 min-h-screen pb-24 selection:bg-combatRed selection:text-white">
+
+  <!-- TOAST NOTIFICATION (Remplace alert()) -->
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- ZONE CACHÉE D'IMPRESSION PDF -->
+  <div id="print-area" class="hidden print:block"></div>
+
+  <!-- MODALE UNIVERSELLE (Conventions, CERFA complet, Plein écran QR, etc.) -->
+  <div id="app-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-carbon border border-gray-800 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-carbonLight">
+        <h3 id="modal-title" class="font-display text-lg uppercase tracking-wide text-white">Document Officiel</h3>
+        <button onclick="closeModal()" class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold min-h-[40px] min-w-[40px]">✕</button>
+      </div>
+      <div id="modal-body" class="p-5 overflow-y-auto space-y-4 text-sm text-gray-200 leading-relaxed"></div>
+      <div id="modal-footer" class="px-5 py-4 border-t border-gray-800 bg-carbonLight flex flex-wrap gap-2 justify-end"></div>
+    </div>
+  </div>
+
+  <!-- EN-TÊTE TACTIQUE FIXE -->
+  <header class="sticky top-0 z-30 bg-obsidian/95 backdrop-blur-md border-b border-gray-800/90">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-combatRed to-red-800 border border-combatGold/50 flex items-center justify-center shadow-lg shadow-red-950/50 shrink-0">
+          <span class="font-display font-bold text-white text-lg tracking-tighter">RW</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display text-lg sm:text-xl font-bold tracking-wide text-white leading-none">RW FIGHT <span class="text-combatRed">QG</span></h1>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-combatGold/15 text-combatGold border border-combatGold/30">LIVE</span>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-0.5 truncate max-w-[200px] sm:max-w-none">Le Petit-Quevilly • RNA W763021654 • 50 adhérents</p>
+        </div>
+      </div>
+
+      <!-- Compteur KPI Live en haut à droite -->
+      <div class="flex items-center gap-2">
+        <div class="text-right bg-carbon border border-gray-800 px-3 py-1.5 rounded-xl">
+          <div class="text-[10px] uppercase text-gray-400 font-semibold">Sponsors & Cash</div>
+          <div id="header-kpi-cash" class="font-display text-sm sm:text-base font-bold text-emerald-400">0 € signés</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BARRE DE NAVIGATION RAPIDE DES 7 MODULES (Scrollable au pouce) -->
+    <nav class="max-w-4xl mx-auto px-3 pb-2.5 flex gap-2 overflow-x-auto no-scrollbar" id="top-nav-tabs">
+      <button onclick="switchTab('sourcing')" data-tab="sourcing" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-combatRed text-white shadow-md shadow-red-950/40">
+        <span>🎯</span> 1. Sourcing B2B
+      </button>
+      <button onclick="switchTab('cerfa')" data-tab="cerfa" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>🏛️</span> 2. Subventions CERFA
+      </button>
+      <button onclick="switchTab('tunnel')" data-tab="tunnel" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>📲</span> 3. 3 Séances & QR
+      </button>
+      <button onclick="switchTab('studio')" data-tab="studio" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>🔥</span> 4. Studio Story 9:16
+      </button>
+      <button onclick="switchTab('remplacants')" data-tab="remplacants" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>🥊</span> 5. Bourse Combats
+      </button>
+      <button onclick="switchTab('galas')" data-tab="galas" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>🏟️</span> 6. Stages & Galas
+      </button>
+      <button onclick="switchTab('seo')" data-tab="seo" class="tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700">
+        <span>📍</span> 7. Bouclier Google
+      </button>
+    </nav>
+  </header>
+
+  <!-- CONTENEUR PRINCIPAL DES MODULES -->
+  <main class="max-w-4xl mx-auto px-4 pt-4 space-y-6">
+
+    <!-- =================================================================== -->
+    <!-- MODULE 1 : SOURCING SPONSORS B2B LIVE (API OFFICIELLE SIRENE)       -->
+    <!-- =================================================================== -->
+    <section id="tab-sourcing" class="tab-section space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">API Officielle de l'État • Données Réelles</span>
+            <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase">Sourcing Sponsors B2B — Bassin Rouennais</h2>
+          </div>
+          <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-semibold">Entreprises Actives</span>
+        </div>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Interroge en direct la base SIRENE autour de la salle (Le Petit-Quevilly, Rouen, Sotteville, Le Grand-Quevilly) et génère WhatsApp, E-mail et Convention de Sponsoring pré-remplie en 1 clic.
+        </p>
+
+        <!-- Sélecteur Code Postal & Recherche -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Zone géographique</label>
+            <select id="sirene-cp" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-3 text-sm text-white focus:border-combatRed outline-none">
+              <option value="76140">76140 — Le Petit-Quevilly (Salle)</option>
+              <option value="76000">76000 — Rouen Centre</option>
+              <option value="76300">76300 — Sotteville-lès-Rouen</option>
+              <option value="76120">76120 — Le Grand-Quevilly</option>
+              <option value="76140,76000,76300,76120">Toute l'Agglo (4 communes)</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Mot-clé métier ou nom d'entreprise</label>
+            <div class="flex gap-2">
+              <input id="sirene-query" type="text" value="batiment" placeholder="Ex: garage, kebab, sécurité, plomberie..." class="flex-1 bg-obsidian border border-gray-700 rounded-xl px-3.5 py-3 text-sm text-white focus:border-combatRed outline-none" />
+              <button onclick="searchSirene()" class="bg-combatRed hover:bg-red-600 active:scale-95 text-white font-bold px-4 py-3 rounded-xl text-sm transition shrink-0 shadow-lg shadow-red-950/40">
+                Chercher
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtres rapides par secteurs porteurs -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <button onclick="quickSector('batiment')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">🏗️ BTP / Rénov</button>
+          <button onclick="quickSector('garage automobile')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">🚗 Garages Auto</button>
+          <button onclick="quickSector('securite gardiennage')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">🛡️ Sécurité Privée</button>
+          <button onclick="quickSector('restauration')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">🍔 Restauration</button>
+          <button onclick="quickSector('coiffure barber')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">💈 Barber / Coiffure</button>
+          <button onclick="quickSector('transport')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">🚚 Transport</button>
+          <button onclick="quickSector('sport nutrition')" class="sector-chip text-xs px-3 py-2 rounded-xl bg-carbonLight border border-gray-700 hover:border-combatGold text-gray-200 font-medium">💪 Nutrition / Sport</button>
+        </div>
+      </div>
+
+      <!-- Résultats API SIRENE -->
+      <div id="sirene-status" class="text-xs text-gray-400 px-1">Chargement des entreprises locales...</div>
+      <div id="sirene-results" class="space-y-3"></div>
+
+      <!-- MINI-CRM DE SUIVI SPONSORS -->
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5 mt-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-display text-lg sm:text-xl font-bold text-white uppercase">Mini-CRM Sponsors RW Fight</h3>
+            <p class="text-xs text-gray-400">Suivi des prospects ajoutés, relances J+4 et encaissements validés</p>
+          </div>
+          <div class="flex gap-2">
+            <div class="bg-obsidian border border-gray-800 px-3 py-1.5 rounded-xl text-right">
+              <div class="text-[10px] text-gray-400 uppercase">Pipeline</div>
+              <div id="crm-pipeline-total" class="font-display text-sm font-bold text-combatGold">0 €</div>
+            </div>
+            <div class="bg-obsidian border border-emerald-900/50 px-3 py-1.5 rounded-xl text-right">
+              <div class="text-[10px] text-emerald-400 uppercase">Signé</div>
+              <div id="crm-signed-total" class="font-display text-sm font-bold text-emerald-400">0 €</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtres CRM -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3">
+          <button onclick="filterCrm('ALL')" data-crm-filter="ALL" class="crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-combatRed text-white">Tous</button>
+          <button onclick="filterCrm('À contacter')" data-crm-filter="À contacter" class="crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-carbonLight text-gray-300 border border-gray-700">À contacter</button>
+          <button onclick="filterCrm('Relancé J+4')" data-crm-filter="Relancé J+4" class="crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-carbonLight text-gray-300 border border-gray-700">Relancé J+4</button>
+          <button onclick="filterCrm('Signé')" data-crm-filter="Signé" class="crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-carbonLight text-gray-300 border border-gray-700">Signé ✅</button>
+        </div>
+
+        <div id="crm-list" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 2 : AUTOMATISEUR DE SUBVENTIONS SPORTIVES (CERFA 12156*06)   -->
+    <!-- =================================================================== -->
+    <section id="tab-cerfa" class="tab-section hidden space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">Dossier Officiel CERFA n°12156*06</span>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">Automatiseur de Subventions Sportives</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Sélectionne un guichet : le système génère l'argumentaire complet basé sur les atouts réels de RW Fight (50 adhérents, 2 compétitions, initiations mairie, outil interne boxeurs) et équilibre ton budget.
+        </p>
+
+        <!-- Sélection du guichet -->
+        <label class="block text-xs font-semibold text-gray-400 mb-1.5">1. Choisir le guichet financeur</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4" id="guichet-selector">
+          <button onclick="selectGuichet('ans')" data-guichet="ans" class="guichet-btn text-left p-3 rounded-xl border border-combatRed bg-combatRed/10 transition">
+            <div class="font-bold text-sm text-white">🇫🇷 Agence Nationale du Sport (ANS)</div>
+            <div class="text-[11px] text-gray-300">Matériel sportif, développement pratique & compétition</div>
+          </button>
+          <button onclick="selectGuichet('fdva')" data-guichet="fdva" class="guichet-btn text-left p-3 rounded-xl border border-gray-800 bg-obsidian hover:border-gray-700 transition">
+            <div class="font-bold text-sm text-white">💡 FDVA (Vie Associative & Innovation)</div>
+            <div class="text-[11px] text-gray-400">Fonctionnement & outil numérique suivi des boxeurs</div>
+          </button>
+          <button onclick="selectGuichet('mairie')" data-guichet="mairie" class="guichet-btn text-left p-3 rounded-xl border border-gray-800 bg-obsidian hover:border-gray-700 transition">
+            <div class="font-bold text-sm text-white">🏛️ Mairie / Métropole Rouen Normandie</div>
+            <div class="text-[11px] text-gray-400">Subvention club local & journées d'initiation jeunesse</div>
+          </button>
+          <button onclick="selectGuichet('dept76')" data-guichet="dept76" class="guichet-btn text-left p-3 rounded-xl border border-gray-800 bg-obsidian hover:border-gray-700 transition">
+            <div class="font-bold text-sm text-white">🛡️ Département Seine-Maritime (76)</div>
+            <div class="text-[11px] text-gray-400">Aide aux clubs formateurs & déplacements compétitions</div>
+          </button>
+          <button onclick="selectGuichet('passsport')" data-guichet="passsport" class="guichet-btn text-left p-3 rounded-xl border border-gray-800 bg-obsidian hover:border-gray-700 transition sm:col-span-2">
+            <div class="font-bold text-sm text-white">🎫 Dispositif Pass'Sport (50 € / jeune licencié)</div>
+            <div class="text-[11px] text-gray-400">Prise en charge directe d'une partie de la licence à 240 € pour les jeunes éligibles</div>
+          </button>
+        </div>
+
+        <!-- Champs pré-remplis du projet -->
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Intitulé officiel du projet (CERFA)</label>
+            <input id="cerfa-title" type="text" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-combatRed outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Objectifs & Ancrage Territorial (Auto-généré)</label>
+            <textarea id="cerfa-objectives" rows="4" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-gray-200 focus:border-combatRed outline-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Indicateurs d'évaluation & Moyens déjà acquis</label>
+            <textarea id="cerfa-indicators" rows="3" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-gray-200 focus:border-combatRed outline-none"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALCULATEUR DE BUDGET PRÉVISIONNEL AUTO-ÉQUILIBRÉ -->
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 class="font-display text-lg font-bold text-white uppercase">Budget Prévisionnel CERFA</h3>
+            <p class="text-xs text-gray-400">Règle légale : Total Charges = Total Produits</p>
+          </div>
+          <span id="cerfa-balance-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            ÉQUILIBRÉ 100%
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- CHARGES -->
+          <div class="bg-obsidian border border-gray-800 rounded-xl p-3 space-y-2">
+            <div class="text-xs font-bold uppercase text-combatRed border-b border-gray-800 pb-1.5">Charges (Dépenses projet)</div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Équipements & protections MMA</span>
+              <input type="number" id="charge-equip" value="2500" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Déplacements & engagements compèt.</span>
+              <input type="number" id="charge-comp" value="1800" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Actions initiation jeunesse & com</span>
+              <input type="number" id="charge-init" value="1200" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Assurances, affiliation & gestion</span>
+              <input type="number" id="charge-admin" value="1500" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex justify-between pt-2 border-t border-gray-800 font-bold text-sm">
+              <span>TOTAL CHARGES</span>
+              <span id="total-charges" class="text-combatRed">7 000 €</span>
+            </div>
+          </div>
+
+          <!-- PRODUITS -->
+          <div class="bg-obsidian border border-gray-800 rounded-xl p-3 space-y-2">
+            <div class="text-xs font-bold uppercase text-emerald-400 border-b border-gray-800 pb-1.5">Produits (Ressources)</div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Cotisations (ex. part affectée)</span>
+              <input type="number" id="prod-cotis" value="3000" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Sponsoring entreprises locales</span>
+              <input type="number" id="prod-sponsor" value="1500" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-gray-300">Ventes équipements club</span>
+              <input type="number" id="prod-merch" value="500" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-right text-white font-semibold" />
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="text-combatGold font-bold">Subvention demandée (€)</span>
+              <input type="number" id="prod-subv" value="2000" oninput="recalcCerfaBudget()" class="w-24 bg-carbon border border-combatGold/60 rounded-lg px-2 py-1.5 text-right text-combatGold font-bold" />
+            </div>
+            <div class="flex justify-between pt-2 border-t border-gray-800 font-bold text-sm">
+              <span>TOTAL PRODUITS</span>
+              <span id="total-produits" class="text-emerald-400">7 000 €</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button onclick="autoBalanceCerfa()" class="flex-1 min-w-[180px] bg-combatGold hover:bg-amber-400 text-black font-bold py-3 px-4 rounded-xl text-xs sm:text-sm transition">
+            ⚖️ Auto-Équilibrer Subvention
+          </button>
+          <button onclick="openCerfaPreview()" class="flex-1 min-w-[180px] bg-combatRed hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm transition">
+            📄 Voir & Imprimer Dossier CERFA
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 3 : TUNNEL CONVERSION "3 SÉANCES GRATUITES" & QR CODE SALLE  -->
+    <!-- =================================================================== -->
+    <section id="tab-tunnel" class="tab-section hidden space-y-4">
+      <!-- QR CODE SALLE & INITIATIONS -->
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">Capture Immédiate Terrain & Mairie</span>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">QR Code Salle & Page Lien Bio</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Affiche ce QR Code scannable sur ton téléphone à la fin des journées d'initiation mairie ou à l'entrée de la salle pour convertir chaque jeune en essai gratuit.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+          <!-- Carte QR Code -->
+          <div class="bg-obsidian border border-gray-800 rounded-2xl p-4 flex flex-col items-center text-center">
+            <div class="bg-white p-3 rounded-2xl shadow-lg mb-3">
+              <canvas id="qr-canvas" width="220" height="220" class="block"></canvas>
+            </div>
+            <div class="font-display text-base font-bold text-white uppercase">SCANNE POUR TES 3 SÉANCES GRATUITES</div>
+            <div class="text-xs text-gray-400 mb-3">RW Fight • 11 Allée Paul Gauguin, Le Petit-Quevilly</div>
+            <div class="w-full space-y-2">
+              <input id="qr-url-input" type="text" value="https://rwfight.netlify.app/#inscription" oninput="renderQRCode()" class="w-full bg-carbon border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200 text-center" />
+              <div class="flex gap-2">
+                <button onclick="openQrFullscreen()" class="flex-1 bg-combatRed hover:bg-red-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs">
+                  📱 Plein Écran Salle
+                </button>
+                <button onclick="downloadQrPng()" class="flex-1 bg-carbonLight hover:bg-gray-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs border border-gray-700">
+                  ⬇️ PNG Affiche
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aperçu Mobile Lien Bio TikTok / Insta -->
+          <div class="bg-obsidian border-2 border-gray-800 rounded-3xl p-4 shadow-inner">
+            <div class="text-[10px] uppercase tracking-widest text-center text-gray-500 mb-2">Aperçu Lien Bio TikTok / Instagram</div>
+            <div class="bg-gradient-to-b from-carbonLight to-obsidian border border-gray-800 rounded-2xl p-4 text-center space-y-3">
+              <div class="inline-block px-3 py-1 rounded-full bg-combatRed/20 border border-combatRed/40 text-combatRed text-[11px] font-extrabold uppercase">
+                🔥 3 Séances d'Essai Gratuites
+              </div>
+              <h3 class="font-display text-xl font-bold text-white leading-tight">REJOINS LA TEAM RW FIGHT</h3>
+              <p class="text-xs text-gray-300">
+                MMA • Boxe • Grappling • Prépa Physique<br/>
+                <span class="text-combatGold font-bold">Licence annuelle : 240 € tout compris</span><br/>
+                Mardi au Vendredi soir • Le Petit-Quevilly
+              </p>
+              <div class="space-y-2 pt-1">
+                <div class="w-full py-2.5 px-3 rounded-xl bg-combatRed text-white font-bold text-xs shadow-md">
+                  🥊 Réserver mes 3 séances gratuites
+                </div>
+                <div class="w-full py-2.5 px-3 rounded-xl bg-carbon border border-combatGold/50 text-combatGold font-bold text-xs">
+                  👕 Équipements Officiels RW Fight (HelloAsso)
+                </div>
+                <div class="w-full py-2.5 px-3 rounded-xl bg-carbon border border-gray-700 text-gray-200 font-bold text-xs">
+                  🤝 Devenir Sponsor / Partenaire du Club
+                </div>
+              </div>
+              <button onclick="copyBioLandingHtml()" class="w-full mt-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+                📋 Copier le code HTML de cette page Bio
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIMULATEUR FINANCIER INTERACTIF -->
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <h3 class="font-display text-lg sm:text-xl font-bold text-white uppercase mb-1">Simulateur Trésorerie RW Fight (12 Mois)</h3>
+        <p class="text-xs text-gray-400 mb-4">Calibré sur la licence à <strong class="text-white">240 €</strong>, les <strong class="text-white">3 séances gratuites</strong> et la salle à <strong class="text-emerald-400">0 € de loyer</strong>.</p>
+
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-300">Nouveaux jeunes/adultes à l'essai par mois</span>
+              <span id="sim-trials-val" class="font-bold text-white">4 / mois (48/an)</span>
+            </div>
+            <input type="range" id="sim-trials" min="1" max="15" value="4" oninput="updateSimulator()" class="w-full" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-300">Taux de transformation après les 3 séances gratuites</span>
+              <span id="sim-conv-val" class="font-bold text-combatGold">50 % (+24 licences)</span>
+            </div>
+            <input type="range" id="sim-conv" min="20" max="80" step="5" value="50" oninput="updateSimulator()" class="w-full" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-300">Packs équipements RW Fight vendus / an (marge 23 €/pack)</span>
+              <span id="sim-merch-val" class="font-bold text-white">50 packs</span>
+            </div>
+            <input type="range" id="sim-merch" min="0" max="150" step="5" value="50" oninput="updateSimulator()" class="w-full" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-300">Sponsors locaux signés (moyenne 500 €)</span>
+              <span id="sim-spon-val" class="font-bold text-emerald-400">4 sponsors</span>
+            </div>
+            <input type="range" id="sim-spon" min="0" max="15" value="4" oninput="updateSimulator()" class="w-full" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 mt-5 pt-4 border-t border-gray-800 text-center">
+          <div class="bg-obsidian border border-gray-800 rounded-xl p-2.5">
+            <div class="text-[10px] text-gray-400 uppercase">Socle Actuel</div>
+            <div class="font-display text-base sm:text-lg font-bold text-gray-200">12 000 €</div>
+          </div>
+          <div class="bg-obsidian border border-combatGold/40 rounded-xl p-2.5">
+            <div class="text-[10px] text-combatGold uppercase">+ Cash Additionnel</div>
+            <div id="sim-added-net" class="font-display text-base sm:text-lg font-bold text-combatGold">+8 910 €</div>
+          </div>
+          <div class="bg-obsidian border border-emerald-500/40 rounded-xl p-2.5">
+            <div class="text-[10px] text-emerald-400 uppercase">Budget Total Club</div>
+            <div id="sim-total-club" class="font-display text-base sm:text-lg font-bold text-emerald-400">20 910 €</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 4 : STUDIO VIRAL "FIGHT CARD & STORY GENERATOR" (9:16 PNG)   -->
+    <!-- =================================================================== -->
+    <section id="tab-studio" class="tab-section hidden space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">Machine à Vues TikTok & Instagram</span>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">Studio Story 9:16 & Fight Cards</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Génère en 10 secondes une affiche officielle RW Fight au format Story 9:16 (1080×1920) prête à poster avant ou après chaque combat.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+          <!-- Formulaire Story -->
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Type d'affiche</label>
+              <select id="card-badge" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                <option value="ANNONCE DE COMBAT">🔥 ANNONCE DE COMBAT</option>
+                <option value="VICTOIRE OFFICIELLE">🏆 VICTOIRE OFFICIELLE</option>
+                <option value="JOUR DE PESÉE • AU POIDS">⚖️ JOUR DE PESÉE • AU POIDS</option>
+                <option value="3 SÉANCES GRATUITES">🥊 3 SÉANCES GRATUITES</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Nom / Surnom du combattant RW Fight</label>
+              <input id="card-fighter" type="text" value="SOFIANE « LE LION »" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white uppercase" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Catégorie de poids</label>
+                <input id="card-weight" type="text" value="-70 KG • LIGHTWEIGHT" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white uppercase" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Palmarès / Discipline</label>
+                <input id="card-record" type="text" value="MMA AMATEUR • 2V-0D" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white uppercase" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Événement / Adversaire</label>
+              <input id="card-event" type="text" value="GALA NORMANDIE • ROUEN" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white uppercase" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Date</label>
+                <input id="card-date" type="text" value="SAMEDI 20H00" oninput="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white uppercase" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Couleur de coin</label>
+                <select id="card-theme" onchange="renderFightCard()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white">
+                  <option value="red">🔴 Coin Rouge Combat</option>
+                  <option value="gold">🟡 Coin Or Champion</option>
+                  <option value="blue">🔵 Coin Bleu Élite</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-2 flex flex-col gap-2">
+              <button onclick="downloadFightCard()" class="w-full bg-combatRed hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-lg shadow-red-950/40 transition">
+                ⬇️ Télécharger Story 9:16 (PNG HD)
+              </button>
+              <button onclick="copyStoryCaption()" class="w-full bg-carbonLight hover:bg-gray-700 text-gray-200 font-bold py-2.5 px-4 rounded-xl text-xs border border-gray-700 transition">
+                📋 Copier la légende + Hashtags TikTok/Insta
+              </button>
+            </div>
+          </div>
+
+          <!-- Aperçu Canvas 9:16 -->
+          <div class="flex flex-col items-center">
+            <div class="w-full max-w-[270px] rounded-2xl overflow-hidden border-2 border-gray-800 shadow-2xl bg-black">
+              <canvas id="story-canvas" width="540" height="960" class="w-full h-auto block"></canvas>
+            </div>
+            <span class="text-[11px] text-gray-500 mt-2">Format Story 9:16 prêt pour TikTok, Reels & WhatsApp</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIBLIOTHÈQUE DE HOOKS & SCRIPTS TIKTOK VIRAUX -->
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <h3 class="font-display text-lg font-bold text-white uppercase mb-1">Scripts TikTok Prêts à Filmer à la Salle</h3>
+        <p class="text-xs text-gray-400 mb-3">Formats courts (15-25s) calibrés pour transformer les vues en essais gratuits et en sponsors.</p>
+        <div id="tiktok-scripts-list" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 5 : BOURSE DES REMPLAÇANTS & MATCHMAKING INTERCLUBS          -->
+    <!-- =================================================================== -->
+    <section id="tab-remplacants" class="tab-section hidden space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">Short Notice & Interclubs Normandie</span>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">Bourse des Remplaçants RW Fight</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Enregistre les boxeurs prêts et au poids (issus du suivi interne du club) et diffuse en 1 clic une alerte officielle sur les groupes d'organisateurs et de coachs.
+        </p>
+
+        <!-- Formulaire ajout combattant -->
+        <div class="bg-obsidian border border-gray-800 rounded-xl p-3.5 space-y-3 mb-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <input id="fighter-name" type="text" placeholder="Nom / Prénom du combattant" class="bg-carbon border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white" />
+            <div class="grid grid-cols-2 gap-2">
+              <select id="fighter-weight" class="bg-carbon border border-gray-700 rounded-xl px-2.5 py-2.5 text-xs text-white">
+                <option value="-57 kg">-57 kg (Mouche)</option>
+                <option value="-61 kg">-61 kg (Coq)</option>
+                <option value="-66 kg">-66 kg (Plume)</option>
+                <option value="-70 kg" selected>-70 kg (Léger)</option>
+                <option value="-77 kg">-77 kg (Welter)</option>
+                <option value="-84 kg">-84 kg (Moyen)</option>
+                <option value="-93 kg">-93 kg (Mi-Lourd)</option>
+                <option value="+93 kg">+93 kg (Lourd)</option>
+              </select>
+              <input id="fighter-exact" type="text" placeholder="Poids (ex: 70.2kg)" class="bg-carbon border border-gray-700 rounded-xl px-2.5 py-2.5 text-xs text-white" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <select id="fighter-disc" class="bg-carbon border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white">
+              <option value="MMA Amateur">MMA Amateur</option>
+              <option value="Boxe Anglaise">Boxe Anglaise</option>
+              <option value="Boxe Thaï / K1">Boxe Thaï / K1</option>
+              <option value="Grappling / Lutte">Grappling / Lutte</option>
+            </select>
+            <input id="fighter-exp" type="text" placeholder="Palmarès (ex: 2 combats)" class="bg-carbon border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white" />
+            <button onclick="addFighter()" class="bg-combatRed hover:bg-red-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition">
+              + Ajouter au Roster
+            </button>
+          </div>
+        </div>
+
+        <!-- Bouton Diffusion Globale -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <span class="text-xs font-bold text-gray-300 uppercase">Combattants disponibles (<span id="roster-count">0</span>)</span>
+          <button onclick="broadcastAllFighters()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition">
+            📢 Diffuser tout le Roster (WhatsApp / Groupes)
+          </button>
+        </div>
+
+        <div id="roster-list" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 6 : ORGANISATEUR & CALCULATEUR DE STAGES / GALAS             -->
+    <!-- =================================================================== -->
+    <section id="tab-galas" class="tab-section hidden space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Avantage Structurel : Salle Mairie = 0 €</span>
+        </div>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">Calculateur Stages & Interclubs Rentables</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Puisque la mairie met déjà la salle à disposition, chaque stage ouvert aux clubs de Normandie ou interclub génère une marge directe pour le club.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Format de l'événement</label>
+            <select id="event-type" onchange="calcEventProfit()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white">
+              <option value="Stage Perfectionnement MMA / Grappling (Ouvert Normandie)">🥋 Stage Perfectionnement (Clubs extérieurs)</option>
+              <option value="Journée Interclubs & Sparrings Publics RW Fight">🥊 Journée Interclubs & Sparrings Publics</option>
+              <option value="Gala Amateur / Show Combat Rouen">🏆 Gala Amateur / Show Local</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Tarif entrée / inscription (€)</label>
+            <input type="number" id="event-price" value="25" oninput="calcEventProfit()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white font-bold" />
+          </div>
+        </div>
+
+        <div class="space-y-3 mb-4">
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-gray-300">Participants / Spectateurs attendus</span>
+              <span id="event-pax-val" class="font-bold text-white">55 personnes</span>
+            </div>
+            <input type="range" id="event-pax" min="15" max="200" step="5" value="55" oninput="calcEventProfit()" class="w-full" />
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Buvette / Snack (€)</label>
+              <input type="number" id="event-buvette" value="350" oninput="calcEventProfit()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-2.5 py-2 text-sm text-white font-semibold" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Sponsors bâches (€)</label>
+              <input type="number" id="event-sponsors" value="900" oninput="calcEventProfit()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-2.5 py-2 text-sm text-white font-semibold" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Frais intervenant (€)</label>
+              <input type="number" id="event-costs" value="500" oninput="calcEventProfit()" class="w-full bg-obsidian border border-gray-700 rounded-xl px-2.5 py-2 text-sm text-combatRed font-semibold" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-obsidian border border-emerald-500/30 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <div class="text-xs text-gray-400">Recette brute totale : <strong id="event-gross" class="text-white">2 625 €</strong> (Salle : 0 €)</div>
+            <div class="text-xs text-gray-400">Frais engagés : <strong id="event-cost-display" class="text-combatRed">500 €</strong></div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] uppercase text-emerald-400 font-bold">Bénéfice Net Caisse Club</div>
+            <div id="event-net" class="font-display text-2xl font-bold text-emerald-400">+2 125 €</div>
+          </div>
+        </div>
+
+        <button onclick="copyEventPromo()" class="w-full bg-combatRed hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl text-sm transition">
+          📋 Copier l'Annonce Officielle & Appel Clubs / Sponsors
+        </button>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODULE 7 : BOUCLIER SEO GOOGLE MAPS & RÉPUTATION                    -->
+    <!-- =================================================================== -->
+    <section id="tab-seo" class="tab-section hidden space-y-4">
+      <div class="bg-carbon border border-gray-800 rounded-2xl p-4 sm:p-5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-combatGold">Audit Google Maps & Visibilité Locale</span>
+        <h2 class="font-display text-xl sm:text-2xl font-bold text-white uppercase mb-1">Bouclier SEO Google & Réputation 5★</h2>
+        <p class="text-xs sm:text-sm text-gray-400 mb-4">
+          Corrige les 3 adresses parasites sur Google et transforme les 50 adhérents et les vidéos TikTok en trafic local qualifié vers Le Petit-Quevilly.
+        </p>
+
+        <!-- Checklist Interactive -->
+        <div class="space-y-2 mb-5" id="seo-checklist"></div>
+
+        <!-- Campagne Avis Google 50 Adhérents -->
+        <div class="bg-obsidian border border-gray-800 rounded-xl p-3.5 mb-5">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <h3 class="font-bold text-sm text-white">⭐ Objectif 50+ Avis Google (Actuel : 7 avis)</h3>
+            <span class="text-[11px] text-combatGold font-bold">Message Groupe WhatsApp</span>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">
+            Envoie ce message dans le groupe WhatsApp des adhérents juste après l'entraînement de ce soir pour faire grimper RW Fight n°1 sur Google Rouen / Le Petit-Quevilly :
+          </p>
+          <button onclick="copyReviewCampaign()" class="w-full bg-combatGold hover:bg-amber-400 text-black font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition">
+            📋 Copier le message WhatsApp « Objectif 50 Avis 5★ »
+          </button>
+        </div>
+
+        <!-- Convertisseur TikTok -> Actualité Google Maps -->
+        <div class="bg-obsidian border border-gray-800 rounded-xl p-3.5 space-y-3">
+          <h3 class="font-bold text-sm text-white">🔄 Convertisseur Post TikTok → Actualité Google SEO</h3>
+          <p class="text-xs text-gray-400">
+            Colle la description d'une vidéo TikTok (ex: initiation avec la mairie, sparring, compétition) pour générer un post optimisé Google Maps avec tous les mots-clés locaux :
+          </p>
+          <textarea id="tiktok-raw-input" rows="2" placeholder="Ex: Super journée d'initiation MMA aujourd'hui avec la mairie, grosse énergie des jeunes !" class="w-full bg-carbon border border-gray-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white outline-none focus:border-combatRed"></textarea>
+          <button onclick="convertTiktokToGoogleSeo()" class="w-full bg-combatRed hover:bg-red-600 text-white font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition">
+            ⚡ Générer & Copier l'Actualité Google Maps SEO
+          </button>
+          <div id="google-seo-output" class="hidden bg-carbon border border-emerald-500/30 rounded-xl p-3 text-xs text-gray-200 whitespace-pre-line"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BARRE DE NAVIGATION INFÉRIEURE FIXE (Accès rapide 1 main) -->
+  <footer class="fixed bottom-0 inset-x-0 z-30 bg-obsidian/95 backdrop-blur-md border-t border-gray-800">
+    <div class="max-w-4xl mx-auto px-2 py-2 grid grid-cols-5 gap-1 text-center">
+      <button onclick="switchTab('sourcing')" data-bottom-tab="sourcing" class="bottom-nav-btn flex flex-col items-center justify-center py-1 rounded-xl text-combatRed font-bold">
+        <span class="text-base leading-none">🎯</span>
+        <span class="text-[10px] mt-1">Sponsors</span>
+      </button>
+      <button onclick="switchTab('cerfa')" data-bottom-tab="cerfa" class="bottom-nav-btn flex flex-col items-center justify-center py-1 rounded-xl text-gray-400">
+        <span class="text-base leading-none">🏛️</span>
+        <span class="text-[10px] mt-1">CERFA</span>
+      </button>
+      <button onclick="switchTab('tunnel')" data-bottom-tab="tunnel" class="bottom-nav-btn flex flex-col items-center justify-center py-1 rounded-xl text-gray-400">
+        <span class="text-base leading-none">📲</span>
+        <span class="text-[10px] mt-1">QR & 240€</span>
+      </button>
+      <button onclick="switchTab('studio')" data-bottom-tab="studio" class="bottom-nav-btn flex flex-col items-center justify-center py-1 rounded-xl text-gray-400">
+        <span class="text-base leading-none">🔥</span>
+        <span class="text-[10px] mt-1">Story 9:16</span>
+      </button>
+      <button onclick="openAllToolsDrawer()" class="bottom-nav-btn flex flex-col items-center justify-center py-1 rounded-xl text-combatGold">
+        <span class="text-base leading-none">⚡</span>
+        <span class="text-[10px] mt-1">+ Outils</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // CONFIGURATION & DONNÉES OFFICIELLES RW FIGHT
+    // =========================================================================
+    const CLUB_INFO = {
+      name: "RW FIGHT",
+      rna: "W763021654",
+      created: "Mai 2025",
+      address: "11 Allée Paul Gauguin, 76140 Le Petit-Quevilly",
+      area: "Agglomération de Rouen / Le Petit-Quevilly",
+      members: 50,
+      competitions: 2,
+      offer: "3 séances d'essai gratuites puis licence annuelle à 240 €",
+      schedule: "Mardi au Vendredi soir",
+      highlights: "Journées d'initiation MMA en collaboration avec la mairie + outil interne propriétaire de suivi des boxeurs (poids, chronos, rendement)",
+      url: "https://rwfight.netlify.app/#inscription"
+    };
+
+    const SPONSOR_PACKS = {
+      "300": {
+        id: "300",
+        label: "Pack Corner — 300 €/an",
+        price: 300,
+        perks: "• Logo officiel de l'entreprise sur les supports digitaux et réseaux sociaux RW Fight (TikTok / Instagram)\n• Mention partenaire lors des communications événements et journées d'initiation\n• Attestation & facture officielle de sponsoring sportif émise par l'association"
+      },
+      "500": {
+        id: "500",
+        label: "Pack Cage & Short — 500 €/an",
+        price: 500,
+        perks: "• Flocage du logo de l'entreprise sur les équipements / tenues officielles RW Fight\n• Présence visuelle récurrente dans les vidéos d'entraînement et de compétition du club\n• Mise en avant sur la vitrine web et actualités Google du club\n• Facture officielle de prestation publicitaire / sponsoring"
+      },
+      "1200": {
+        id: "1200",
+        label: "Pack Partenaire Majeur — 1 200 €/an",
+        price: 1200,
+        perks: "• Emplacement premium sur les tenues des compétiteurs RW Fight et bâches officielles lors des galas / interclubs / initiations mairie\n• Vidéo dédiée de présentation du partenaire diffusée auprès de la communauté\n• Statut de Partenaire Majeur sur l'ensemble de la saison sportive\n• Facture officielle de sponsoring sportif"
+      }
+    };
+
+    const GUICHET_TEMPLATES = {
+      ans: {
+        title: "Développement de la pratique sportive, équipement compétiteurs et promotion du MMA éducatif",
+        objectives: "Accompagner la structuration et la montée en puissance de l'association RW FIGHT (50 adhérents actifs à Le Petit-Quevilly / agglomération de Rouen, 2 compétitions officielles déjà disputées). Le projet vise à renforcer le parc d'équipements de protection et d'entraînement (créneaux du mardi au vendredi soir), soutenir l'engagement de nos jeunes compétiteurs en championnat officiel et maintenir l'accessibilité financière grâce à notre dispositif de 3 séances d'essai gratuites.",
+        indicators: "• Effectif : 50 licenciés actuels, objectif +30% sur la saison.\n• Suivi sportif rigoureux via notre application interne propriétaire (suivi des chronos, courbes de poids et assiduité des boxeurs).\n• 2 compétitions disputées et participation aux prochains plateaux fédéraux."
+      },
+      fdva: {
+        title: "Consolidation du fonctionnement associatif et déploiement d'un outil numérique de suivi sportif",
+        objectives: "Soutenir le fonctionnement global de RW FIGHT (créée en mai 2025, RNA W763021654) et pérenniser le déploiement de l'outil numérique interne conçu par l'équipe dirigeante pour suivre la progression physique, le poids et la préparation des 50 adhérents. Ce projet structure la gestion bénévole, sécurise la pratique des sports de combat et favorise la fidélisation des jeunes du territoire.",
+        indicators: "• 100% des compétiteurs et adhérents suivis sur l'outil numérique interne.\n• 4 créneaux hebdomadaires encadrés (mardi au vendredi soir) au 11 Allée Paul Gauguin.\n• Bilan d'impact annuel présenté aux membres et partenaires."
+      },
+      mairie: {
+        title: "Animation sportive de proximité, journées d'initiation MMA jeunesse et cohésion locale",
+        objectives: "Poursuivre et amplifier les actions d'initiation aux sports de combat menées en collaboration avec la municipalité auprès des jeunes de Rouen et Le Petit-Quevilly. RW FIGHT propose un cadre structuré, éducatif et accessible (3 séances gratuites pour lever toute barrière financière) permettant de canaliser l'énergie des jeunes autour des valeurs de respect, de discipline et de dépassement de soi.",
+        indicators: "• Nombre de jeunes accueillis lors des journées d'initiation mairie.\n• Taux de passerelle vers une pratique régulière au club (50 adhérents actuels).\n• Mise à disposition de la salle municipale optimisée 4 soirs par semaine."
+      },
+      dept76: {
+        title: "Soutien aux clubs formateurs de Seine-Maritime et accompagnement des déplacements en compétition",
+        objectives: "Permettre aux compétiteurs de RW FIGHT de représenter dignement la Seine-Maritime lors des compétitions régionales et nationales. La subvention départementale contribuera au financement des frais de déplacement, d'engagement et de sécurité des athlètes formés au club.",
+        indicators: "• Nombre de compétiteurs engagés sur la saison (déjà 2 compétitions disputées).\n• Résultats sportifs et formation des jeunes encadrants du département 76."
+      },
+      passsport: {
+        title: "Déploiement du dispositif Pass'Sport — Réduction immédiate sur la licence annuelle (240 €)",
+        objectives: "Faciliter l'accès aux sports de combat pour les jeunes bénéficiaires de l'allocation de rentrée sportive en déduisant directement l'aide Pass'Sport de la cotisation annuelle fixée à 240 €, cumulable avec nos 3 séances d'essai gratuites.",
+        indicators: "• Nombre de licences financées via le code Pass'Sport.\n• Suivi de l'assiduité trimestrielle des jeunes bénéficiaires."
+      }
+    };
+
+    const TIKTOK_SCRIPTS = [
+      {
+        title: "1. Hook « 3 Séances Gratuites » (Conversion Locale)",
+        hook: "« Si tu habites à Rouen ou au Petit-Quevilly et que tu veux tester le MMA sans sortir 1 euro, écoute ça… »",
+        body: "Plans rapides : gants qui claquent sur les sacs + coach qui corrige une garde + ambiance vestiaire mardi soir. Texte à l'écran : 3 SÉANCES GRATUITES • 11 ALLÉE PAUL GAUGUIN.",
+        cta: "« T'as 3 séances offertes pour te tester. Le lien pour réserver ta place est juste en bio. »"
+      },
+      {
+        title: "2. Hook « L'Appli Secrète des Boxeurs » (Crédibilité & Pro)",
+        hook: "« La différence entre un club amateur et RW Fight ? Tous nos combattants sont suivis au gramme et à la seconde près. »",
+        body: "Montrer l'écran du téléphone avec les chronos/poids des boxeurs pendant un round de sparring intense.",
+        cta: "« On prépare les prochaines compétitions. Viens voir ton vrai niveau, 3 essais gratuits en bio. »"
+      },
+      {
+        title: "3. Hook « Appel aux Commerçants de Rouen » (Cash Sponsoring)",
+        hook: "« Patron d'un commerce, garage ou resto sur Rouen : combien tu paies ta pub qui sert à rien ? »",
+        body: "Montrer les vidéos qui font des vues + le flocage sur les shorts et t-shirts officiels RW Fight + les événements mairie.",
+        cta: "« À partir de 300 € à l'année, ton logo monte dans la cage avec nos combattants. Écris-nous en DM. »"
+      },
+      {
+        title: "4. Hook « Initiation Mairie / Jeunesse » (Preuve Sociale)",
+        hook: "« Quand la mairie nous confie les jeunes de la ville pour une initiation MMA, voilà ce que ça donne… »",
+        body: "Extraits dynamiques des journées d'initiation avec les sourires, la discipline et les exercices ludiques.",
+        cta: "« Le sport change tout. Salle ouverte du mardi au vendredi soir au Petit-Quevilly. »"
+      }
+    ];
+
+    const DEFAULT_SEO_TASKS = [
+      { id: "seo1", text: "Signaler & fermer définitivement l'ancienne fiche Google au 1 rue Florence Arthaud (Rouen)", done: false },
+      { id: "seo2", text: "Unifier l'adresse officielle sur HelloAsso & annuaires (Fighter 360) : 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly", done: false },
+      { id: "seo3", text: "Ajouter « 3 Séances Gratuites • Licence 240 €/an » dans la description de la fiche Google Maps", done: false },
+      { id: "seo4", text: "Lancer le message WhatsApp aux 50 adhérents pour passer de 7 à 50+ avis 5 étoiles", done: false },
+      { id: "seo5", text: "Publier 1 actualité Google Maps par semaine en recyclant les vidéos TikTok du club", done: false }
+    ];
+
+    // =========================================================================
+    // GESTION D'ÉTAT PERSISTANTE (LOCALSTORAGE)
+    // =========================================================================
+    let appState = {
+      activeTab: "sourcing",
+      crmFilter: "ALL",
+      crm: [],
+      selectedGuichet: "ans",
+      roster: [
+        { id: "f1", name: "Sofiane B.", weight: "-70 kg", exact: "70.1 kg", disc: "MMA Amateur", exp: "2 combats (2V-0D)", status: "Prêt immédiatement" },
+        { id: "f2", name: "Mehdi K.", weight: "-77 kg", exact: "76.8 kg", disc: "MMA Amateur", exp: "1 combat (1V-0D)", status: "Prêt immédiatement" },
+        { id: "f3", name: "Lucas D.", weight: "-66 kg", exact: "66.0 kg", disc: "Boxe Anglaise / MMA", exp: "Débutant confirmé", status: "Disponible Interclub" }
+      ],
+      seoTasks: DEFAULT_SEO_TASKS
+    };
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem("rwfight_qg_state_v1");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          appState = { ...appState, ...parsed };
+        }
+      } catch (e) {
+        console.warn("Erreur lecture localStorage:", e);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem("rwfight_qg_state_v1", JSON.stringify(appState));
+      } catch (e) {
+        console.warn("Erreur sauvegarde localStorage:", e);
+      }
+      updateGlobalKpis();
+    }
+
+    // =========================================================================
+    // UTILITAIRES UI : TOAST, COPIE PRESSE-PAPIER, MODALE & IMPRESSION
+    // =========================================================================
+    function showToast(message, type = "success") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      const colors = type === "error"
+        ? "bg-red-950 border-combatRed text-red-100"
+        : type === "info"
+        ? "bg-gray-900 border-combatGold text-amber-100"
+        : "bg-emerald-950 border-emerald-500 text-emerald-100";
+
+      toast.className = `pointer-events-auto border ${colors} px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all duration-300`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-8px)";
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function copyText(text, successMsg = "Copié dans le presse-papier !") {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (ok) {
+          showToast(successMsg, "success");
+          return;
+        }
+      } catch (err) {
+        // Fallback moderne
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg, "success");
+        }).catch(() => {
+          showToast("Sélectionnez le texte manuellement pour copier.", "info");
+        });
+      }
+    }
+
+    function openModal(title, bodyHtml, footerHtml = "") {
+      document.getElementById("modal-title").textContent = title;
+      document.getElementById("modal-body").innerHTML = bodyHtml;
+      document.getElementById("modal-footer").innerHTML = footerHtml;
+      document.getElementById("app-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("app-modal").classList.add("hidden");
+    }
+
+    function printDocumentHtml(htmlContent) {
+      const printArea = document.getElementById("print-area");
+      printArea.innerHTML = htmlContent;
+      window.print();
+    }
+
+    // =========================================================================
+    // NAVIGATION ENTRE LES 7 MODULES
+    // =========================================================================
+    function switchTab(tabId) {
+      appState.activeTab = tabId;
+      saveState();
+
+      document.querySelectorAll(".tab-section").forEach(sec => {
+        sec.classList.add("hidden");
+      });
+      const activeSec = document.getElementById(`tab-${tabId}`);
+      if (activeSec) activeSec.classList.remove("hidden");
+
+      // Mise à jour onglets hauts
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = "tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-combatRed text-white shadow-md shadow-red-950/40";
+          btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        } else {
+          btn.className = "tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-carbon text-gray-300 border border-gray-800 hover:border-gray-700";
+        }
+      });
+
+      // Mise à jour barre basse
+      document.querySelectorAll(".bottom-nav-btn").forEach(btn => {
+        if (btn.dataset.bottomTab === tabId) {
+          btn.classList.remove("text-gray-400");
+          btn.classList.add("text-combatRed", "font-bold");
+        } else if (btn.dataset.bottomTab) {
+          btn.classList.remove("text-combatRed", "font-bold");
+          btn.classList.add("text-gray-400");
+        }
+      });
+
+      if (tabId === "tunnel") renderQRCode();
+      if (tabId === "studio") renderFightCard();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openAllToolsDrawer() {
+      const html = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button onclick="switchTab('sourcing'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">🎯 1. Sourcing Sponsors B2B Live</div>
+            <div class="text-xs text-gray-400 mt-0.5">API SIRENE Rouen/Petit-Quevilly + Conventions</div>
+          </button>
+          <button onclick="switchTab('cerfa'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">🏛️ 2. Subventions CERFA 12156*06</div>
+            <div class="text-xs text-gray-400 mt-0.5">ANS, FDVA, Mairie, Dept 76 + Budget équilibré</div>
+          </button>
+          <button onclick="switchTab('tunnel'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">📲 3. Tunnel 3 Séances & QR Code</div>
+            <div class="text-xs text-gray-400 mt-0.5">QR Code salle + Lien Bio + Simulateur 240 €</div>
+          </button>
+          <button onclick="switchTab('studio'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">🔥 4. Studio Story 9:16 & Hooks</div>
+            <div class="text-xs text-gray-400 mt-0.5">Générateur d'affiches PNG + Scripts TikTok</div>
+          </button>
+          <button onclick="switchTab('remplacants'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">🥊 5. Bourse des Remplaçants</div>
+            <div class="text-xs text-gray-400 mt-0.5">Combattants au poids & alertes interclubs</div>
+          </button>
+          <button onclick="switchTab('galas'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left">
+            <div class="font-bold text-white text-sm">🏟️ 6. Stages & Galas (Salle 0 €)</div>
+            <div class="text-xs text-gray-400 mt-0.5">Calculateur de marge & annonce événement</div>
+          </button>
+          <button onclick="switchTab('seo'); closeModal()" class="p-3.5 rounded-2xl bg-obsidian border border-gray-800 hover:border-combatRed text-left sm:col-span-2">
+            <div class="font-bold text-white text-sm">📍 7. Bouclier SEO Google Maps & 50 Avis 5★</div>
+            <div class="text-xs text-gray-400 mt-0.5">Correction des 3 adresses + Convertisseur TikTok → Google</div>
+          </button>
+        </div>
+      `;
+      openModal("Tous les Leviers RW Fight QG", html);
+    }
+
+    // =========================================================================
+    // MODULE 1 : API OFFICIELLE SIRENE DE L'ÉTAT + CRM + CONVENTIONS
+    // =========================================================================
+    let lastSireneResults = [];
+
+    function quickSector(query) {
+      document.getElementById("sirene-query").value = query;
+      searchSirene();
+    }
+
+    async function searchSirene() {
+      const cp = document.getElementById("sirene-cp").value;
+      const q = document.getElementById("sirene-query").value.trim() || "entreprise";
+      const statusEl = document.getElementById("sirene-status");
+      const resultsEl = document.getElementById("sirene-results");
+
+      statusEl.innerHTML = `<span class="text-combatGold font-semibold">⏳ Interrogation en direct de l'API officielle de l'État (recherche-entreprises.api.gouv.fr)...</span>`;
+      resultsEl.innerHTML = "";
+
+      try {
+        const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(q)}&code_postal=${encodeURIComponent(cp)}&etat_administratif=A&per_page=12`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        const results = (data.results || []).map((item, idx) => {
+          const siege = item.siege || {};
+          const dir = (item.dirigeants && item.dirigeants.length > 0)
+            ? `${item.dirigeants[0].prenoms || ""} ${item.dirigeants[0].nom || ""}`.trim()
+            : "Direction / Gérant(e)";
+          return {
+            uid: `${item.siren || idx}_${Date.now()}`,
+            name: item.nom_complet || item.nom_raison_sociale || "Entreprise Locale",
+            siren: item.siren || "N/C",
+            siret: siege.siret || item.siren || "N/C",
+            address: siege.adresse || siege.geo_adresse || `${cp} Agglomération Rouen`,
+            naf: item.activite_principale || "N/C",
+            director: dir || "Direction / Gérant(e)"
+          };
+        });
+
+        lastSireneResults = results;
+
+        if (results.length === 0) {
+          statusEl.textContent = `Aucune entreprise trouvée pour "${q}" sur ${cp}. Essaie un autre mot-clé ou élargis à toute l'agglo.`;
+          return;
+        }
+
+        statusEl.innerHTML = `<span class="text-emerald-400 font-semibold">✅ ${results.length} entreprises actives trouvées en direct</span> (sur ${data.total_results || results.length} au total)`;
+        renderSireneResults(results);
+      } catch (error) {
+        console.error("Erreur API SIRENE:", error);
+        statusEl.innerHTML = `<span class="text-combatRed font-semibold">⚠️ Connexion API momentanément indisponible. Vérifie ton réseau mobile et réessaie.</span>`;
+      }
+    }
+
+    function renderSireneResults(list) {
+      const container = document.getElementById("sirene-results");
+      container.innerHTML = list.map((biz, index) => `
+        <div class="bg-carbon border border-gray-800 hover:border-gray-700 rounded-2xl p-4 space-y-3 transition">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h4 class="font-bold text-white text-sm sm:text-base">${escapeHtml(biz.name)}</h4>
+              <div class="text-xs text-gray-400 mt-0.5">📍 ${escapeHtml(biz.address)}</div>
+              <div class="flex flex-wrap gap-2 mt-1.5 text-[11px] text-gray-300">
+                <span class="bg-obsidian px-2 py-0.5 rounded border border-gray-800">👤 ${escapeHtml(biz.director)}</span>
+                <span class="bg-obsidian px-2 py-0.5 rounded border border-gray-800">SIRET : ${escapeHtml(biz.siret)}</span>
+                <span class="bg-obsidian px-2 py-0.5 rounded border border-gray-800">NAF : ${escapeHtml(biz.naf)}</span>
+              </div>
+            </div>
+            <select id="pack-select-${index}" class="bg-obsidian border border-combatGold/50 rounded-xl px-2.5 py-2 text-xs font-bold text-combatGold outline-none">
+              <option value="300">Pack Corner • 300 €</option>
+              <option value="500" selected>Pack Cage & Short • 500 €</option>
+              <option value="1200">Partenaire Majeur • 1 200 €</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <button onclick="addBizToCrm(${index})" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 font-bold py-2.5 px-2 rounded-xl text-xs transition">
+              + Ajouter CRM
+            </button>
+            <button onclick="sendBizWhatsapp(${index})" class="bg-carbonLight hover:bg-gray-700 text-white border border-gray-700 font-bold py-2.5 px-2 rounded-xl text-xs transition">
+              💬 WhatsApp
+            </button>
+            <button onclick="sendBizEmail(${index})" class="bg-carbonLight hover:bg-gray-700 text-white border border-gray-700 font-bold py-2.5 px-2 rounded-xl text-xs transition">
+              ✉️ E-mail Pro
+            </button>
+            <button onclick="openBizConvention(${index})" class="bg-combatRed hover:bg-red-600 text-white font-bold py-2.5 px-2 rounded-xl text-xs transition">
+              📄 Convention
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function getSelectedPackForIndex(index) {
+      const sel = document.getElementById(`pack-select-${index}`);
+      const val = sel ? sel.value : "500";
+      return SPONSOR_PACKS[val] || SPONSOR_PACKS["500"];
+    }
+
+    function buildSponsorPitch(biz, pack) {
+      return `Bonjour ${biz.director},\n\nJe me permets de vous contacter au nom du club de MMA RW FIGHT, basé au 11 Allée Paul Gauguin à Le Petit-Quevilly (agglomération de Rouen).\n\nNotre association rassemble aujourd'hui ~50 adhérents actifs, compte déjà 2 compétitions officielles à son actif et mène régulièrement des journées d'initiation sportive en partenariat avec la mairie, avec une forte visibilité locale sur TikTok et Instagram.\n\nNous ouvrons actuellement nos partenariats pour la saison avec le ${pack.label} :\n${pack.perks}\n\nSeriez-vous disponible cette semaine pour un échange rapide de 5 minutes ou un passage à votre entreprise ?\n\nSportivement,\nL'équipe RW FIGHT — Le Petit-Quevilly / Rouen`;
+    }
+
+    function sendBizWhatsapp(index) {
+      const biz = lastSireneResults[index];
+      if (!biz) return;
+      const pack = getSelectedPackForIndex(index);
+      const msg = buildSponsorPitch(biz, pack);
+      copyText(msg, "Message WhatsApp copié ! Ouverture de WhatsApp...");
+      setTimeout(() => {
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+      }, 400);
+    }
+
+    function sendBizEmail(index) {
+      const biz = lastSireneResults[index];
+      if (!biz) return;
+      const pack = getSelectedPackForIndex(index);
+      const subject = `Partenariat Sportif Local — ${biz.name} x RW FIGHT (Rouen / Le Petit-Quevilly)`;
+      const body = buildSponsorPitch(biz, pack);
+      copyText(`${subject}\n\n${body}`, "E-mail sponsor copié dans le presse-papier !");
+      setTimeout(() => {
+        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }, 400);
+    }
+
+    function openBizConvention(index, customPackId = null) {
+      const biz = lastSireneResults[index];
+      if (!biz) return;
+      const pack = customPackId ? SPONSOR_PACKS[customPackId] : getSelectedPackForIndex(index);
+      showConventionModal(biz, pack);
+    }
+
+    function showConventionModal(biz, pack) {
+      const today = new Date().toLocaleDateString("fr-FR");
+      const conventionText = `CONVENTION DE SPONSORING SPORTIF (PRESTATION PUBLICITAIRE)
+
+ENTRE LES SOUSSIGNÉS :
+
+1. L'ASSOCIATION :
+RW FIGHT — Association loi 1901
+Numéro RNA : W763021654
+Siège & Salle d'entraînement : 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly
+Représentée par son Bureau dirigeant, ci-après dénommée « L'Association ».
+
+ET
+
+2. LE PARTENAIRE / SPONSOR :
+Raison sociale : ${biz.name}
+SIRET : ${biz.siret}
+Adresse : ${biz.address}
+Représenté(e) par : ${biz.director}, ci-après dénommé « Le Sponsor ».
+
+ARTICLE 1 — OBJET DE LA CONVENTION
+La présente convention définit les modalités du partenariat publicitaire conclu entre RW FIGHT et ${biz.name} pour soutenir le développement sportif des ~50 adhérents, la préparation aux compétitions et les actions d'initiation jeunesse du club sur l'agglomération de Rouen / Le Petit-Quevilly.
+
+ARTICLE 2 — CONTREPARTIES PUBLICITAIRES (${pack.label.toUpperCase()})
+En contrepartie du soutien financier du Sponsor, RW FIGHT s'engage à assurer la visibilité suivante pendant 12 mois :
+${pack.perks}
+
+ARTICLE 3 — PARTICIPATION FINANCIÈRE & FACTURATION
+Le Sponsor verse à l'association RW FIGHT la somme forfaitaire de ${pack.price} € TTC (association non assujettie à la TVA selon l'article 261-7-1° du CGI).
+Une facture officielle de prestation publicitaire est remise au Sponsor pour sa comptabilité (charge déductible au titre des frais de publicité - Art. 39-1-7° du CGI).
+
+ARTICLE 4 — DURÉE
+La présente convention prend effet à compter du ${today} pour une durée d'un (1) an.
+
+Fait à Le Petit-Quevilly, le ${today}, en deux exemplaires originaux.
+
+Pour RW FIGHT                                      Pour ${biz.name}
+(Cachet & Signature)                               (${biz.director} — Cachet & Signature)`;
+
+      const modalHtml = `
+        <div class="bg-white text-gray-900 p-5 rounded-2xl font-serif text-xs sm:text-sm whitespace-pre-line border border-gray-300 shadow-inner">
+${escapeHtml(conventionText)}
+        </div>
+      `;
+      const footerHtml = `
+        <button onclick="copyText(document.querySelector('#modal-body div').innerText, 'Convention copiée !')" class="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs">
+          📋 Copier le texte
+        </button>
+        <button onclick="printDocumentHtml(document.querySelector('#modal-body').innerHTML)" class="px-4 py-2.5 rounded-xl bg-combatRed hover:bg-red-600 text-white font-bold text-xs">
+          🖨️ Imprimer / Sauver PDF
+        </button>
+      `;
+      openModal(`Convention Sponsoring — ${biz.name}`, modalHtml, footerHtml);
+    }
+
+    // --- Gestion CRM Sponsors ---
+    function addBizToCrm(index) {
+      const biz = lastSireneResults[index];
+      if (!biz) return;
+      const pack = getSelectedPackForIndex(index);
+      const exists = appState.crm.some(c => c.siret === biz.siret && biz.siret !== "N/C");
+      if (exists) {
+        showToast("Cette entreprise est déjà dans ton CRM !", "info");
+        return;
+      }
+      appState.crm.unshift({
+        id: "crm_" + Date.now(),
+        name: biz.name,
+        siret: biz.siret,
+        address: biz.address,
+        director: biz.director,
+        packId: pack.id,
+        status: "À contacter",
+        addedAt: new Date().toLocaleDateString("fr-FR")
+      });
+      saveState();
+      renderCrm();
+      showToast(`✅ ${biz.name} ajouté au CRM (${pack.price} €) !`);
+    }
+
+    function updateCrmStatus(id, newStatus) {
+      const item = appState.crm.find(c => c.id === id);
+      if (item) {
+        item.status = newStatus;
+        saveState();
+        renderCrm();
+        showToast(`Statut mis à jour : ${newStatus}`);
+      }
+    }
+
+    function updateCrmPack(id, newPackId) {
+      const item = appState.crm.find(c => c.id === id);
+      if (item) {
+        item.packId = newPackId;
+        saveState();
+        renderCrm();
+      }
+    }
+
+    function deleteCrmItem(id) {
+      appState.crm = appState.crm.filter(c => c.id !== id);
+      saveState();
+      renderCrm();
+      showToast("Prospect retiré du CRM", "info");
+    }
+
+    function filterCrm(filter) {
+      appState.crmFilter = filter;
+      document.querySelectorAll(".crm-filter-btn").forEach(btn => {
+        if (btn.dataset.crmFilter === filter) {
+          btn.className = "crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-combatRed text-white";
+        } else {
+          btn.className = "crm-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-carbonLight text-gray-300 border border-gray-700";
+        }
+      });
+      renderCrm();
+    }
+
+    function renderCrm() {
+      const listEl = document.getElementById("crm-list");
+      const filtered = appState.crmFilter === "ALL"
+        ? appState.crm
+        : appState.crm.filter(c => c.status === appState.crmFilter);
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="text-xs text-gray-500 text-center py-4 bg-obsidian rounded-xl border border-gray-800/70">Aucun prospect dans cette catégorie. Recherche une entreprise ci-dessus et clique sur « + Ajouter CRM ».</div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(item => {
+        const pack = SPONSOR_PACKS[item.packId] || SPONSOR_PACKS["500"];
+        const badgeColor = item.status === "Signé"
+          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+          : item.status === "Relancé J+4"
+          ? "bg-combatGold/20 text-combatGold border-combatGold/40"
+          : "bg-gray-800 text-gray-300 border-gray-700";
+
+        return `
+          <div class="bg-obsidian border border-gray-800 rounded-xl p-3 space-y-2">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div class="font-bold text-sm text-white">${escapeHtml(item.name)}</div>
+                <div class="text-[11px] text-gray-400">${escapeHtml(item.director)} • Ajouté le ${item.addedAt}</div>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${badgeColor}">${item.status}</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <select onchange="updateCrmPack('${item.id}', this.value)" class="bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-combatGold font-bold">
+                <option value="300" ${item.packId === "300" ? "selected" : ""}>300 € (Corner)</option>
+                <option value="500" ${item.packId === "500" ? "selected" : ""}>500 € (Cage & Short)</option>
+                <option value="1200" ${item.packId === "1200" ? "selected" : ""}>1 200 € (Majeur)</option>
+              </select>
+
+              <select onchange="updateCrmStatus('${item.id}', this.value)" class="bg-carbon border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white">
+                <option value="À contacter" ${item.status === "À contacter" ? "selected" : ""}>À contacter</option>
+                <option value="Relancé J+4" ${item.status === "Relancé J+4" ? "selected" : ""}>Relancé J+4</option>
+                <option value="Signé" ${item.status === "Signé" ? "selected" : ""}>Signé ✅</option>
+              </select>
+
+              <button onclick="showConventionModal({name:'${escapeJs(item.name)}', siret:'${escapeJs(item.siret)}', address:'${escapeJs(item.address)}', director:'${escapeJs(item.director)}'}, SPONSOR_PACKS['${item.packId}'])" class="px-2.5 py-1.5 rounded-lg bg-combatRed/20 text-combatRed border border-combatRed/40 text-xs font-bold">
+                📄 Convention
+              </button>
+
+              <button onclick="deleteCrmItem('${item.id}')" class="ml-auto px-2 py-1.5 rounded-lg text-gray-500 hover:text-red-400 text-xs">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateGlobalKpis() {
+      let pipeline = 0;
+      let signed = 0;
+      appState.crm.forEach(c => {
+        const price = (SPONSOR_PACKS[c.packId] || SPONSOR_PACKS["500"]).price;
+        if (c.status === "Signé") signed += price;
+        else pipeline += price;
+      });
+      document.getElementById("header-kpi-cash").textContent = `${signed.toLocaleString("fr-FR")} € signés`;
+      const pipeEl = document.getElementById("crm-pipeline-total");
+      const signEl = document.getElementById("crm-signed-total");
+      if (pipeEl) pipeEl.textContent = `${pipeline.toLocaleString("fr-FR")} €`;
+      if (signEl) signEl.textContent = `${signed.toLocaleString("fr-FR")} €`;
+    }
+
+    // =========================================================================
+    // MODULE 2 : AUTOMATISEUR DE SUBVENTIONS SPORTIVES (CERFA N°12156*06)
+    // =========================================================================
+    function selectGuichet(key) {
+      appState.selectedGuichet = key;
+      const tpl = GUICHET_TEMPLATES[key] || GUICHET_TEMPLATES.ans;
+      document.getElementById("cerfa-title").value = tpl.title;
+      document.getElementById("cerfa-objectives").value = tpl.objectives;
+      document.getElementById("cerfa-indicators").value = tpl.indicators;
+
+      document.querySelectorAll(".guichet-btn").forEach(btn => {
+        if (btn.dataset.guichet === key) {
+          btn.className = "guichet-btn text-left p-3 rounded-xl border border-combatRed bg-combatRed/10 transition" + (key === "passsport" ? " sm:col-span-2" : "");
+        } else {
+          btn.className = "guichet-btn text-left p-3 rounded-xl border border-gray-800 bg-obsidian hover:border-gray-700 transition" + (btn.dataset.guichet === "passsport" ? " sm:col-span-2" : "");
+        }
+      });
+    }
+
+    function recalcCerfaBudget() {
+      const c1 = Number(document.getElementById("charge-equip").value) || 0;
+      const c2 = Number(document.getElementById("charge-comp").value) || 0;
+      const c3 = Number(document.getElementById("charge-init").value) || 0;
+      const c4 = Number(document.getElementById("charge-admin").value) || 0;
+      const totalCharges = c1 + c2 + c3 + c4;
+
+      const p1 = Number(document.getElementById("prod-cotis").value) || 0;
+      const p2 = Number(document.getElementById("prod-sponsor").value) || 0;
+      const p3 = Number(document.getElementById("prod-merch").value) || 0;
+      const p4 = Number(document.getElementById("prod-subv").value) || 0;
+      const totalProduits = p1 + p2 + p3 + p4;
+
+      document.getElementById("total-charges").textContent = `${totalCharges.toLocaleString("fr-FR")} €`;
+      document.getElementById("total-produits").textContent = `${totalProduits.toLocaleString("fr-FR")} €`;
+
+      const badge = document.getElementById("cerfa-balance-badge");
+      if (totalCharges === totalProduits) {
+        badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+        badge.textContent = "ÉQUILIBRÉ 100% ✅";
+      } else {
+        const diff = totalCharges - totalProduits;
+        badge.className = "text-xs font-bold px-3 py-1 rounded-full bg-combatRed/20 text-combatRed border border-combatRed/40";
+        badge.textContent = `ÉCART : ${diff > 0 ? "+" + diff : diff} €`;
+      }
+    }
+
+    function autoBalanceCerfa() {
+      const c1 = Number(document.getElementById("charge-equip").value) || 0;
+      const c2 = Number(document.getElementById("charge-comp").value) || 0;
+      const c3 = Number(document.getElementById("charge-init").value) || 0;
+      const c4 = Number(document.getElementById("charge-admin").value) || 0;
+      const totalCharges = c1 + c2 + c3 + c4;
+
+      const p1 = Number(document.getElementById("prod-cotis").value) || 0;
+      const p2 = Number(document.getElementById("prod-sponsor").value) || 0;
+      const p3 = Number(document.getElementById("prod-merch").value) || 0;
+
+      const neededSubv = Math.max(0, totalCharges - (p1 + p2 + p3));
+      document.getElementById("prod-subv").value = neededSubv;
+      recalcCerfaBudget();
+      showToast(`Budget équilibré ! Subvention ajustée à ${neededSubv.toLocaleString("fr-FR")} €`);
+    }
+
+    function openCerfaPreview() {
+      autoBalanceCerfa();
+      const title = document.getElementById("cerfa-title").value;
+      const obj = document.getElementById("cerfa-objectives").value;
+      const ind = document.getElementById("cerfa-indicators").value;
+
+      const c1 = Number(document.getElementById("charge-equip").value) || 0;
+      const c2 = Number(document.getElementById("charge-comp").value) || 0;
+      const c3 = Number(document.getElementById("charge-init").value) || 0;
+      const c4 = Number(document.getElementById("charge-admin").value) || 0;
+      const totC = c1 + c2 + c3 + c4;
+
+      const p1 = Number(document.getElementById("prod-cotis").value) || 0;
+      const p2 = Number(document.getElementById("prod-sponsor").value) || 0;
+      const p3 = Number(document.getElementById("prod-merch").value) || 0;
+      const p4 = Number(document.getElementById("prod-subv").value) || 0;
+      const totP = p1 + p2 + p3 + p4;
+
+      const docText = `DOSSIER DE DEMANDE DE SUBVENTION — TRAME CERFA N°12156*06
+
+1. IDENTIFICATION DE L'ASSOCIATION
+• Dénomination : RW FIGHT (Association loi 1901, créée en mai 2025)
+• Numéro RNA : W763021654
+• Adresse du siège & salle : 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly
+• Territoire d'action : Le Petit-Quevilly / Rouen / Seine-Maritime (76)
+• Effectif actuel : ~50 adhérents actifs (créneaux mardi au vendredi soir)
+
+2. PRÉSENTATION DU PROJET
+• Intitulé : ${title}
+• Description & Objectifs :
+${obj}
+
+3. MOYENS & INDICATEURS D'ÉVALUATION
+${ind}
+
+4. BUDGET PRÉVISIONNEL DE L'ACTION (ÉQUILIBRÉ)
+CHARGES PRÉVISIONNELLES :
+- Achats équipements & protections MMA : ${c1} €
+- Déplacements & engagements compétitions : ${c2} €
+- Actions d'initiation jeunesse & communication : ${c3} €
+- Assurances, affiliation fédérale & gestion : ${c4} €
+TOTAL DES CHARGES : ${totC} €
+
+PRODUITS PRÉVISIONNELS :
+- Ressources propres (part cotisations affectée) : ${p1} €
+- Partenariats & sponsoring entreprises locales : ${p2} €
+- Ventes équipements officiels du club : ${p3} €
+- SUBVENTION SOLLICITÉE : ${p4} €
+TOTAL DES PRODUITS : ${totP} €
+
+Attesté sincère et véritable par le représentant légal de RW FIGHT.`;
+
+      const modalHtml = `<div class="bg-white text-gray-900 p-5 rounded-2xl font-sans text-xs sm:text-sm whitespace-pre-line border border-gray-300">${escapeHtml(docText)}</div>`;
+      const footerHtml = `
+        <button onclick="copyText(document.querySelector('#modal-body div').innerText, 'Trame CERFA copiée !')" class="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs">
+          📋 Copier tout le dossier
+        </button>
+        <button onclick="printDocumentHtml(document.querySelector('#modal-body').innerHTML)" class="px-4 py-2.5 rounded-xl bg-combatRed hover:bg-red-600 text-white font-bold text-xs">
+          🖨️ Imprimer / Export PDF
+        </button>
+      `;
+      openModal("Trame Complète CERFA n°12156*06", modalHtml, footerHtml);
+    }
+
+    // =========================================================================
+    // MODULE 3 : QR CODE SCANNABLE (ENCODEUR MATRIX PUR JS) + LIEN BIO + SIMULATEUR
+    // =========================================================================
+    // Encodeur QR Code autonome (Byte Mode, Version 1-4, ECC-L, Mask 0) pour scan caméra garanti
+    const QRGenerator = (() => {
+      const EXP = new Uint8Array(512);
+      const LOG = new Uint8Array(256);
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        EXP[i] = x;
+        LOG[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11d;
+      }
+      for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+
+      function gfMul(a, b) {
+        return a === 0 || b === 0 ? 0 : EXP[LOG[a] + LOG[b]];
+      }
+
+      function rsGenPoly(deg) {
+        let poly = [1];
+        for (let i = 0; i < deg; i++) {
+          const next = new Array(poly.length + 1).fill(0);
+          const factor = EXP[i];
+          for (let j = 0; j < poly.length; j++) {
+            next[j] ^= poly[j];
+            next[j + 1] ^= gfMul(poly[j], factor);
+          }
+          poly = next;
+        }
+        return poly;
+      }
+
+      function rsEncode(data, ecLen) {
+        const gen = rsGenPoly(ecLen);
+        const res = new Array(data.length + ecLen).fill(0);
+        for (let i = 0; i < data.length; i++) res[i] = data[i];
+        for (let i = 0; i < data.length; i++) {
+          const coef = res[i];
+          if (coef !== 0) {
+            for (let j = 0; j < gen.length; j++) {
+              res[i + j] ^= gfMul(gen[j], coef);
+            }
+          }
+        }
+        return res.slice(data.length);
+      }
+
+      // Capacités Version 1..4 ECC-L (octets de données, octets EC, alignement)
+      const VERSIONS = [
+        null,
+        { size: 21, dataBytes: 19, ecBytes: 7, align: [] },
+        { size: 25, dataBytes: 34, ecBytes: 10, align: [18] },
+        { size: 29, dataBytes: 55, ecBytes: 15, align: [22] },
+        { size: 33, dataBytes: 80, ecBytes: 20, align: [26] }
+      ];
+
+      function generate(text) {
+        const bytes = Array.from(new TextEncoder().encode(text));
+        let ver = 1;
+        while (ver <= 4 && bytes.length + 2 > VERSIONS[ver].dataBytes) ver++;
+        if (ver > 4) {
+          bytes.length = VERSIONS[4].dataBytes - 2;
+          ver = 4;
+        }
+        const cfg = VERSIONS[ver];
+        const size = cfg.size;
+
+        // Bitstream Byte mode (0100)
+        const bits = [];
+        const pushBits = (val, len) => {
+          for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1);
+        };
+        pushBits(0b0100, 4);
+        pushBits(bytes.length, 8);
+        bytes.forEach(b => pushBits(b, 8));
+        pushBits(0, Math.min(4, cfg.dataBytes * 8 - bits.length));
+        while (bits.length % 8 !== 0) bits.push(0);
+
+        const codewords = [];
+        for (let i = 0; i < bits.length; i += 8) {
+          let byte = 0;
+          for (let j = 0; j < 8; j++) byte = (byte << 1) | bits[i + j];
+          codewords.push(byte);
+        }
+        const pads = [0xec, 0x11];
+        let padIdx = 0;
+        while (codewords.length < cfg.dataBytes) {
+          codewords.push(pads[padIdx % 2]);
+          padIdx++;
+        }
+        const ec = rsEncode(codewords, cfg.ecBytes);
+        const fullCodewords = codewords.concat(ec);
+
+        // Matrice & réservation fonctionnelle
+        const grid = Array.from({ length: size }, () => new Array(size).fill(0));
+        const isFunc = Array.from({ length: size }, () => new Array(size).fill(false));
+
+        const setFunc = (r, c, val) => {
+          if (r >= 0 && r < size && c >= 0 && c < size) {
+            grid[r][c] = val ? 1 : 0;
+            isFunc[r][c] = true;
+          }
+        };
+
+        // Finder patterns + séparateurs
+        const drawFinder = (r0, c0) => {
+          for (let r = -1; r <= 7; r++) {
+            for (let c = -1; c <= 7; c++) {
+              const inOuter = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+              const inBorder = r === 0 || r === 6 || c === 0 || c === 6;
+              const inCore = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+              setFunc(r0 + r, c0 + c, inOuter && (inBorder || inCore));
+            }
+          }
+        };
+        drawFinder(0, 0);
+        drawFinder(0, size - 7);
+        drawFinder(size - 7, 0);
+
+        // Alignment pattern
+        cfg.align.forEach(pos => {
+          for (let r = -2; r <= 2; r++) {
+            for (let c = -2; c <= 2; c++) {
+              const dark = Math.abs(r) === 2 || Math.abs(c) === 2 || (r === 0 && c === 0);
+              setFunc(pos + r, pos + c, dark);
+            }
+          }
+        });
+
+        // Timing patterns
+        for (let i = 8; i < size - 8; i++) {
+          setFunc(6, i, i % 2 === 0);
+          setFunc(i, 6, i % 2 === 0);
+        }
+
+        // Dark module & format info reservation
+        setFunc(size - 8, 8, true);
+        for (let i = 0; i < 9; i++) {
+          if (!isFunc[8][i]) setFunc(8, i, false);
+          if (!isFunc[i][8]) setFunc(i, 8, false);
+        }
+        for (let i = 0; i < 8; i++) {
+          setFunc(8, size - 1 - i, false);
+          setFunc(size - 1 - i, 8, false);
+        }
+
+        // Placement zigzag des bits + Mask 0 ((r + c) % 2 === 0)
+        const allBits = [];
+        fullCodewords.forEach(cw => {
+          for (let b = 7; b >= 0; b--) allBits.push((cw >> b) & 1);
+        });
+
+        let bitIdx = 0;
+        let up = true;
+        for (let right = size - 1; right >= 1; right -= 2) {
+          if (right === 6) right = 5;
+          for (let i = 0; i < size; i++) {
+            const r = up ? size - 1 - i : i;
+            for (let dx = 0; dx < 2; dx++) {
+              const c = right - dx;
+              if (!isFunc[r][c]) {
+                const bit = bitIdx < allBits.length ? allBits[bitIdx++] : 0;
+                const masked = ((r + c) % 2 === 0) ? (bit ^ 1) : bit;
+                grid[r][c] = masked;
+              }
+            }
+          }
+          up = !up;
+        }
+
+        // Format info ECC-L + Mask 0 = 0x77c4 (15 bits)
+        const fmt = 0x77c4;
+        for (let i = 0; i < 15; i++) {
+          const bit = (fmt >> i) & 1;
+          // Horizontal
+          if (i < 6) grid[8][i] = bit;
+          else if (i < 8) grid[8][i + 1] = bit;
+          else grid[8][size - 15 + i] = bit;
+          // Vertical
+          if (i < 8) grid[size - 1 - i][8] = bit;
+          else if (i < 9) grid[15 - i][8] = bit;
+          else grid[14 - i][8] = bit;
+        }
+
+        return grid;
+      }
+
+      return { generate };
+    })();
+
+    function renderQRCode(targetCanvasId = "qr-canvas") {
+      const canvas = document.getElementById(targetCanvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const url = document.getElementById("qr-url-input").value.trim() || CLUB_INFO.url;
+      const matrix = QRGenerator.generate(url);
+      const n = matrix.length;
+      const margin = 2;
+      const cell = Math.floor(canvas.width / (n + margin * 2));
+      const offset = Math.floor((canvas.width - cell * n) / 2);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#090B10";
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (matrix[r][c] === 1) {
+            ctx.fillRect(offset + c * cell, offset + r * cell, cell, cell);
+          }
+        }
+      }
+    }
+
+    function openQrFullscreen() {
+      const url = document.getElementById("qr-url-input").value.trim() || CLUB_INFO.url;
+      const html = `
+        <div class="flex flex-col items-center text-center py-2">
+          <div class="bg-white p-4 rounded-3xl shadow-2xl mb-4">
+            <canvas id="modal-qr-canvas" width="280" height="280"></canvas>
+          </div>
+          <div class="font-display text-2xl font-bold text-white uppercase">3 SÉANCES D'ESSAI GRATUITES</div>
+          <div class="text-sm text-combatGold font-bold mt-1">RW FIGHT • 11 Allée Paul Gauguin, Le Petit-Quevilly</div>
+          <div class="text-xs text-gray-400 mt-1">Licence annuelle : 240 € • Mardi au Vendredi soir</div>
+          <div class="text-[11px] text-gray-500 mt-2 break-all">${escapeHtml(url)}</div>
+        </div>
+      `;
+      openModal("QR Code Salle & Initiations", html);
+      setTimeout(() => renderQRCode("modal-qr-canvas"), 50);
+    }
+
+    function downloadQrPng() {
+      const canvas = document.getElementById("qr-canvas");
+      const link = document.createElement("a");
+      link.download = "RW-FIGHT-QR-3-Seances-Gratuites.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      showToast("QR Code téléchargé en PNG !");
+    }
+
+    function copyBioLandingHtml() {
+      const bioCode = `<!-- PAGE LIEN BIO RW FIGHT (Prête pour Netlify) -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>RW FIGHT — 3 Séances Gratuites | Le Petit-Quevilly & Rouen</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+</head>
+<body class="bg-[#090B10] text-white min-h-screen flex items-center justify-center p-4 font-sans">
+  <div class="max-w-md w-full bg-[#121620] border border-gray-800 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+    <span class="inline-block px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-extrabold uppercase">Offre Découverte</span>
+    <h1 class="text-3xl font-black tracking-tight">RW FIGHT — MMA & BOXE</h1>
+    <p class="text-sm text-gray-300"><strong>3 SÉANCES D'ESSAI GRATUITES</strong><br>Puis licence annuelle à <strong>240 €</strong> tout compris.<br>11 Allée Paul Gauguin, 76140 Le Petit-Quevilly (Mardi au Vendredi soir).</p>
+    <a href="https://rwfight.netlify.app/#inscription" class="block w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-500 font-bold text-sm">🥊 Réserver mes 3 séances gratuites</a>
+    <a href="https://www.helloasso.com" target="_blank" class="block w-full py-3.5 px-4 rounded-2xl bg-amber-500/15 border border-amber-500/50 text-amber-400 font-bold text-sm">👕 Équipements Officiels RW Fight</a>
+    <a href="mailto:contact@rwfight.fr?subject=Partenariat%20RW%20Fight" class="block w-full py-3.5 px-4 rounded-2xl bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-sm">🤝 Devenir Sponsor / Partenaire</a>
+  </div>
+</body>
+</html>`;
+      copyText(bioCode, "Code HTML de la page Lien Bio copié !");
+    }
+
+    function updateSimulator() {
+      const trialsPerMonth = Number(document.getElementById("sim-trials").value);
+      const convRate = Number(document.getElementById("sim-conv").value);
+      const merchPacks = Number(document.getElementById("sim-merch").value);
+      const sponsors = Number(document.getElementById("sim-spon").value);
+
+      const yearlyTrials = trialsPerMonth * 12;
+      const newMembers = Math.round(yearlyTrials * (convRate / 100));
+      const newLicencesCash = newMembers * 240;
+      const merchNetCash = merchPacks * 23; // 45€ vente - 22€ coût = 23€ net
+      const sponsorsCash = sponsors * 500;
+
+      const addedNet = newLicencesCash + merchNetCash + sponsorsCash;
+      const totalClub = 12000 + addedNet;
+
+      document.getElementById("sim-trials-val").textContent = `${trialsPerMonth} / mois (${yearlyTrials}/an)`;
+      document.getElementById("sim-conv-val").textContent = `${convRate} % (+${newMembers} licences)`;
+      document.getElementById("sim-merch-val").textContent = `${merchPacks} packs (+${merchNetCash.toLocaleString("fr-FR")} € net)`;
+      document.getElementById("sim-spon-val").textContent = `${sponsors} sponsors (+${sponsorsCash.toLocaleString("fr-FR")} €)`;
+
+      document.getElementById("sim-added-net").textContent = `+${addedNet.toLocaleString("fr-FR")} €`;
+      document.getElementById("sim-total-club").textContent = `${totalClub.toLocaleString("fr-FR")} €`;
+    }
+
+    // =========================================================================
+    // MODULE 4 : STUDIO VIRAL STORY 9:16 PNG & HOOKS TIKTOK
+    // =========================================================================
+    function renderFightCard() {
+      const canvas = document.getElementById("story-canvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width;   // 540
+      const H = canvas.height;  // 960
+
+      const badge = document.getElementById("card-badge").value;
+      const fighter = document.getElementById("card-fighter").value.toUpperCase() || "COMBATTANT RW";
+      const weight = document.getElementById("card-weight").value.toUpperCase();
+      const record = document.getElementById("card-record").value.toUpperCase();
+      const eventName = document.getElementById("card-event").value.toUpperCase();
+      const dateStr = document.getElementById("card-date").value.toUpperCase();
+      const theme = document.getElementById("card-theme").value;
+
+      const primary = theme === "gold" ? "#F59E0B" : theme === "blue" ? "#3B82F6" : "#EF4444";
+      const secondary = theme === "gold" ? "#B45309" : theme === "blue" ? "#1D4ED8" : "#991B1B";
+
+      // Fond dégradé sombre tactique
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, "#090B10");
+      bgGrad.addColorStop(0.45, "#141926");
+      bgGrad.addColorStop(1, "#07090D");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Halo lumineux central
+      const radGrad = ctx.createRadialGradient(W / 2, H * 0.42, 20, W / 2, H * 0.42, 320);
+      radGrad.addColorStop(0, primary + "44");
+      radGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = radGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Octogone géométrique en arrière-plan
+      ctx.save();
+      ctx.strokeStyle = primary + "55";
+      ctx.lineWidth = 3;
+      const cx = W / 2;
+      const cy = H * 0.43;
+      const r = 185;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI / 8) + (i * Math.PI / 4);
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+
+      // Bandes diagonales haut & bas
+      ctx.fillStyle = primary;
+      ctx.fillRect(0, 0, W, 14);
+      ctx.fillRect(0, H - 14, W, 14);
+
+      // Logo RW FIGHT en haut
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 46px Oswald, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("RW FIGHT", W / 2, 86);
+
+      ctx.fillStyle = "#F59E0B";
+      ctx.font = "bold 15px Inter, sans-serif";
+      ctx.fillText("LE PETIT-QUEVILLY • ROUEN", W / 2, 112);
+
+      // Pilule Type d'événement
+      ctx.fillStyle = primary;
+      roundRect(ctx, W / 2 - 170, 145, 340, 42, 21, true, false);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 18px Inter, sans-serif";
+      ctx.fillText(badge, W / 2, 172);
+
+      // Emblème central
+      ctx.fillStyle = secondary;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 20, 74, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#F59E0B";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 54px Oswald, sans-serif";
+      ctx.fillText("RW", cx, cy - 2);
+
+      // Nom du combattant (avec retour à la ligne auto si long)
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 46px Oswald, sans-serif";
+      wrapCanvasText(ctx, fighter, W / 2, cy + 115, W - 60, 52);
+
+      // Catégorie & Palmarès
+      ctx.fillStyle = primary;
+      ctx.font = "bold 22px Inter, sans-serif";
+      ctx.fillText(weight, W / 2, cy + 205);
+
+      ctx.fillStyle = "#D1D5DB";
+      ctx.font = "600 18px Inter, sans-serif";
+      ctx.fillText(record, W / 2, cy + 236);
+
+      // Encadré Événement & Date
+      ctx.fillStyle = "rgba(18, 22, 32, 0.92)";
+      roundRect(ctx, 36, H - 255, W - 72, 125, 20, true, true, "#2A3244");
+
+      ctx.fillStyle = "#F59E0B";
+      ctx.font = "bold 22px Oswald, sans-serif";
+      ctx.fillText(eventName, W / 2, H - 208);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 20px Inter, sans-serif";
+      ctx.fillText(dateStr, W / 2, H - 172);
+
+      ctx.fillStyle = "#9CA3AF";
+      ctx.font = "600 14px Inter, sans-serif";
+      ctx.fillText("11 ALLÉE PAUL GAUGUIN • 76140 LE PETIT-QUEVILLY", W / 2, H - 144);
+
+      // Call to action bas de Story
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 17px Inter, sans-serif";
+      ctx.fillText("🥊 REJOINS LE CLUB : 3 SÉANCES GRATUITES", W / 2, H - 72);
+      ctx.fillStyle = "#9CA3AF";
+      ctx.font = "500 14px Inter, sans-serif";
+      ctx.fillText("Lien d'inscription en bio • @rwfight", W / 2, H - 45);
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke, strokeColor = "#FFF") {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(" ");
+      let line = "";
+      let currY = y;
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + " ";
+        if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+          ctx.fillText(line.trim(), x, currY);
+          line = words[n] + " ";
+          currY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line.trim(), x, currY);
+    }
+
+    function downloadFightCard() {
+      const canvas = document.getElementById("story-canvas");
+      const fighter = document.getElementById("card-fighter").value.trim().replace(/\s+/g, "-") || "RW-FIGHT";
+      const link = document.createElement("a");
+      link.download = `Story-RW-FIGHT-${fighter}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      showToast("Story 9:16 PNG téléchargée dans ta galerie !");
+    }
+
+    function copyStoryCaption() {
+      const fighter = document.getElementById("card-fighter").value;
+      const eventName = document.getElementById("card-event").value;
+      const caption = `🔥 ${fighter} prêt à représenter RW FIGHT sur ${eventName} !\n\nTu veux t'entraîner avec une vraie équipe à Rouen / Le Petit-Quevilly ?\n🥊 3 SÉANCES D'ESSAI GRATUITES (Mardi au Vendredi soir)\n📍 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly\n🔗 Lien en bio pour réserver ta place.\n\n#RWFight #MMARouen #LePetitQuevilly #MMAFrance #BoxeRouen #SportDeCombat #Normandie`;
+      copyText(caption, "Légende + Hashtags copiés !");
+    }
+
+    function renderTiktokScripts() {
+      const container = document.getElementById("tiktok-scripts-list");
+      container.innerHTML = TIKTOK_SCRIPTS.map((s, idx) => `
+        <div class="bg-obsidian border border-gray-800 rounded-xl p-3.5 space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm text-white">${s.title}</h4>
+            <button onclick="copyScript(${idx})" class="px-2.5 py-1 rounded-lg bg-combatRed/20 text-combatRed border border-combatRed/40 text-xs font-bold shrink-0">
+              📋 Copier
+            </button>
+          </div>
+          <div class="text-xs text-combatGold font-semibold">Hook (0-3s) : ${s.hook}</div>
+          <div class="text-xs text-gray-300">Images : ${s.body}</div>
+          <div class="text-xs text-emerald-400 font-medium">Appel à l'action : ${s.cta}</div>
+        </div>
+      `).join("");
+    }
+
+    function copyScript(idx) {
+      const s = TIKTOK_SCRIPTS[idx];
+      if (!s) return;
+      copyText(`${s.title}\n\nHOOK : ${s.hook}\nIMAGES : ${s.body}\nCTA : ${s.cta}`, "Script TikTok copié !");
+    }
+
+    // =========================================================================
+    // MODULE 5 : BOURSE DES REMPLAÇANTS & MATCHMAKING INTERCLUBS
+    // =========================================================================
+    function addFighter() {
+      const name = document.getElementById("fighter-name").value.trim();
+      if (!name) {
+        showToast("Indique le nom ou prénom du combattant.", "error");
+        return;
+      }
+      const weight = document.getElementById("fighter-weight").value;
+      const exact = document.getElementById("fighter-exact").value.trim() || weight;
+      const disc = document.getElementById("fighter-disc").value;
+      const exp = document.getElementById("fighter-exp").value.trim() || "Combattant suivi RW";
+
+      appState.roster.unshift({
+        id: "f_" + Date.now(),
+        name,
+        weight,
+        exact,
+        disc,
+        exp,
+        status: "Prêt immédiatement"
+      });
+      document.getElementById("fighter-name").value = "";
+      document.getElementById("fighter-exact").value = "";
+      document.getElementById("fighter-exp").value = "";
+      saveState();
+      renderRoster();
+      showToast(`${name} ajouté à la Bourse des Remplaçants !`);
+    }
+
+    function removeFighter(id) {
+      appState.roster = appState.roster.filter(f => f.id !== id);
+      saveState();
+      renderRoster();
+    }
+
+    function broadcastSingleFighter(id) {
+      const f = appState.roster.find(x => x.id === id);
+      if (!f) return;
+      const msg = `🚨 DISPONIBLE REMPLAÇANT / INTERCLUB — RW FIGHT (ROUEN) 🚨\n\n🥊 Combattant : ${f.name}\n⚖️ Catégorie : ${f.weight} (Poids actuel : ${f.exact})\n🥋 Discipline : ${f.disc}\n📊 Niveau : ${f.exp}\n✅ Statut : ${f.status} — Suivi médical & entraînement à jour.\n\n📍 Club : RW FIGHT (11 Allée Paul Gauguin, Le Petit-Quevilly / Rouen)\n📩 Contact direct coach en MP ou sur rwfight.netlify.app`;
+      copyText(msg, "Alerte combattant copiée ! Prête à coller sur WhatsApp / Insta.");
+    }
+
+    function broadcastAllFighters() {
+      if (appState.roster.length === 0) {
+        showToast("Ajoute au moins un combattant au roster.", "info");
+        return;
+      }
+      const lines = appState.roster.map(f => `• ${f.name} | ${f.weight} (${f.exact}) | ${f.disc} | ${f.exp}`).join("\n");
+      const msg = `🔥 ROSTER DISPONIBLE — RW FIGHT (ROUEN / NORMANDIE) 🔥\nOrganisateurs & Coachs, voici nos combattants prêts pour vos galas, remplaçants short-notice ou interclubs :\n\n${lines}\n\n📍 RW FIGHT — Le Petit-Quevilly (76)\n📩 Contactez-nous en MP pour matchmaking rapide !`;
+      copyText(msg, "Roster complet copié pour diffusion WhatsApp / Réseaux !");
+    }
+
+    function renderRoster() {
+      document.getElementById("roster-count").textContent = appState.roster.length;
+      const listEl = document.getElementById("roster-list");
+      if (appState.roster.length === 0) {
+        listEl.innerHTML = `<div class="text-xs text-gray-500 text-center py-4 bg-obsidian rounded-xl">Aucun combattant enregistré.</div>`;
+        return;
+      }
+      listEl.innerHTML = appState.roster.map(f => `
+        <div class="bg-obsidian border border-gray-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-sm text-white">${escapeHtml(f.name)}</span>
+              <span class="text-xs font-extrabold px-2 py-0.5 rounded bg-combatRed/20 text-combatRed">${escapeHtml(f.weight)}</span>
+              <span class="text-[11px] text-emerald-400 font-semibold">(${escapeHtml(f.exact)})</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5">${escapeHtml(f.disc)} • ${escapeHtml(f.exp)}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="broadcastSingleFighter('${f.id}')" class="px-3 py-2 rounded-xl bg-combatGold hover:bg-amber-400 text-black font-bold text-xs">
+              📢 Alerte Dispo
+            </button>
+            <button onclick="removeFighter('${f.id}')" class="p-2 text-gray-500 hover:text-red-400 text-xs">✕</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // =========================================================================
+    // MODULE 6 : CALCULATEUR STAGES & GALAS (SALLE GRATUITE MAIRIE)
+    // =========================================================================
+    function calcEventProfit() {
+      const pax = Number(document.getElementById("event-pax").value) || 0;
+      const price = Number(document.getElementById("event-price").value) || 0;
+      const buvette = Number(document.getElementById("event-buvette").value) || 0;
+      const sponsors = Number(document.getElementById("event-sponsors").value) || 0;
+      const costs = Number(document.getElementById("event-costs").value) || 0;
+
+      const gross = pax * price + buvette + sponsors;
+      const net = gross - costs;
+
+      document.getElementById("event-pax-val").textContent = `${pax} personnes`;
+      document.getElementById("event-gross").textContent = `${gross.toLocaleString("fr-FR")} €`;
+      document.getElementById("event-cost-display").textContent = `${costs.toLocaleString("fr-FR")} €`;
+      document.getElementById("event-net").textContent = `${net >= 0 ? "+" : ""}${net.toLocaleString("fr-FR")} €`;
+    }
+
+    function copyEventPromo() {
+      const type = document.getElementById("event-type").value;
+      const price = document.getElementById("event-price").value;
+      const msg = `🔥 ÉVÉNEMENT OFFICIEL RW FIGHT — ${type.toUpperCase()} 🔥\n\n📍 Lieu : Salle RW FIGHT — 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly (Agglo Rouen)\n🎟️ Participation : ${price} € (Places limitées)\n🥤 Buvette & ambiance conviviale sur place\n\nOuvert aux pratiquants et clubs de toute la Normandie !\n📩 Inscriptions & infos partenaires : rwfight.netlify.app`;
+      copyText(msg, "Annonce événement copiée !");
+    }
+
+    // =========================================================================
+    // MODULE 7 : BOUCLIER SEO GOOGLE MAPS & RÉPUTATION
+    // =========================================================================
+    function toggleSeoTask(id) {
+      const task = appState.seoTasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveState();
+        renderSeoChecklist();
+      }
+    }
+
+    function renderSeoChecklist() {
+      const container = document.getElementById("seo-checklist");
+      container.innerHTML = appState.seoTasks.map(t => `
+        <label onclick="toggleSeoTask('${t.id}')" class="flex items-start gap-3 p-3 rounded-xl bg-obsidian border ${t.done ? "border-emerald-500/40 bg-emerald-950/10" : "border-gray-800"} cursor-pointer select-none">
+          <input type="checkbox" ${t.done ? "checked" : ""} class="mt-0.5 accent-emerald-500 w-4 h-4 pointer-events-none" />
+          <span class="text-xs sm:text-sm ${t.done ? "line-through text-gray-500" : "text-gray-200"}">${escapeHtml(t.text)}</span>
+        </label>
+      `).join("");
+    }
+
+    function copyReviewCampaign() {
+      const msg = `Salut la team RW Fight ! 🥊🔥\n\nPour faire exploser la visibilité du club sur Rouen et Le Petit-Quevilly (et décrocher de nouveaux sponsors pour vos équipements et compétitions), on a besoin de 30 secondes de votre temps :\n\nTapez « RW FIGHT Le Petit-Quevilly » sur Google et laissez un avis 5 étoiles ⭐⭐⭐⭐⭐ en mentionnant l'ambiance, les coachs et les 3 séances gratuites.\n\nMerci à tous les 50 adhérents, on fait monter le club ensemble ! 💪`;
+      copyText(msg, "Message campagne 50 avis copié ! Colle-le dans le groupe WhatsApp.");
+    }
+
+    function convertTiktokToGoogleSeo() {
+      const raw = document.getElementById("tiktok-raw-input").value.trim() || "Entraînement intense MMA et préparation physique cette semaine à la salle !";
+      const seoPost = `🥊 ACTUALITÉ RW FIGHT — CLUB DE MMA & SPORTS DE COMBAT (LE PETIT-QUEVILLY / ROUEN)\n\n${raw}\n\nEnvie de découvrir le MMA, la boxe anglaise, le grappling ou la préparation physique dans une ambiance sérieuse et encadrée ?\n✅ Profitez de 3 SÉANCES D'ESSAI GRATUITES (Licence annuelle : 240 €)\n📅 Créneaux du mardi au vendredi soir\n📍 11 Allée Paul Gauguin, 76140 Le Petit-Quevilly (à 5 min de Rouen)\n👉 Réservez votre essai sur rwfight.netlify.app`;
+
+      const outEl = document.getElementById("google-seo-output");
+      outEl.textContent = seoPost;
+      outEl.classList.remove("hidden");
+      copyText(seoPost, "Post Google Maps SEO généré et copié !");
+    }
+
+    // =========================================================================
+    // HELPERS SÉCURITÉ & INITIALISATION AU CHARGEMENT
+    // =========================================================================
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeJs(str) {
+      return String(str || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      loadState();
+      updateGlobalKpis();
+      renderCrm();
+      selectGuichet(appState.selectedGuichet || "ans");
+      recalcCerfaBudget();
+      renderQRCode();
+      updateSimulator();
+      renderFightCard();
+      renderTiktokScripts();
+      renderRoster();
+      calcEventProfit();
+      renderSeoChecklist();
+      switchTab(appState.activeTab || "sourcing");
+      // Lancement automatique d'une première recherche réelle SIRENE sur Le Petit-Quevilly
+      searchSirene();
+    });
+  </script>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");</script>
+</body>
+</html>
