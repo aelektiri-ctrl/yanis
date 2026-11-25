@@ -138,17 +138,35 @@ h2{color:#14213d;font-size:12px;letter-spacing:.9px;margin:22px 0 10px}
 #sheet{background:var(--bg)}
 .kpis div{box-shadow:0 4px 14px rgba(16,24,40,.05)}.kpis b{color:#14213d}
 button.primary{background:#1d3557;border-color:#1d3557}
+
+/* ===== Thème « Maison » (v63) : ivoire, bleu de minuit, or ===== */
+:root{--bg:#f7f4ee;--surface:#fffdf9;--surface2:#faf7f1;--raise:#f1ece2;--line:#e7dfd0;--line2:#d8ccb6;--ink:#141a26;--ink2:#2c3444;--mute:#7a7366;
+--accent:#0f1b33;--accent-soft:rgba(15,27,51,.06);--good:#2f6f4f;--gold:#a8874f;--sec:#2f6f4f;--fort:#0f1b33;--chip:#f1ece2;--r:6px}
+html,body{font-family:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:#0f1b33!important;box-shadow:0 1px 0 #a8874f,0 6px 20px rgba(15,27,51,.25)!important}
+header h1{font-family:"Playfair Display","Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;font-weight:600;letter-spacing:.5px;font-size:19px}
+header h1 small{color:#cbb183!important;opacity:1}
+.modes{background:transparent!important;border-radius:0!important;padding:0!important;border-top:1px solid rgba(203,177,131,.25)!important;margin-top:10px}
+.modes button{border-radius:0!important;color:rgba(255,255,255,.65)!important;font-weight:500!important;letter-spacing:.6px;text-transform:uppercase;font-size:11.5px!important;padding:12px 12px!important;border-bottom:2px solid transparent!important}
+.modes button.on{background:transparent!important;color:#e9d7ae!important;box-shadow:none!important;border-bottom-color:#a8874f!important}
+nav button.on{border-color:#a8874f!important;color:#e9d7ae!important}
+.card{border-radius:6px!important;border:1px solid var(--line)!important;box-shadow:0 1px 2px rgba(20,26,38,.04)!important}
+.card.pn.good,.card.pn.wolfc,.card.vcard{box-shadow:inset 3px 0 0 #a8874f!important}.card.pn.bad{box-shadow:inset 3px 0 0 #9b2c2c!important}
+h2{font-family:"Playfair Display",Didot,Georgia,serif!important;text-transform:none!important;letter-spacing:.2px!important;font-size:17px!important;font-weight:600!important;color:#0f1b33!important;border-bottom:1px solid #e7dfd0;padding-bottom:6px}
+.ttl{font-weight:600;color:#141a26}.ok{color:#2f6f4f!important}
+.chips button.on,.hn.b,button.primary{background:#0f1b33!important;border-color:#0f1b33!important;color:#e9d7ae!important}
+.bar i{background:#a8874f!important}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v62</small></h1>
+    <h1>Turf <span>Analyste</span> <small style="font-size:11px;font-weight:700">v63</small></h1>
     <div class="datebar"><button id="bell" aria-label="Alertes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="bellN"></b></button><button id="prev" aria-label="Jour précédent">‹</button><button id="today">Auj.</button><button id="next" aria-label="Jour suivant">›</button></div>
   </div>
   <div class="status"><span id="st">Prêt</span><span id="upd"></span></div>
   <div class="bar"><i id="prog"></i></div>
-  <div class="modes"><button data-m="jour">Aujourd'hui</button><button data-m="turf" class="on">Turf</button><button data-m="sport">Sport</button><button data-m="value">Points noirs</button><button data-m="etude">Outsiders</button><button data-m="quinte">Quinté</button><button data-m="poker">Coup de poker</button></div>
+  <div class="modes"><button data-m="jour" class="on">Accueil</button><button data-m="turf">Courses</button><button data-m="quinte">Quinté+</button><button data-m="poker">Coup de poker</button><button data-m="etude">Outsiders</button><button data-m="sport">Sport</button><button data-m="value">Alertes</button></div>
   <nav id="navTurf"><button data-t="sel" class="on">Sélections</button><button data-t="prog">Programme</button><button data-t="bilan">Bilan</button></nav>
   <nav id="navQuinte" hidden><button class="on">Quinté+ · Pick 5 · classement dans les 5</button></nav>
   <nav id="navEtude" hidden><button class="on">Cotes hautes à valeur mesurée</button></nav>
@@ -2063,7 +2081,7 @@ var ROUTES=[
 ];
 var route=0;try{route=+localStorage.getItem('turf.route2')||0}catch(e){}
 var QD=new URLSearchParams(location.search).get('date');
-var S={perf:{},alerts:[],date:QD?new Date(QD+'T12:00:00'):new Date(),prog:null,an:{},tab:'sel',open:null,loading:false,last:null,err:null};
+var S={perf:{},alerts:[],date:QD?new Date(QD+'T12:00:00'):new Date(),prog:null,an:{},tab:'sel',mode:'jour',open:null,loading:false,last:null,err:null};
 var $=function(id){return document.getElementById(id)};
 function pL(p){return p>=0.995?'> 99 %':p<=0.005?'< 1 %':E.pct(p)}
 var EMO=/(?:[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{1F900}-\u{1F9FF}]|[\u2600-\u26FF\u2B50\u2B06]|[\u2700-\u2712\u2714-\u2716\u2718-\u27BF])\uFE0F?\u200D?\s?/gu;
@@ -2911,7 +2929,7 @@ try{if(localStorage.getItem('turf.mode')==='sport'){setTimeout(function(){var b=
 
 if(/[?&]test=1/.test(location.search))window.__t={loadDay:loadDay,SP:SP,S:S};
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(function(){});
-render();loadDay(true);
+['Turf','Quinte','Etude','Value','Sport'].forEach(function(n){var e=$('nav'+n);if(e)e.hidden=true});render();loadDay(true);if(S.mode==="jour")SP.load(false);
 })();
 
 </script>
